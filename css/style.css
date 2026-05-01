@@ -71,3 +71,13 @@ body {
         border-top: 1px solid #ddd;
     }
 }
+
+.skill-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    cursor: pointer;
+}
+
+.skill-card:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.2) !important;
+}
