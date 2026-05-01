@@ -1,36 +1,33 @@
 <?php
-// Turn on error reporting for this test so we can see what's wrong
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
-
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     
-    // 1. COLLECT DATA
-    $name = $_POST["name"] ?? 'No Name';
-    $facility = $_POST["facility"] ?? 'No Facility';
-    $email = $_POST["email"] ?? 'No Email';
-    $message = $_POST["message"] ?? 'No Message';
+    // 1. Collect and Clean Data
+    $name = strip_tags(trim($_POST["name"] ?? ''));
+    $facility = strip_tags(trim($_POST["facility"] ?? ''));
+    $email = filter_var(trim($_POST["email"] ?? ''), FILTER_SANITIZE_EMAIL);
+    $message = strip_tags(trim($_POST["message"] ?? ''));
     $honeypot = $_POST["website_verification_field"] ?? '';
 
-    // 2. CHECK HONEYPOT (Only if it actually has content)
+    // 2. Honeypot check
     if (!empty($honeypot)) {
-        die("Spam bot detected. If you are human, please clear your browser cache and try again.");
+        die("Spam detected.");
     }
 
-    // 3. SEND THE MAIL
+    // 3. Setup Email
     $recipient = "michaelssmith@icloud.com"; 
     $subject = "NEW AUDIT REQUEST: $facility";
     $email_content = "Name: $name\nFacility: $facility\nEmail: $email\n\nDetails:\n$message";
     
-    // The -f flag is crucial for AWS/iCloud trust
-    $headers = "From: web-form@mikeofalltrades.com.au";
+    // Essential for AWS and iCloud delivery
+    $headers = "From: web-form@mikeofalltrades.com.au\r\n";
+    $headers .= "Reply-To: $email";
     $params = "-fweb-form@mikeofalltrades.com.au";
 
+    // 4. Send
     if (mail($recipient, $subject, $email_content, $headers, $params)) {
         echo "<h1>Request Sent!</h1><p>Thanks Mike, I'll be in touch soon. <a href='index.php'>Return to site</a></p>";
     } else {
-        $last_error = error_get_last();
-        echo "Oops! Mail failed. Error: " . $last_error['message'];
+        echo "<h1>Oops!</h1><p>The mail server didn't respond. This usually happens on local computers (XAMPP). Please test this on the live AWS server.</p>";
     }
 }
 ?>
