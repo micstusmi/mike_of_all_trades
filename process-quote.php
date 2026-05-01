@@ -28,9 +28,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $mail->Host       = 'smtp.zoho.com.au';
         $mail->SMTPAuth   = true;
         $mail->Username   = 'mike@mikeofalltrades.com.au';
-        $mail->Password   = 'YOUR-ZOHO-APP-PASSWORD'; // Use the same one from earlier
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port       = 587;
+        $mail->Password   = 'WWXrU4C4xQdH'; 
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+        $mail->Port       = 465;
 
         $mail->setFrom('mike@mikeofalltrades.com.au', 'Mike of All Trades (Quotes)');
         $mail->addAddress('mike@mikeofalltrades.com.au');

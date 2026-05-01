@@ -17,8 +17,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $mail->SMTPAuth   = true;
         $mail->Username   = 'mike@mikeofalltrades.com.au'; 
         $mail->Password   = 'WWXrU4C4xQdH'; 
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port       = 587; 
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+        $mail->Port       = 465; 
 
         // --- The Handshake ---
         $mail->setFrom('mike@mikeofalltrades.com.au', 'Mike of All Trades');
