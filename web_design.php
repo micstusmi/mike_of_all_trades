@@ -28,9 +28,20 @@
             <div class="card border-0 shadow-sm p-4 h-100">
                 <h5 class="fw-bold mb-3 border-bottom pb-2">Core Expertise</h5>
                 <ul class="list-unstyled text-muted">
-                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Skill One</li>
-                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Skill Two</li>
-                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Skill Three</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Web Developer</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Website (Cloud) Hosting</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Email Hosting</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Domain Name Reseller</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Search Engine Optimization (SEO)</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Social Media Integration</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> CRM Integration</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Custom Quote Engines</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Shopping Cart with Payment Processing</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> HTML</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> CSS</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> PHP</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> SQL</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> JavaScript</li>
                 </ul>
             </div>
         </div>

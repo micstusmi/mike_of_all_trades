@@ -28,9 +28,15 @@
             <div class="card border-0 shadow-sm p-4 h-100">
                 <h5 class="fw-bold mb-3 border-bottom pb-2">Core Expertise</h5>
                 <ul class="list-unstyled text-muted">
-                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Skill One</li>
-                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Skill Two</li>
-                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Skill Three</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Filming in 4K</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Handheld Gimbal Operation</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Many different lenses for various shooting scenarios</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> 4K Drone Footage</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Video Editing</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Storyboarding</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Audio Recording</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Dynamic Graphical Overlays</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Optimising for Social Media</li>
                 </ul>
             </div>
         </div>

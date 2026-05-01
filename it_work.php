@@ -28,9 +28,19 @@
             <div class="card border-0 shadow-sm p-4 h-100">
                 <h5 class="fw-bold mb-3 border-bottom pb-2">Core Expertise</h5>
                 <ul class="list-unstyled text-muted">
-                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Skill One</li>
-                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Skill Two</li>
-                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Skill Three</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Network Administration</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Modem / Router Setup and Troubleshooting</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> System Integration</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Cybersecurity</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> PC Repairs</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> NAS Box setup / Management</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Software Installation and Configuration</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Microsoft Office Suite / Microsoft 365</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Google Workspace</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Zoho One</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Custom local applications</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Business Consulting</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> AI Implementation</li>
                 </ul>
             </div>
         </div>
