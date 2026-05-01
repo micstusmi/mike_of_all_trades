@@ -9,7 +9,7 @@
 <main>
     <div class="hero-card">
         <h1 class="display-4 fw-bold mb-2">
-            PAGE TITLE <span style="color: var(--mike-orange);">Kitchen and Bathroom Cabinets</span>
+        <span style="color: var(--mike-orange);">Kitchen and Bathroom Cabinets</span>
         </h1>
         <p class="fs-5 opacity-90">
             A brief professional summary of this specific service.
