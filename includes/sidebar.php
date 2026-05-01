@@ -11,6 +11,8 @@
         <li class="nav-item"><a class="nav-link" href="web_design.php"><i class="bi bi-code-slash"></i> Web Design</a></li>
         <li class="nav-item"><a class="nav-link" href="mobile_phone_applications.php"><i class="bi bi-phone"></i> Mobile Apps</a></li>
         <li class="nav-item"><a class="nav-link" href="it_work.php"><i class="bi bi-cpu"></i> IT Work</a></li>
+        <li class="nav-item"><a class="nav-link" href="ecommerce.php"><i class="bi bi-cpu"></i> E-commerce</a></li>
+
         
         <h6 class="text-muted mt-4 small px-4">TRADES</h6>
         <li class="nav-item"><a class="nav-link" href="handyman.php"><i class="bi bi-tools"></i> Handyman</a></li>
