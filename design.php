@@ -8,10 +8,10 @@
         <div class="row g-4">
             <div class="col-md-6 col-lg-4">
                 <div class="card h-100 bg-secondary text-light border-0 shadow">
-                    <img src="images/services/video-prod.jpg" class="card-img-top" alt="Video Production">
+                    <img src="images/services/graphic-design.jpg" class="card-img-top" alt="Graphic Design Services">
                     <div class="card-body">
-                        <h5 class="card-title text-primary">Video Production & Editing</h5>
-                        <p class="card-text">Specializing in corporate keynote videos, summit presentations, and promotional content.</p>
+                        <h5 class="card-title text-primary">Graphic Design</h5>
+                        <p class="card-text">Creating compelling visuals for branding, marketing, and digital platforms.</p>
                         <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#quoteModal">Inquire</button>
                     </div>
                 </div>

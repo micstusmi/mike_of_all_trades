@@ -5,6 +5,18 @@
         <h1 class="display-4 border-bottom border-primary pb-3 mb-5">Media Services</h1>
         <p class="lead mb-5">High-impact digital content, from corporate keynotes to technical storyboarding.</p>
 
+                <div class="row g-4">
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 bg-secondary text-light border-0 shadow">
+                    <img src="images/services/photography.jpg" class="card-img-top" alt="Photography">
+                    <div class="card-body">
+                        <h5 class="card-title text-primary">Photography</h5>
+                        <p class="card-text">Capturing moments that tell your story with high-quality images.</p>
+                        <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#quoteModal">Inquire</button>
+                    </div>
+                </div>
+            </div>
+
         <div class="row g-4">
             <div class="col-md-6 col-lg-4">
                 <div class="card h-100 bg-secondary text-light border-0 shadow">
