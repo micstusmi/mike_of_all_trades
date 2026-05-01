@@ -1,6 +1,5 @@
 <?php 
     include_once __DIR__ . '/includes/header.php'; 
-    include_once __DIR__ . '/includes/sidebar.php'; 
 ?>
 
 <main>
@@ -45,4 +44,7 @@
     </div>
 </main>
 
-<?php include_once __DIR__ . '/includes/footer.php'; ?>
+<?php 
+    include_once __DIR__ . '/includes/sidebar.php'; 
+    include_once __DIR__ . '/includes/footer.php';
+?>

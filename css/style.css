@@ -55,38 +55,19 @@ body {
     color: #fff;
 }
 
-/* Mobile Optimization: Flip the order so the Hero Card comes first */
+/* Mobile Specific Fixes */
 @media (max-width: 768px) {
-    /* 1. Turn the body into a flex container to allow reordering */
-    body {
-        display: flex;
-        flex-direction: column;
-    }
-
-    /* 2. Keep the Navbar at the very top */
-    header, .navbar {
-        order: 1;
-    }
-
-    /* 3. Force the Main content (Hero Card) to jump to the second spot */
     main {
-        order: 2;
-        margin-left: 0 !important; /* Remove any desktop spacing */
+        margin-left: 0 !important; /* Ensure content isn't pushed right */
         padding: 20px;
     }
 
-    /* 4. Push the Sidebar (Services list) to the bottom */
     .sidebar {
-        order: 3;
-        position: static !important; /* Stop it from being "fixed" so it scrolls naturally */
+        position: relative !important; /* Stop it from floating */
         width: 100% !important;
-        padding: 30px 20px !important;
-        border-top: 1px solid #dee2e6;
+        height: auto !important;
+        padding: 40px 20px !important;
         box-shadow: none;
-    }
-    
-    /* 5. Ensure footer stays at the bottom */
-    footer {
-        order: 4;
+        border-top: 1px solid #ddd;
     }
 }
