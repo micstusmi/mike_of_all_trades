@@ -7,9 +7,9 @@
     <div class="hero-card">
         <h1 class="display-3 fw-bold mb-3">One Mike. <span style="color: var(--mike-orange);">Every Solution.</span></h1>
         <p class="fs-4 opacity-75">Digital creation, technical infrastructure, and hands-on trade expertise.</p>
-        <div class="mt-4">
-            <button class="btn btn-warning rounded-pill px-4 py-2 fw-bold text-white border-0 shadow-sm" style="background-color: var(--mike-orange);">View Work</button>
-            <button class="btn btn-outline-light rounded-pill px-4 py-2 ms-2">Get Quote</button>
+        <div class="mt-4 d-grid d-md-block gap-2">
+    <button class="btn btn-warning rounded-pill px-4 py-2 fw-bold text-white border-0 shadow-sm" style="background-color: var(--mike-orange);">View Work</button>
+    <button class="btn btn-outline-light rounded-pill px-4 py-2">Get Quote</button>
         </div>
     </div>
 
