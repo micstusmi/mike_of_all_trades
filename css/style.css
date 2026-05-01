@@ -1,0 +1,57 @@
+body {
+    font-size: .9rem;
+    background-color: #f8f9fa;
+}
+
+/* Sidebar styling */
+.sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 100;
+    padding: 55px 0 0; /* Space for the header */
+    box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
+    background-color: #ffffff;
+}
+
+.sidebar .nav-link {
+    font-weight: 500;
+    color: #333;
+    padding: 10px 20px;
+}
+
+.sidebar .nav-link i {
+    margin-right: 8px;
+    color: #6c757d;
+}
+
+.sidebar .nav-link.active {
+    color: #0d6efd;
+    background-color: #e9ecef;
+}
+
+.sidebar-heading {
+    font-size: .75rem;
+    text-transform: uppercase;
+    padding: 15px 20px 5px;
+}
+
+/* Header/Search styling */
+.navbar-brand img {
+    border-radius: 50%;
+    border: 1px solid #444;
+}
+
+.form-control-dark {
+    background-color: rgba(255, 255, 255, .1);
+    border: none;
+    color: #fff;
+}
+
+.form-control-dark:focus {
+    background-color: rgba(255, 255, 255, .2);
+    box-shadow: none;
+    color: #fff;
+}
+
