@@ -80,7 +80,7 @@
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body p-4">
-        <form action="process-audit.php" method="POST">
+        <form action="process_audit.php" method="POST">
           
           <div style="display:none;">
             <input type="text" name="website_verification_field" value="">

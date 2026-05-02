@@ -3,7 +3,7 @@ $(document).ready(function() {
         e.preventDefault();
         $.ajax({
             type: 'POST',
-            url: 'process-contact.php',
+            url: 'process_contact.php',
             data: $(this).serialize(),
             success: function(response) {
                 $('#formResponse').html('<div class="alert alert-success">Message Sent!</div>');
