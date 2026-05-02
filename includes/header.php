@@ -23,53 +23,54 @@
             font-size: 0.85rem; 
             padding: 0 20px !important; 
         }
-        .header-nav-link:hover { color: var(--mike-orange) !important; }
 
-        /* --- 2. Mobile Toggler Visibility --- */
-        .navbar-toggler {
-            border: 2px solid var(--mike-cyan) !important; /* Cyan border for visibility */
-            box-shadow: 0 0 10px rgba(13, 202, 240, 0.4); /* Glow effect */
+        /* --- 2. Toggler & Logo Positioning (Prevents Jumping) --- */
+        .navbar-brand { margin-right: auto !important; } /* Keeps logo left */
+        .navbar-toggler { 
+            margin-left: 15px !important; 
+            border: 2px solid var(--mike-cyan) !important; 
+            box-shadow: 0 0 10px rgba(13, 202, 240, 0.4); 
         }
 
-        /* --- 3. Mobile Specific Layout & Spacing --- */
-        @media (max-width: 991.98px) {
-            .sidebar { position: static; width: 100%; padding-top: 20px; } 
-            main, .footer-section { margin-left: 0; padding: 20px; }
+        /* --- 3. Desktop Sidebar & Content --- */
+        .sidebar { position: fixed; top: 70px; bottom: 0; left: 0; width: 260px; background: #fff; border-right: 1px solid #eee; z-index: 1000; overflow-y: auto; padding-top: 20px; }
+        .sidebar .nav-link { color: #444; font-weight: 500; padding: 12px 25px; }
+        main { margin-left: 260px; padding: 40px; flex: 1 0 auto; }
+        .footer-section { margin-left: 260px; background: #fff; border-top: 1px solid #eee; padding: 30px 40px; }
 
-            /* Fixes the "Jumping" and anchors the menu items */
+        /* --- 4. MOBILE-ONLY FIXES --- */
+        @media (max-width: 992px) { 
+            .sidebar { display: none !important; } /* Hide redundant sidebar on mobile */
+            
+            main, .footer-section { 
+                margin-left: 0 !important; /* Remove the 260px gap */
+                padding: 20px !important; 
+            }
+
             .navbar-collapse {
                 background-color: var(--mike-navy);
-                margin-top: 15px;
-                padding: 10px 0 20px 0;
+                margin-top: 10px;
+                padding: 15px 0;
                 border-top: 1px solid rgba(255,255,255,0.1);
             }
 
-            /* Touch-friendly line spacing for links */
+            /* Fat-finger friendly spacing for Home/About/Services */
             .navbar-nav .nav-item {
-                padding: 10px 0;
+                padding: 15px 0; 
                 border-bottom: 1px solid rgba(255,255,255,0.05);
                 text-align: center;
             }
 
-            .header-nav-link {
-                font-size: 1.1rem; /* Slightly larger text for mobile */
-                display: block;
-                width: 100%;
-            }
+            .header-nav-link { font-size: 1.1rem; width: 100%; display: block; }
 
-            /* Align Logo Left and Burger Right */
-            .navbar-brand { margin-right: auto !important; }
-            .navbar-toggler { margin-left: auto !important; }
+            /* Spacing out the dropdown services */
+            .dropdown-item { padding: 15px 20px !important; font-size: 1rem; }
         }
 
-        /* --- 4. Sidebar, Hero & Dropdown (Your Existing Logic) --- */
+        /* Hero Card & Dropdown Styles */
         .hero-card { background: linear-gradient(135deg, var(--mike-navy), #2c3e50); color: white; border-radius: 20px; padding: 3.5rem; margin-bottom: 2rem; box-shadow: 0 10px 30px rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.05); }
-        .sidebar { position: fixed; top: 70px; bottom: 0; left: 0; width: 260px; background: #fff; border-right: 1px solid #eee; z-index: 1000; overflow-y: auto; padding-top: 20px; }
-        main { margin-left: 260px; padding: 40px; flex: 1 0 auto; }
-        .footer-section { margin-left: 260px; background: #fff; border-top: 1px solid #eee; padding: 30px 40px; flex-shrink: 0; }
         .dropdown-menu-dark { background-color: var(--mike-navy); border: 1px solid rgba(255,255,255,0.1); max-height: 80vh; overflow-y: auto; }
-        .dropdown-header { color: var(--mike-orange) !important; font-weight: 800; letter-spacing: 1px; font-size: 0.7rem; padding-top: 15px; }
-        .dropdown-item { font-size: 0.95rem; padding: 12px 20px; } /* Larger hit area for mobile services */
+        .dropdown-header { color: var(--mike-orange) !important; font-weight: 800; font-size: 0.7rem; padding-top: 15px; }
     </style>
 </head>
 <body>
@@ -77,11 +78,11 @@
 <header class="navbar navbar-expand-lg navbar-dark sticky-top px-4 shadow">
     <div class="container-fluid d-flex align-items-center">
         <a class="navbar-brand fw-bold fs-4 d-flex align-items-center" href="index.php">
-            <img src="assets/logos/mike_of_all_trades_logo.jpg" height="35" class="me-2 rounded shadow-sm" onerror="this.style.display='none'">
+            <img src="assets/logos/mike_of_all_trades_logo.jpg" height="35" class="me-2 rounded shadow-sm">
             <span>Mike Of All Trades</span>
         </a>
 
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#topNavbar" aria-controls="topNavbar" aria-expanded="false">
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#topNavbar">
             <span class="navbar-toggler-icon"></span>
         </button>
 
@@ -89,23 +90,18 @@
             <ul class="navbar-nav ms-auto mb-0">
                 <li class="nav-item"><a class="nav-link header-nav-link" href="index.php">HOME</a></li>
                 <li class="nav-item"><a class="nav-link header-nav-link" href="about.php">ABOUT</a></li>
-                
                 <li class="nav-item dropdown">
-                    <a class="nav-link header-nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        SERVICES
-                    </a>
+                    <a class="nav-link header-nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">SERVICES</a>
                     <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark shadow">
                         <li><h6 class="dropdown-header">CREATIVE</h6></li>
                         <li><a class="dropdown-item" href="graphic_design.php">Graphic Design</a></li>
                         <li><a class="dropdown-item" href="photography.php">Photography</a></li>
                         <li><a class="dropdown-item" href="videography.php">Videography</a></li>
-                        
                         <li><h6 class="dropdown-header">TECHNICAL</h6></li>
                         <li><a class="dropdown-item" href="web_design.php">Web Design</a></li>
                         <li><a class="dropdown-item" href="mobile_phone_applications.php">Mobile Apps</a></li>
                         <li><a class="dropdown-item" href="it_work.php">IT Work</a></li>
                         <li><a class="dropdown-item" href="ecommerce.php">E-commerce</a></li>
-                        
                         <li><h6 class="dropdown-header">TRADES</h6></li>
                         <li><a class="dropdown-item" href="handyman.php">Handyman</a></li>
                         <li><a class="dropdown-item" href="property_maintenance.php">Property Maintenance</a></li>
