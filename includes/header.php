@@ -24,11 +24,11 @@
             padding: 0 20px !important;
         }
 
-        /* This fixes the "Whole Screen" issue on desktop */
-        .mobile-logo {
-            height: 45px; /* Default desktop size */
-            width: auto;
-        }
+/* --- Global Logo Fix (Ensures desktop is never huge) --- */
+.navbar-brand img {
+    height: 35px !important; /* Forces 35px on desktop */
+    width: auto;
+}
 
         /* --- 2. The Hero Card (Global) --- */
         .hero-card { 
@@ -45,9 +45,11 @@
         .hero-card .highlight { color: var(--mike-orange) !important; font-weight: 800; }
         .hero-card .lead { color: rgba(255,255,255,0.9) !important; margin-bottom: 2rem; }
 
-        /* --- 3. Mobile Specific Styling --- */
-        @media (max-width: 991.98px) {
-            .mobile-logo { height: 45px !important; } /* 20% larger on mobile */
+/* --- Global Logo Fix (Ensures desktop is never huge) --- */
+.navbar-brand img {
+    height: 35px !important; /* Forces 35px on desktop */
+    width: auto;
+}
 
             .navbar-center-text {
                 position: absolute;
