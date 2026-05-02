@@ -78,7 +78,7 @@
 <header class="navbar navbar-expand-lg navbar-dark sticky-top px-4 shadow">
     <div class="container-fluid d-flex align-items-center">
         <a class="navbar-brand fw-bold fs-4 d-flex align-items-center" href="index.php">
-            <img src="assets/logos/mike_of_all_trades_logo.jpg" height="35" class="me-2 rounded shadow-sm">
+            <img src="/assets/logos/mike_of_all_trades_logo.jpg" height="35" class="me-2 rounded shadow-sm" alt="Mike Of All Trades Logo">
             <span>Mike Of All Trades</span>
         </a>
 
