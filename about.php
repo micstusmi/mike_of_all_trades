@@ -2,13 +2,17 @@
 
 <main>
     <div class="container-fluid">
-        <div class="hero-card shadow">
-            <h1 class="display-4 fw-bold">About <span class="highlight">Mike Of All Trades</span></h1>
-            <p class="lead opacity-75 mb-4">Three decades of multi-disciplinary expertise. One dedicated point of contact.</p>
-            <button class="btn btn-outline-light rounded-pill px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#quoteModal">
-                GET QUOTE
-            </button>
-        </div>
+        <div class="row justify-content-center">
+            <div class="col-xxl-9 col-xl-10">
+                
+                <div class="hero-card shadow mt-3">
+                    <h1 class="display-5 fw-bold">About <span class="highlight">Mike Of All Trades</span></h1>
+                    <p class="lead">Three decades of multi-disciplinary expertise.<br>One dedicated point of contact.</p>
+                    
+                    <button class="btn btn-outline-info rounded-pill px-4 py-2 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#quoteModal">
+                        GET A QUOTE
+                    </button>
+                </div>
 
         <div class="row justify-content-center">
             <div class="col-xxl-9 col-xl-10">
