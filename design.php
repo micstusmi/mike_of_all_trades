@@ -51,7 +51,7 @@
                     <div class="card-img-overlay p-4">
                         <h5 class="card-title fw-bold overlay-title">Creative Storyboarding</h5>
                         <p class="card-text mb-3" style="color: #ffffff !important; text-shadow: 1px 1px 3px rgba(0,0,0,1); font-weight: 400;">
-                            Detailed visual planning for commercial assets and technical walkthroughs.</p>
+                            Detailed (visual) planning for video creation for digital media marketing, etc.</p>
                         <button class="btn btn-primary btn-sm w-50" data-bs-toggle="modal" data-bs-target="#quoteModal">Inquire</button>
                     </div>
                 </div>
@@ -63,7 +63,7 @@
                     <div class="card-img-overlay p-4">
                         <h5 class="card-title fw-bold overlay-title">Brand Identity</h5>
                         <p class="card-text mb-3" style="color: #ffffff !important; text-shadow: 1px 1px 3px rgba(0,0,0,1); font-weight: 400;">
-                            Developing unique brand voices and visual languages for modern businesses.</p>
+                            Developing & maintaining colour themes / style guides for branding for modern businesses.</p>
                         <button class="btn btn-primary btn-sm w-50" data-bs-toggle="modal" data-bs-target="#quoteModal">Inquire</button>
                     </div>
                 </div>
