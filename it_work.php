@@ -12,7 +12,7 @@
         <span style="color: var(--mike-orange);">IT Work</span>
         </h1>
         <p class="fs-5 opacity-90">
-            A brief professional summary of this specific service.
+            IT Administration and technical support for all your business needs.
         </p>
     </div>
 
@@ -20,7 +20,7 @@
         <div class="col-lg-8">
             <div class="card border-0 shadow-sm p-5 text-center text-muted" style="border: 2px dashed #eee !important;">
                 <i class="bi bi-folder2-open fs-1"></i>
-                <p class="mt-2 fw-bold">Project Gallery & Case Studies Coming Soon</p>
+                <p class="mt-2 fw-bold">Project Gallery & More Information Coming Soon</p>
             </div>
         </div>
 
@@ -38,7 +38,7 @@
                     <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Microsoft Office Suite / Microsoft 365</li>
                     <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Google Workspace</li>
                     <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Zoho One</li>
-                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Custom local applications</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Custom Local Applications</li>
                     <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Business Consulting</li>
                     <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> AI Implementation</li>
                 </ul>
