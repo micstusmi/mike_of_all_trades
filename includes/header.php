@@ -12,8 +12,8 @@
         
         body { margin: 0; display: flex; flex-direction: column; min-height: 100vh; background-color: #f4f7f6; font-family: 'Segoe UI', sans-serif; }
 
-        /* Top Navbar */
-        .navbar { background-color: var(--mike-navy) !important; z-index: 1031; height: 60px; }
+        /* --- 1. Top Navbar Styling --- */
+        .navbar { background-color: var(--mike-navy) !important; z-index: 1031; height: 70px; }
         
         .header-nav-link { 
             color: #ffffff !important; 
@@ -25,50 +25,65 @@
         }
         .header-nav-link:hover { color: var(--mike-orange) !important; }
 
-        /* Hero Card - Restored Rounded Rectangle */
-        .hero-card { 
-            background: linear-gradient(135deg, var(--mike-navy), #2c3e50); 
-            color: white; 
-            border-radius: 20px; 
-            padding: 3.5rem; 
-            margin-bottom: 2rem; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.15); 
-            border: 1px solid rgba(255,255,255,0.05);
+        /* --- 2. Mobile Toggler Visibility --- */
+        .navbar-toggler {
+            border: 2px solid var(--mike-cyan) !important; /* Cyan border for visibility */
+            box-shadow: 0 0 10px rgba(13, 202, 240, 0.4); /* Glow effect */
         }
 
-        /* Sidebar Styling */
-        .sidebar { position: fixed; top: 60px; bottom: 0; left: 0; width: 260px; background: #fff; border-right: 1px solid #eee; z-index: 1000; overflow-y: auto; padding-top: 20px; }
-        .sidebar .nav-link { color: #444; font-weight: 500; padding: 12px 25px; }
-        .sidebar .nav-link:hover, .sidebar .nav-link.active { background: #f8f9fa; color: var(--mike-orange); }
+        /* --- 3. Mobile Specific Layout & Spacing --- */
+        @media (max-width: 991.98px) {
+            .sidebar { position: static; width: 100%; padding-top: 20px; } 
+            main, .footer-section { margin-left: 0; padding: 20px; }
 
-        /* Content & Footer Spacing */
+            /* Fixes the "Jumping" and anchors the menu items */
+            .navbar-collapse {
+                background-color: var(--mike-navy);
+                margin-top: 15px;
+                padding: 10px 0 20px 0;
+                border-top: 1px solid rgba(255,255,255,0.1);
+            }
+
+            /* Touch-friendly line spacing for links */
+            .navbar-nav .nav-item {
+                padding: 10px 0;
+                border-bottom: 1px solid rgba(255,255,255,0.05);
+                text-align: center;
+            }
+
+            .header-nav-link {
+                font-size: 1.1rem; /* Slightly larger text for mobile */
+                display: block;
+                width: 100%;
+            }
+
+            /* Align Logo Left and Burger Right */
+            .navbar-brand { margin-right: auto !important; }
+            .navbar-toggler { margin-left: auto !important; }
+        }
+
+        /* --- 4. Sidebar, Hero & Dropdown (Your Existing Logic) --- */
+        .hero-card { background: linear-gradient(135deg, var(--mike-navy), #2c3e50); color: white; border-radius: 20px; padding: 3.5rem; margin-bottom: 2rem; box-shadow: 0 10px 30px rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.05); }
+        .sidebar { position: fixed; top: 70px; bottom: 0; left: 0; width: 260px; background: #fff; border-right: 1px solid #eee; z-index: 1000; overflow-y: auto; padding-top: 20px; }
         main { margin-left: 260px; padding: 40px; flex: 1 0 auto; }
         .footer-section { margin-left: 260px; background: #fff; border-top: 1px solid #eee; padding: 30px 40px; flex-shrink: 0; }
-
-        /* Dropdown Customization */
-        .dropdown-menu-dark { 
-            background-color: var(--mike-navy); 
-            border: 1px solid rgba(255,255,255,0.1); 
-            max-height: 80vh; /* Prevents overflow on smaller screens */
-            overflow-y: auto;
-        }
+        .dropdown-menu-dark { background-color: var(--mike-navy); border: 1px solid rgba(255,255,255,0.1); max-height: 80vh; overflow-y: auto; }
         .dropdown-header { color: var(--mike-orange) !important; font-weight: 800; letter-spacing: 1px; font-size: 0.7rem; padding-top: 15px; }
-        .dropdown-item { font-size: 0.85rem; padding: 8px 20px; }
-
-        @media (max-width: 992px) { 
-            .sidebar { position: static; width: 100%; padding-top: 20px; } 
-            main, .footer-section { margin-left: 0; padding: 20px; } 
-        }
+        .dropdown-item { font-size: 0.95rem; padding: 12px 20px; } /* Larger hit area for mobile services */
     </style>
 </head>
 <body>
 
 <header class="navbar navbar-expand-lg navbar-dark sticky-top px-4 shadow">
-    <div class="container-fluid">
+    <div class="container-fluid d-flex align-items-center">
         <a class="navbar-brand fw-bold fs-4 d-flex align-items-center" href="index.php">
-            <img src="assets/logos/mike_of_all_trades_logo.jpg" height="30" class="me-2 rounded shadow-sm" onerror="this.style.display='none'">
+            <img src="assets/logos/mike_of_all_trades_logo.jpg" height="35" class="me-2 rounded shadow-sm" onerror="this.style.display='none'">
             <span>Mike Of All Trades</span>
         </a>
+
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#topNavbar" aria-controls="topNavbar" aria-expanded="false">
+            <span class="navbar-toggler-icon"></span>
+        </button>
 
         <div class="collapse navbar-collapse" id="topNavbar">
             <ul class="navbar-nav ms-auto mb-0">
@@ -103,8 +118,5 @@
                 </li>
             </ul>
         </div>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#topNavbar">
-            <span class="navbar-toggler-icon"></span>
-        </button>
     </div>
 </header>
