@@ -49,6 +49,20 @@
                         <li>
                             <strong>Insurance:</strong> Fully Insured for Residential & Commercial Work
                         </li>
+                        <li>
+                            <strong>Safety Induction:</strong> White Card Holder for Construction Work
+                        </li>
+                        <li>
+                            <strong>Safety License:</strong> Working at Heights License Holder
+                        </li>
+                        <li>
+                            <strong>Children's Safety:</strong> WWCC (Working With Children Check) Clearance Holder
+                        </li>
+
+
+
+
+
                     </ul>
                 </div>
 

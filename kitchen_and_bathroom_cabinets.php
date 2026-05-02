@@ -28,9 +28,16 @@
             <div class="card border-0 shadow-sm p-4 h-100">
                 <h5 class="fw-bold mb-3 border-bottom pb-2">Core Expertise</h5>
                 <ul class="list-unstyled text-muted">
-                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Skill One</li>
-                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Skill Two</li>
-                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Skill Three</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Vanity Installation</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Cabinet Repair</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Custom Cabinetry</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Bathroom Mirror Installation</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Dishwasher Installation</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Cabinet Modifications including adding shelves, etc.</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Kitchen Cabinet Installation</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Tap Washers</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Privacy Door Lock Changeovers</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Caulking</li>
                 </ul>
             </div>
         </div>

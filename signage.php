@@ -28,9 +28,18 @@
             <div class="card border-0 shadow-sm p-4 h-100">
                 <h5 class="fw-bold mb-3 border-bottom pb-2">Core Expertise</h5>
                 <ul class="list-unstyled text-muted">
-                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Skill One</li>
-                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Skill Two</li>
-                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Skill Three</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Graphic Design (Adobe Creative Suite)</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Wide Format Digital Printing</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Vectorised Computer Cutting Vinyl</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Weeding</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Sign Manufacturing</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Sticker Decals installation</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Wallpaper Installation</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Static Signage Installations</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Solar Signage Manufacturing and Installation</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Licensed for Working at Heights</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Banner Installations</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Signs on Posts Installation (including mounting into dirt)</li>
                 </ul>
             </div>
         </div>

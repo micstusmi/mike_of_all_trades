@@ -28,9 +28,9 @@
             <div class="card border-0 shadow-sm p-4 h-100">
                 <h5 class="fw-bold mb-3 border-bottom pb-2">Core Expertise</h5>
                 <ul class="list-unstyled text-muted">
-                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Skill One</li>
-                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Skill Two</li>
-                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Skill Three</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Network (Data) Cabling</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> Phone System Installations</li>
+                    <li class="mb-2"><i class="bi bi-check2-circle text-warning me-2"></i> LAN Setup, Configuration & Troubleshooting</li>
                 </ul>
             </div>
         </div>
