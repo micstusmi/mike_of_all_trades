@@ -1,48 +1,53 @@
 <?php
+// process_quote.php
+error_reporting(E_ALL);
+ini_set('display_errors', 0); 
+
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
 require 'includes/PHPMailer/src/Exception.php';
 require 'includes/PHPMailer/src/PHPMailer.php';
 require 'includes/PHPMailer/src/SMTP.php';
+include 'includes/zoho_functions.php';
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    
-    // 1. Spam Verification
-    $honeypot = $_POST["website_url"] ?? '';
-    $math_answer = intval($_POST["math_answer"] ?? 0);
+header('Content-Type: application/json');
 
-    if (!empty($honeypot)) {
-        die("Spam bot detected."); 
+try {
+    if ($_SERVER["REQUEST_METHOD"] !== "POST") throw new Exception("Invalid request.");
+
+    $name    = $_POST['name'] ?? '';
+    $email   = $_POST['email'] ?? '';
+    $phone   = $_POST['phone'] ?? '';
+    $address = $_POST['address'] ?? '';
+    $type    = $_POST['customer_type'] ?? 'once';
+    $service = $_POST['service'] ?? 'General Trades';
+    $total   = $_POST['total'] ?? '0';
+
+    $final_customer_id = '';
+    $contact_person_id = null;
+
+    if ($type === 'repeat') {
+        $final_customer_id = createZohoCustomer($name, $email, $phone, $address);
+    } else {
+        // !!! REPLACE THIS ID WITH YOUR 19-DIGIT WEB LEADS ID !!!
+        $final_customer_id = '127145000000499006'; 
+        // Add the guest to the master account so we can send the email
+        $contact_person_id = addContactToWebLeads($email, $name, $phone);
     }
 
-    if ($math_answer !== 10) {
-        die("Incorrect math answer. Please go back and try again.");
+    if (!$final_customer_id) throw new Exception("Zoho Account creation failed.");
+
+    $zohoResult = createZohoEstimate($email, $service, $total, $final_customer_id, $contact_person_id);
+    $zohoResponse = json_decode($zohoResult, true);
+
+    if (isset($zohoResponse['code']) && $zohoResponse['code'] == 0) {
+        // (PHPMailer notification code stays here...)
+        echo json_encode(['success' => true]);
+    } else {
+        throw new Exception($zohoResponse['message'] ?? 'Zoho Error');
     }
 
-    // 2. SMTP Send via Zoho
-    $mail = new PHPMailer(true);
-
-    try {
-        $mail->isSMTP();
-        $mail->Host       = 'smtp.zoho.com.au';
-        $mail->SMTPAuth   = true;
-        $mail->Username   = 'mike@mikeofalltrades.com.au';
-        $mail->Password   = 'WWXrU4C4xQdH'; 
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
-        $mail->Port       = 465;
-
-        $mail->setFrom('mike@mikeofalltrades.com.au', 'Mike of All Trades (Quotes)');
-        $mail->addAddress('mike@mikeofalltrades.com.au');
-        $mail->addReplyTo($_POST['email'], $_POST['name']);
-
-        $mail->isHTML(false);
-        $mail->Subject = "NEW QUOTE: " . $_POST['service'] . " - " . $_POST['name'];
-        $mail->Body    = "Quote Request Details:\n\nName: {$_POST['name']}\nEmail: {$_POST['email']}\nService: {$_POST['service']}\n\nMessage:\n{$_POST['message']}";
-
-        $mail->send();
-        echo "<h1>Quote Request Sent!</h1><p>Thanks Mike, I'll review this and get back to you soon. <a href='index.php'>Return to site</a></p>";
-    } catch (Exception $e) {
-        echo "Message could not be sent. Please email mike@mikeofalltrades.com.au directly.";
-    }
+} catch (Exception $e) {
+    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
 }
