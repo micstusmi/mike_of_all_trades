@@ -1,20 +1,16 @@
 <?php
-// process_quote.php
 error_reporting(E_ALL);
-ini_set('display_errors', 0); 
-
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
-
-require 'includes/PHPMailer/src/Exception.php';
-require 'includes/PHPMailer/src/PHPMailer.php';
-require 'includes/PHPMailer/src/SMTP.php';
-include 'includes/zoho_functions.php';
+ini_set('display_errors', 0);
 
 header('Content-Type: application/json');
 
+include 'includes/zoho_functions.php';
+
 try {
-    if ($_SERVER["REQUEST_METHOD"] !== "POST") throw new Exception("Invalid request.");
+
+    if ($_SERVER["REQUEST_METHOD"] !== "POST") {
+        throw new Exception("Invalid request method");
+    }
 
     $name    = $_POST['name'] ?? '';
     $email   = $_POST['email'] ?? '';
@@ -22,32 +18,69 @@ try {
     $address = $_POST['address'] ?? '';
     $type    = $_POST['customer_type'] ?? 'once';
     $service = $_POST['service'] ?? 'General Trades';
-    $total   = $_POST['total'] ?? '0';
+    $total   = $_POST['total'] ?? 0;
 
-    $final_customer_id = '';
+    $customer_id = null;
     $contact_person_id = null;
 
+    /**
+     * CUSTOMER LOGIC
+     */
     if ($type === 'repeat') {
-        $final_customer_id = createZohoCustomer($name, $email, $phone, $address);
+
+        // NOTE: you still need your own createZohoCustomer()
+        $customer_id = createZohoCustomer($name, $email, $phone, $address);
+
+        if (!$customer_id) {
+            throw new Exception("Failed to create Zoho customer");
+        }
+
     } else {
-        // !!! REPLACE THIS ID WITH YOUR 19-DIGIT WEB LEADS ID !!!
-        $final_customer_id = '127145000000499006'; 
-        // Add the guest to the master account so we can send the email
+
+        // Web Leads customer ID (your master bucket)
+        $customer_id = '127145000000499006';
+
         $contact_person_id = addContactToWebLeads($email, $name, $phone);
     }
 
-    if (!$final_customer_id) throw new Exception("Zoho Account creation failed.");
+    /**
+     * CREATE ESTIMATE
+     */
+    $estimateResult = createZohoEstimate(
+        $customer_id,
+        $service,
+        $total,
+        $contact_person_id
+    );
 
-    $zohoResult = createZohoEstimate($email, $service, $total, $final_customer_id, $contact_person_id);
-    $zohoResponse = json_decode($zohoResult, true);
-
-    if (isset($zohoResponse['code']) && $zohoResponse['code'] == 0) {
-        // (PHPMailer notification code stays here...)
-        echo json_encode(['success' => true]);
-    } else {
-        throw new Exception($zohoResponse['message'] ?? 'Zoho Error');
+    if (($estimateResult['code'] ?? 0) >= 400) {
+        throw new Exception("Zoho estimate failed: " . $estimateResult['raw']);
     }
 
+    $estimate_id = $estimateResult['body']['estimate']['estimate_id'] ?? null;
+
+    if (!$estimate_id) {
+        throw new Exception("No estimate ID returned from Zoho");
+    }
+
+    /**
+     * SEND EMAIL (THIS IS NOW EXPLICIT)
+     */
+    $sendResult = sendZohoEstimate($estimate_id, $email);
+    
+    if (($sendResult['code'] ?? 0) >= 400) {
+        throw new Exception("Estimate created but email failed: " . $sendResult['raw']);
+    }
+
+    echo json_encode([
+        'success' => true,
+        'estimate_id' => $estimate_id
+    ]);
+
 } catch (Exception $e) {
-    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+
+    echo json_encode([
+        'success' => false,
+        'message' => $e->getMessage()
+    ]);
 }
