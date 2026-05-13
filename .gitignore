@@ -1,3 +1,12 @@
 .DS_Store
 Thumbs.db
 *.log
+# Ignore the private config file we just made
+includes/config.php
+
+# Ignore any OS-specific junk (common on Macs)
+.DS_Store
+
+# Ignore your PHP error logs if they exist
+php_errors.log
+*.log

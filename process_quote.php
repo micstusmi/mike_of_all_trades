@@ -1,4 +1,5 @@
 <?php
+
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 
@@ -9,67 +10,53 @@ include 'includes/zoho_functions.php';
 try {
 
     if ($_SERVER["REQUEST_METHOD"] !== "POST") {
-        throw new Exception("Invalid request method");
+        throw new Exception("Invalid request");
     }
 
-    $name    = $_POST['name'] ?? '';
-    $email   = $_POST['email'] ?? '';
-    $phone   = $_POST['phone'] ?? '';
-    $address = $_POST['address'] ?? '';
-    $type    = $_POST['customer_type'] ?? 'once';
-    $service = $_POST['service'] ?? 'General Trades';
-    $total   = $_POST['total'] ?? 0;
-
-    $customer_id = null;
-    $contact_person_id = null;
+    $name        = $_POST['name'] ?? '';
+    $email       = $_POST['email'] ?? '';
+    $phone       = $_POST['phone'] ?? '';
+    $address     = $_POST['address'] ?? '';
+    $service     = $_POST['service'] ?? 'General Works';
+    $description = $_POST['description'] ?? '';   // 👈 NEW FIELD
+    $total       = $_POST['total'] ?? 0;
 
     /**
-     * CUSTOMER LOGIC
+     * 1. CUSTOMER (dedupe-safe)
      */
-    if ($type === 'repeat') {
+    $customer_id = getOrCreateZohoCustomer($name, $email, $phone, $address);
 
-        // NOTE: you still need your own createZohoCustomer()
-        $customer_id = createZohoCustomer($name, $email, $phone, $address);
-
-        if (!$customer_id) {
-            throw new Exception("Failed to create Zoho customer");
-        }
-
-    } else {
-
-        // Web Leads customer ID (your master bucket)
-        $customer_id = '127145000000499006';
-
-        $contact_person_id = addContactToWebLeads($email, $name, $phone);
+    if (!$customer_id) {
+        throw new Exception("Failed to create/find customer");
     }
 
     /**
-     * CREATE ESTIMATE
+     * 2. CREATE ESTIMATE
      */
-    $estimateResult = createZohoEstimate(
+    $estimate = createZohoEstimate(
         $customer_id,
-        $service,
-        $total,
-        $contact_person_id
+        $name,
+        $service . " - " . $description,
+        $total
     );
 
-    if (($estimateResult['code'] ?? 0) >= 400) {
-        throw new Exception("Zoho estimate failed: " . $estimateResult['raw']);
+    if (($estimate['code'] ?? 0) >= 400) {
+        throw new Exception("Estimate failed: " . $estimate['raw']);
     }
 
-    $estimate_id = $estimateResult['body']['estimate']['estimate_id'] ?? null;
+    $estimate_id = $estimate['json']['estimate']['estimate_id'] ?? null;
 
     if (!$estimate_id) {
-        throw new Exception("No estimate ID returned from Zoho");
+        throw new Exception("No estimate ID returned");
     }
 
     /**
-     * SEND EMAIL (THIS IS NOW EXPLICIT)
+     * 3. SEND EMAIL
      */
-    $sendResult = sendZohoEstimate($estimate_id, $email);
-    
-    if (($sendResult['code'] ?? 0) >= 400) {
-        throw new Exception("Estimate created but email failed: " . $sendResult['raw']);
+    $send = sendZohoEstimate($estimate_id, $email);
+
+    if (($send['code'] ?? 0) >= 400) {
+        throw new Exception("Estimate created but email failed: " . $send['raw']);
     }
 
     echo json_encode([
