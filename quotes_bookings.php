@@ -90,8 +90,19 @@ Duration: <span id="hourDisplay" class="text-info">4</span> hrs
 <h3 class="text-info mb-3">Select Start Time</h3>
 <p class="text-light small">Grey blocks are unavailable. Click/drag a start time to place your selected duration.</p>
 
-<div id="calendar"></div>
+<div class="d-flex gap-2 align-items-center mb-3 flex-wrap">
+    <label class="fw-bold text-light mb-0">Jump to date:</label>
 
+    <input
+        type="date"
+        id="calendarJumpDate"
+        class="form-control"
+        style="max-width:220px;"
+        onchange="jumpToCalendarDate()"
+    >
+</div>
+
+<div id="calendar"></div>
 <div class="d-flex justify-content-between mt-4">
 <button class="btn btn-outline-light" type="button" onclick="goToStep(1)">Back</button>
 <button class="btn btn-pill" type="button" onclick="validateAndGoStep3()">Next</button>
@@ -284,8 +295,18 @@ document.getElementById('hourSlider').addEventListener('input', function(){
 function initCalendar(){
 
     calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
-        initialView:'timeGridWeek',
-        selectable:true,
+
+    initialView: window.innerWidth < 768 ? 'timeGridDay' : 'timeGridWeek',
+
+    headerToolbar:{
+        left:'prev,next today',
+        center:'title',
+        right: window.innerWidth < 768
+            ? ''
+            : 'timeGridWeek,timeGridDay'
+    },
+
+    selectable:true,
         editable:true,
         selectAllow:function(info){
         return info.start >= new Date();
@@ -520,6 +541,16 @@ Thanks.`
     );
 
     window.location.href = `mailto:mike@mikeofalltrades.com.au?subject=${subject}&body=${body}`;
+}
+
+function jumpToCalendarDate(){
+    const date = document.getElementById('calendarJumpDate').value;
+
+    if(!date || !calendar){
+        return;
+    }
+
+    calendar.gotoDate(date);
 }
 
 </script>
