@@ -41,6 +41,52 @@ try {
         throw new Exception('Invalid booking time.');
     }
 
+$bufferStart = clone $startDT;
+$bufferStart->modify("-{$buffer} minutes");
+
+$bufferEnd = clone $endDT;
+$bufferEnd->modify("+{$buffer} minutes");
+
+$overlapStmt = $pdo->prepare("
+    SELECT COUNT(*)
+    FROM calendar_events
+    WHERE is_buffer = 0
+    AND start_datetime < ?
+    AND end_datetime > ?
+");
+
+$overlapStmt->execute([
+    $bufferEnd->format('Y-m-d H:i:s'),
+    $bufferStart->format('Y-m-d H:i:s')
+]);
+
+if ((int)$overlapStmt->fetchColumn() > 0) {
+    throw new Exception('Sorry, that time is no longer available. Please choose another time.');
+}
+
+$bufferStart = clone $startDT;
+$bufferStart->modify("-{$buffer} minutes");
+
+$bufferEnd = clone $endDT;
+$bufferEnd->modify("+{$buffer} minutes");
+
+$overlapStmt = $pdo->prepare("
+    SELECT COUNT(*)
+    FROM calendar_events
+    WHERE is_buffer = 0
+    AND start_datetime < ?
+    AND end_datetime > ?
+");
+
+$overlapStmt->execute([
+    $bufferEnd->format('Y-m-d H:i:s'),
+    $bufferStart->format('Y-m-d H:i:s')
+]);
+
+if ((int)$overlapStmt->fetchColumn() > 0) {
+    throw new Exception('Sorry, that time is no longer available. Please choose another time.');
+}
+
     $pdo->beginTransaction();
 
     $title = 'Customer Booking - ' . $service;
