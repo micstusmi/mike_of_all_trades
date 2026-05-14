@@ -278,6 +278,3 @@ function sendZohoBookingEstimate($estimate_id, $email) {
 
     return zohoRequest("POST", $url, $payload);
 }
-
-    return zohoRequest("POST", $url, $payload);
-}

@@ -27,6 +27,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
+        $return = $_GET['return'] ?? '';
+
+        if ($return === 'quotes_bookings.php') {
+            header('Location: quotes_bookings.php?restore=1');
+            exit;
+        }
+
         header('Location: customer/dashboard.php');
         exit;
     }
@@ -43,32 +50,24 @@ include 'includes/header.php';
         <h2 class="mb-4">Login</h2>
 
         <?php if ($error): ?>
-            <div class="alert alert-danger">
-                <?= htmlspecialchars($error) ?>
-            </div>
+            <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
         <?php endif; ?>
 
         <form method="POST" class="card p-4 bg-secondary border-0 rounded-4">
 
-            <input
-                type="email"
-                name="email"
-                class="form-control mb-3"
-                placeholder="Email"
-                required
-            >
+            <label class="form-label fw-bold">Email</label>
+            <input type="email" name="email" class="form-control mb-3" required>
 
-            <input
-                type="password"
-                name="password"
-                class="form-control mb-3"
-                placeholder="Password"
-                required
-            >
+            <label class="form-label fw-bold">Password</label>
+            <input type="password" name="password" class="form-control mb-3" required>
 
             <button class="btn btn-warning fw-bold rounded-pill">
                 Login
             </button>
+
+            <div class="text-center mt-3">
+                <a href="forgot_password.php">Forgot password?</a>
+            </div>
 
         </form>
 

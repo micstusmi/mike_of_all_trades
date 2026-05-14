@@ -93,9 +93,15 @@ include __DIR__ . '/includes/header.php';
         </div>
     </div>
 
-    <button class="btn btn-warning fw-bold rounded-pill">
-        Login
-    </button>
+    <button class="btn btn-warning fw-bold rounded-pill w-100">
+    Login
+</button>
+
+<div class="text-center mt-3">
+    <a href="forgot_password.php" class="text-info">
+        Forgot password?
+    </a>
+</div>
 
 </form>
 
