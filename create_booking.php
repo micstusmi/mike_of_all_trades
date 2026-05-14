@@ -1,6 +1,8 @@
 <?php
 session_start();
+
 require_once __DIR__ . '/includes/db.php';
+require_once __DIR__ . '/includes/zoho_functions.php';
 
 header('Content-Type: application/json');
 
@@ -11,7 +13,12 @@ try {
 
     $userId = (int)$_SESSION['user_id'];
 
-    $userStmt = $pdo->prepare("SELECT name, email, phone FROM users WHERE id = ? LIMIT 1");
+    $userStmt = $pdo->prepare("
+        SELECT name, email, phone, address
+        FROM users
+        WHERE id = ?
+        LIMIT 1
+    ");
     $userStmt->execute([$userId]);
     $user = $userStmt->fetch(PDO::FETCH_ASSOC);
 
@@ -23,6 +30,7 @@ try {
     $description = trim($_POST['description'] ?? '');
     $start = $_POST['requested_start'] ?? '';
     $end = $_POST['requested_end'] ?? '';
+    $total = $_POST['total'] ?? 0;
     $buffer = 30;
 
     if (!$start || !$end) {
@@ -41,52 +49,35 @@ try {
         throw new Exception('Invalid booking time.');
     }
 
-$bufferStart = clone $startDT;
-$bufferStart->modify("-{$buffer} minutes");
+    /*
+     * Double-booking protection including buffer window
+     */
+    $bufferStart = clone $startDT;
+    $bufferStart->modify("-{$buffer} minutes");
 
-$bufferEnd = clone $endDT;
-$bufferEnd->modify("+{$buffer} minutes");
+    $bufferEnd = clone $endDT;
+    $bufferEnd->modify("+{$buffer} minutes");
 
-$overlapStmt = $pdo->prepare("
-    SELECT COUNT(*)
-    FROM calendar_events
-    WHERE is_buffer = 0
-    AND start_datetime < ?
-    AND end_datetime > ?
-");
+    $overlapStmt = $pdo->prepare("
+        SELECT COUNT(*)
+        FROM calendar_events
+        WHERE is_buffer = 0
+        AND start_datetime < ?
+        AND end_datetime > ?
+    ");
 
-$overlapStmt->execute([
-    $bufferEnd->format('Y-m-d H:i:s'),
-    $bufferStart->format('Y-m-d H:i:s')
-]);
+    $overlapStmt->execute([
+        $bufferEnd->format('Y-m-d H:i:s'),
+        $bufferStart->format('Y-m-d H:i:s')
+    ]);
 
-if ((int)$overlapStmt->fetchColumn() > 0) {
-    throw new Exception('Sorry, that time is no longer available. Please choose another time.');
-}
+    if ((int)$overlapStmt->fetchColumn() > 0) {
+        throw new Exception('Sorry, that time is no longer available. Please choose another time.');
+    }
 
-$bufferStart = clone $startDT;
-$bufferStart->modify("-{$buffer} minutes");
-
-$bufferEnd = clone $endDT;
-$bufferEnd->modify("+{$buffer} minutes");
-
-$overlapStmt = $pdo->prepare("
-    SELECT COUNT(*)
-    FROM calendar_events
-    WHERE is_buffer = 0
-    AND start_datetime < ?
-    AND end_datetime > ?
-");
-
-$overlapStmt->execute([
-    $bufferEnd->format('Y-m-d H:i:s'),
-    $bufferStart->format('Y-m-d H:i:s')
-]);
-
-if ((int)$overlapStmt->fetchColumn() > 0) {
-    throw new Exception('Sorry, that time is no longer available. Please choose another time.');
-}
-
+    /*
+     * Save booking locally first
+     */
     $pdo->beginTransaction();
 
     $title = 'Customer Booking - ' . $service;
@@ -144,45 +135,74 @@ if ((int)$overlapStmt->fetchColumn() > 0) {
 
     $pdo->commit();
 
+    /*
+     * Create Zoho estimate / booking document
+     */
     $dateText = $startDT->format('l, d/m/Y');
     $timeText = $startDT->format('g:i A') . ' - ' . $endDT->format('g:i A');
 
-    $customerSubject = 'Booking Confirmation - Mike Of All Trades';
-    $customerMessage =
-"Hi {$user['name']},
-
-Your booking has been received.
+    $bookingDetails =
+"BOOKING CONFIRMATION
 
 Service: {$service}
-Date: {$dateText}
-Time: {$timeText}
-Notes: {$description}
-
-Thanks,
-Mike Of All Trades";
-
-    $adminSubject = 'New Customer Booking';
-    $adminMessage =
-"New booking received.
-
 Customer: {$user['name']}
-Email: {$user['email']}
 Phone: {$user['phone']}
+Email: {$user['email']}
 
-Service: {$service}
 Date: {$dateText}
 Time: {$timeText}
-Notes: {$description}
+
+Notes:
+{$description}
 
 Booking ID: {$parentId}";
 
-    $headers = "From: Mike Of All Trades <mike@mikeofalltrades.com.au>\r\n";
-    $headers .= "Reply-To: mike@mikeofalltrades.com.au\r\n";
+    $customerId = getOrCreateZohoCustomer(
+        $user['name'],
+        $user['email'],
+        $user['phone'] ?? '',
+        $user['address'] ?? ''
+    );
 
-    @mail($user['email'], $customerSubject, $customerMessage, $headers);
-    @mail('mike@mikeofalltrades.com.au', $adminSubject, $adminMessage, $headers);
+    if (!$customerId) {
+        throw new Exception('Booking saved, but Zoho customer could not be created/found.');
+    }
 
-    echo json_encode(['success' => true]);
+    $estimate = createZohoEstimate(
+        $customerId,
+        $user['name'],
+        $bookingDetails,
+        $total
+    );
+
+    if (($estimate['code'] ?? 0) >= 400) {
+        throw new Exception('Booking saved, but Zoho estimate failed: ' . ($estimate['raw'] ?? 'Unknown Zoho error'));
+    }
+
+    $estimateId = $estimate['json']['estimate']['estimate_id'] ?? null;
+
+    if (!$estimateId) {
+        throw new Exception('Booking saved, but no Zoho estimate ID returned.');
+    }
+
+    $updateZohoStmt = $pdo->prepare("
+        UPDATE calendar_events
+        SET zoho_estimate_id = ?
+        WHERE id = ?
+    ");
+    $updateZohoStmt->execute([$estimateId, $parentId]);
+
+    $send = sendZohoEstimate($estimateId, $user['email']);
+
+    if (($send['code'] ?? 0) >= 400) {
+        throw new Exception('Booking saved and Zoho estimate created, but Zoho email failed: ' . ($send['raw'] ?? 'Unknown Zoho send error'));
+    }
+
+    echo json_encode([
+        'success' => true,
+        'booking_id' => $parentId,
+        'estimate_id' => $estimateId
+    ]);
 
 } catch (Exception $e) {
     if (isset($pdo) && $pdo->inTransaction()) {
