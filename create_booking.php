@@ -11,6 +11,14 @@ try {
 
     $userId = (int)$_SESSION['user_id'];
 
+    $userStmt = $pdo->prepare("SELECT name, email, phone FROM users WHERE id = ? LIMIT 1");
+    $userStmt->execute([$userId]);
+    $user = $userStmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$user) {
+        throw new Exception('Customer account not found.');
+    }
+
     $service = trim($_POST['service'] ?? 'Booking');
     $description = trim($_POST['description'] ?? '');
     $start = $_POST['requested_start'] ?? '';
@@ -89,6 +97,44 @@ try {
     ]);
 
     $pdo->commit();
+
+    $dateText = $startDT->format('l, d/m/Y');
+    $timeText = $startDT->format('g:i A') . ' - ' . $endDT->format('g:i A');
+
+    $customerSubject = 'Booking Confirmation - Mike Of All Trades';
+    $customerMessage =
+"Hi {$user['name']},
+
+Your booking has been received.
+
+Service: {$service}
+Date: {$dateText}
+Time: {$timeText}
+Notes: {$description}
+
+Thanks,
+Mike Of All Trades";
+
+    $adminSubject = 'New Customer Booking';
+    $adminMessage =
+"New booking received.
+
+Customer: {$user['name']}
+Email: {$user['email']}
+Phone: {$user['phone']}
+
+Service: {$service}
+Date: {$dateText}
+Time: {$timeText}
+Notes: {$description}
+
+Booking ID: {$parentId}";
+
+    $headers = "From: Mike Of All Trades <mike@mikeofalltrades.com.au>\r\n";
+    $headers .= "Reply-To: mike@mikeofalltrades.com.au\r\n";
+
+    @mail($user['email'], $customerSubject, $customerMessage, $headers);
+    @mail('mike@mikeofalltrades.com.au', $adminSubject, $adminMessage, $headers);
 
     echo json_encode(['success' => true]);
 
