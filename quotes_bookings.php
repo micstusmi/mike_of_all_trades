@@ -309,6 +309,9 @@ function initCalendar(){
     selectable:true,
         editable:true,
         selectAllow:function(info){
+            longPressDelay: 100,
+selectLongPressDelay: 100,
+eventLongPressDelay: 100,
         return info.start >= new Date();
         },
         selectOverlap:false,
