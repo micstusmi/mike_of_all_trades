@@ -592,7 +592,7 @@ function bookNow(){
         try {
             return JSON.parse(text);
         } catch(e) {
-            throw new Error(text || 'Invalid server response.');
+            throw new Error(text.substring(0, 500) || 'Invalid server response.');
         }
     })
     .then(res => {
