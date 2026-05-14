@@ -40,9 +40,15 @@ if (!empty($_SESSION['user_id'])) {
 <div class="container mt-5">
 
 <div class="row mb-5 text-center">
-    <div class="col-4"><div id="step1-indicator" class="p-2 border-bottom border-primary text-primary fw-bold highlight-step">1. Options</div></div>
-    <div class="col-4"><div id="step2-indicator" class="p-2 border-bottom border-secondary text-secondary">2. Availability</div></div>
-    <div class="col-4"><div id="step3-indicator" class="p-2 border-bottom border-secondary text-secondary">3. Final Quote</div></div>
+    <div class="col-4">
+        <div id="step1-indicator" class="p-2 border-bottom border-primary text-primary fw-bold highlight-step">1. Options</div>
+    </div>
+    <div class="col-4">
+        <div id="step2-indicator" class="p-2 border-bottom border-secondary text-secondary">2. Availability</div>
+    </div>
+    <div class="col-4">
+        <div id="step3-indicator" class="p-2 border-bottom border-secondary text-secondary">3. Final Quote</div>
+    </div>
 </div>
 
 <div id="step1" class="booking-step">
@@ -61,12 +67,12 @@ if (!empty($_SESSION['user_id'])) {
 </div>
 
 <div class="col-md-6">
-<label class="form-label fw-bold">Call-out fee (depending on zone)</label>
+<label class="form-label fw-bold">Call-out fee depending on zone</label>
 <select id="locationZone" class="form-select bg-dark text-light border-secondary">
 <option value="" disabled selected>Select</option>
-<option value="0">South Eastern suburb (South of the Yarra River) - $0</option>
+<option value="0">South Eastern suburb / South of the Yarra River - $0</option>
 <option value="50">Melbourne Western / Northern suburb - $50</option>
-<option value="100">Melbourne Inner CBD suburb or Outer Western / Northern Suburb (if suburb is outside the M80) - $100</option>
+<option value="100">Melbourne Inner CBD or Outer Western / Northern Suburb outside M80 - $100</option>
 </select>
 </div>
 </div>
@@ -88,21 +94,52 @@ Duration: <span id="hourDisplay" class="text-info">4</span> hrs
 <div id="step2" class="booking-step d-none">
 <div class="card bg-secondary text-light p-4 rounded-4 shadow-lg border-0" style="background:#2c3e50!important;">
 <h3 class="text-info mb-3">Select Start Time</h3>
-<p class="text-light small">Grey blocks are unavailable. Click/drag a start time to place your selected duration.</p>
+<p class="text-light small">
+    Grey blocks are unavailable. Choose a date and start time below, or select a time directly on the calendar.
+</p>
 
-<div class="d-flex gap-2 align-items-center mb-3 flex-wrap">
-    <label class="fw-bold text-light mb-0">Jump to date:</label>
+<div class="bg-dark p-3 rounded-3 border border-secondary mb-3">
+    <label class="fw-bold text-light mb-2 d-block">
+        Choose a date and start time
+    </label>
 
-    <input
-        type="date"
-        id="calendarJumpDate"
-        class="form-control"
-        style="max-width:220px;"
-        onchange="jumpToCalendarDate()"
-    >
+    <div class="row g-2">
+        <div class="col-md-4">
+            <input
+                type="date"
+                id="manualBookingDate"
+                class="form-control"
+                onchange="jumpToManualDate()"
+            >
+        </div>
+
+        <div class="col-md-4">
+            <input
+                type="time"
+                id="manualBookingTime"
+                class="form-control"
+                step="1800"
+            >
+        </div>
+
+        <div class="col-md-4">
+            <button
+                type="button"
+                class="btn btn-primary w-100 fw-bold"
+                onclick="useManualBookingTime()"
+            >
+                Use This Time
+            </button>
+        </div>
+    </div>
+
+    <small class="text-secondary d-block mt-2">
+        The calendar below shows unavailable times in grey.
+    </small>
 </div>
 
 <div id="calendar"></div>
+
 <div class="d-flex justify-content-between mt-4">
 <button class="btn btn-outline-light" type="button" onclick="goToStep(1)">Back</button>
 <button class="btn btn-pill" type="button" onclick="validateAndGoStep3()">Next</button>
@@ -151,6 +188,7 @@ Duration: <span id="hourDisplay" class="text-info">4</span> hrs
     class="form-control mb-2"
     placeholder="Address"
 ><?= htmlspecialchars($loggedInCustomer['address'] ?? '') ?></textarea>
+
 <textarea id="custDescription" class="form-control mb-3" placeholder="Describe your job..."></textarea>
 
 <div class="d-grid gap-2">
@@ -161,15 +199,17 @@ Duration: <span id="hourDisplay" class="text-info">4</span> hrs
     <button class="btn btn-primary w-100 rounded-pill fw-bold" type="button" onclick="bookNow()">
         Book Now
     </button>
-</div><div id="zohoStatus" class="mt-2 small"></div>
 
-<button
-    class="btn btn-outline-info w-100 rounded-pill fw-bold"
-    type="button"
-    onclick="emailMikeForPriceCheck()"
->
-    Something doesn't look right — email Mike
-</button>
+    <button
+        class="btn btn-outline-info w-100 rounded-pill fw-bold"
+        type="button"
+        onclick="emailMikeForPriceCheck()"
+    >
+        Something doesn't look right — email Mike
+    </button>
+</div>
+
+<div id="zohoStatus" class="mt-2 small"></div>
 
 </div>
 </div>
@@ -190,42 +230,57 @@ Duration: <span id="hourDisplay" class="text-info">4</span> hrs
 .fc-timegrid-slot-label-cushion,
 .fc-timegrid-axis-cushion{color:#222!important;font-weight:600;font-size:12px}
 .fc-col-header-cell-cushion{color:#0d6efd!important;font-weight:700;text-decoration:none!important}
+
+@media (max-width: 768px) {
+    #calendar {
+        padding:10px;
+    }
+
+    .fc-toolbar {
+        flex-direction:column;
+        gap:8px;
+    }
+
+    .fc-toolbar-title {
+        font-size:1.1rem!important;
+    }
+}
 </style>
 
-    <div class="modal fade" id="discountLoginModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content rounded-4 border-0 shadow-lg">
+<div class="modal fade" id="discountLoginModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+<div class="modal-dialog modal-dialog-centered">
+<div class="modal-content rounded-4 border-0 shadow-lg">
 
-            <div class="modal-header bg-dark text-white">
-                <h5 class="modal-title">Existing Customer Discount?</h5>
-            </div>
+<div class="modal-header bg-dark text-white">
+<h5 class="modal-title">Existing Customer Discount?</h5>
+</div>
 
-            <div class="modal-body">
-                <p>
-                    If you are an existing or approved repeat customer, please log in before continuing so your discounted rate can be applied.
-                </p>
+<div class="modal-body">
+<p>
+If you are an existing or approved repeat customer, please log in before continuing so your discounted rate can be applied.
+</p>
 
-                <p class="small text-muted mb-0">
-                    New discount requests may take up to 24 hours to review.
-                </p>
-            </div>
+<p class="small text-muted mb-0">
+New discount requests may take up to 24 hours to review.
+</p>
+</div>
 
-            <div class="modal-footer d-grid gap-2">
-                <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">
-                    Ignore / Continue
-                </button>
+<div class="modal-footer d-grid gap-2">
+<button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">
+Ignore / Continue
+</button>
 
-                <a href="login.php" class="btn btn-warning rounded-pill fw-bold">
-                    I am already setup with a discount — Login
-                </a>
+<a href="login.php" class="btn btn-warning rounded-pill fw-bold">
+I am already setup with a discount — Login
+</a>
 
-                <a href="register.php?discount_request=1" class="btn btn-primary rounded-pill fw-bold">
-                    I want a discount — Register
-                </a>
-            </div>
+<a href="register.php?discount_request=1" class="btn btn-primary rounded-pill fw-bold">
+I want a discount — Register
+</a>
+</div>
 
-        </div>
-    </div>
+</div>
+</div>
 </div>
 
 <script>
@@ -233,7 +288,6 @@ let calendar;
 let selectedDuration = 4;
 let selectedEvent = null;
 let customerDiscount = <?= json_encode($customerDiscount) ?>;
-
 let isLoggedIn = <?= json_encode($isLoggedIn) ?>;
 let discountPopupShown = false;
 
@@ -273,7 +327,7 @@ function validateAndGoStep2(){
 
 function validateAndGoStep3(){
     if(!selectedEvent){
-        alert('Please select a time window first.');
+        alert('Please choose a booking time first.');
         return;
     }
 
@@ -283,46 +337,132 @@ function validateAndGoStep3(){
 document.addEventListener('DOMContentLoaded', function(){
     document.getElementById('serviceType').addEventListener('change', checkValidation);
     document.getElementById('locationZone').addEventListener('change', checkValidation);
+
+    document.getElementById('hourSlider').addEventListener('input', function(){
+        selectedDuration = parseFloat(this.value);
+        document.getElementById('hourDisplay').innerText = this.value;
+
+        if(selectedEvent){
+            createPreviewBooking(selectedEvent.start);
+        }
+    });
+
     checkValidation();
 });
 
-document.getElementById('hourSlider').addEventListener('input', function(){
-    selectedDuration = parseFloat(this.value);
-    document.getElementById('hourDisplay').innerText = this.value;
-
-    if(selectedEvent){
-        updateEventDuration(selectedEvent, selectedDuration);
+function removePreviewBlocks(){
+    if(!calendar){
+        return;
     }
-});
+
+    ['customer-selection-buffer-before', 'customer-selection', 'customer-selection-buffer-after'].forEach(id => {
+        const old = calendar.getEventById(id);
+        if(old) old.remove();
+    });
+}
+
+function createPreviewBooking(start){
+    if(!calendar){
+        return;
+    }
+
+    removePreviewBlocks();
+
+    const end = new Date(start.getTime() + selectedDuration * 60 * 60 * 1000);
+    const bufferMinutes = 30;
+
+    const bufferBeforeStart = new Date(start.getTime() - bufferMinutes * 60000);
+    const bufferAfterEnd = new Date(end.getTime() + bufferMinutes * 60000);
+
+    calendar.addEvent({
+        id:'customer-selection-buffer-before',
+        title:'Driving / buffer time',
+        start:bufferBeforeStart,
+        end:start,
+        backgroundColor:'#999999',
+        borderColor:'#999999',
+        editable:false
+    });
+
+    selectedEvent = calendar.addEvent({
+        id:'customer-selection',
+        title:'Your requested time',
+        start:start,
+        end:end,
+        backgroundColor:'#0d6efd',
+        borderColor:'#0d6efd',
+        editable:false
+    });
+
+    calendar.addEvent({
+        id:'customer-selection-buffer-after',
+        title:'Driving / buffer time',
+        start:end,
+        end:bufferAfterEnd,
+        backgroundColor:'#999999',
+        borderColor:'#999999',
+        editable:false
+    });
+
+    calendar.gotoDate(start);
+    calculateFromEvent(selectedEvent);
+}
+
+function jumpToManualDate(){
+    const date = document.getElementById('manualBookingDate').value;
+
+    if(date && calendar){
+        calendar.gotoDate(date);
+    }
+}
+
+function useManualBookingTime(){
+    const date = document.getElementById('manualBookingDate').value;
+    const time = document.getElementById('manualBookingTime').value;
+
+    if(!date || !time){
+        alert('Please choose a date and start time.');
+        return;
+    }
+
+    const start = new Date(date + 'T' + time + ':00');
+
+    if(start < new Date()){
+        alert('Please choose a future time.');
+        return;
+    }
+
+    createPreviewBooking(start);
+}
 
 function initCalendar(){
 
     calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
 
-    initialView: window.innerWidth < 768 ? 'timeGridDay' : 'timeGridWeek',
+        initialView: window.innerWidth < 768 ? 'timeGridDay' : 'timeGridWeek',
 
-    headerToolbar:{
-        left:'prev,next today',
-        center:'title',
-        right: window.innerWidth < 768
-            ? ''
-            : 'timeGridWeek,timeGridDay'
-    },
+        headerToolbar:{
+            left:'prev,next today',
+            center:'title',
+            right: window.innerWidth < 768 ? '' : 'timeGridWeek,timeGridDay'
+        },
 
-selectable:true,
-editable:true,
+        selectable:true,
+        editable:false,
 
-longPressDelay: 100,
-selectLongPressDelay: 100,
-eventLongPressDelay: 100,
+        longPressDelay:100,
+        selectLongPressDelay:100,
+        eventLongPressDelay:100,
 
-selectAllow:function(info){
-    return info.start >= new Date();
-},
+        selectAllow:function(info){
+            return info.start >= new Date();
+        },
+
         selectOverlap:false,
         eventOverlap:false,
         allDaySlot:false,
         slotDuration:'00:30:00',
+        snapDuration:'00:30:00',
         slotMinTime:'06:00:00',
         slotMaxTime:'23:00:00',
         height:'auto',
@@ -330,62 +470,8 @@ selectAllow:function(info){
         events:'public_calendar_events.php',
 
         select:function(info){
-
-            ['customer-selection-buffer-before', 'customer-selection', 'customer-selection-buffer-after'].forEach(id => {
-    const old = calendar.getEventById(id);
-    if(old) old.remove();
-});
-
-            const end = new Date(info.start.getTime() + selectedDuration * 60 * 60 * 1000);
-
-            // remove old preview blocks
-['customer-selection-buffer-before', 'customer-selection', 'customer-selection-buffer-after'].forEach(id => {
-    const old = calendar.getEventById(id);
-    if(old) old.remove();
-});
-
-const bufferMinutes = 30;
-
-const bufferBeforeStart = new Date(info.start.getTime() - bufferMinutes * 60000);
-const bufferAfterEnd = new Date(end.getTime() + bufferMinutes * 60000);
-
-calendar.addEvent({
-    id:'customer-selection-buffer-before',
-    title:'Driving / buffer time',
-    start:bufferBeforeStart,
-    end:info.start,
-    backgroundColor:'#999999',
-    borderColor:'#999999',
-    editable:false
-});
-
-selectedEvent = calendar.addEvent({
-    id:'customer-selection',
-    title:'Your requested time',
-    start:info.start,
-    end:end,
-    backgroundColor:'#0d6efd',
-    borderColor:'#0d6efd'
-});
-
-calendar.addEvent({
-    id:'customer-selection-buffer-after',
-    title:'Driving / buffer time',
-    start:end,
-    end:bufferAfterEnd,
-    backgroundColor:'#999999',
-    borderColor:'#999999',
-    editable:false
-});
-
-            calculateFromEvent(selectedEvent);
+            createPreviewBooking(info.start);
             calendar.unselect();
-        },
-
-        eventDrop:function(info){
-            if(info.event.id === 'customer-selection'){
-                calculateFromEvent(info.event);
-            }
         }
     });
 
@@ -393,10 +479,7 @@ calendar.addEvent({
 }
 
 function updateEventDuration(event, hours){
-    const start = event.start;
-    const end = new Date(start.getTime() + hours * 60 * 60 * 1000);
-    event.setEnd(end);
-    calculateFromEvent(event);
+    createPreviewBooking(event.start);
 }
 
 function calculateFromEvent(event){
@@ -409,26 +492,26 @@ function calculateFromEvent(event){
 
     let base = hours <= 1 ? 300 : hours <= 2 ? 350 : 400 + (hours - 2) * 100;
 
-let subtotal = base + zone;
-let discountAmount = subtotal * (customerDiscount / 100);
-let total = subtotal - discountAmount;
+    let subtotal = base + zone;
+    let discountAmount = subtotal * (customerDiscount / 100);
+    let total = subtotal - discountAmount;
 
-document.getElementById('totalDisplay').innerText = '$' + Math.round(total);
+    document.getElementById('totalDisplay').innerText = '$' + Math.round(total);
 
-document.getElementById('quoteSummary').innerHTML = `
-    <div class="p-3 bg-dark rounded">
-        <b>${service}</b><br>
-        ${hours.toFixed(1)} hours requested<br>
-        <hr>
-        Base: $${Math.round(base)}<br>
-        Location: $${zone}<br>
-        ${customerDiscount > 0 ? `<span class="text-success">Customer Discount: -${customerDiscount}% ($${Math.round(discountAmount)})</span><br>` : ''}
-        <strong>Total: $${Math.round(total)}</strong><br>
-        <hr>
-        Requested start: ${start.toLocaleString()}<br>
-        Requested finish: ${end.toLocaleString()}
-    </div>
-`;
+    document.getElementById('quoteSummary').innerHTML = `
+        <div class="p-3 bg-dark rounded">
+            <b>${service}</b><br>
+            ${hours.toFixed(1)} hours requested<br>
+            <hr>
+            Base: $${Math.round(base)}<br>
+            Location: $${zone}<br>
+            ${customerDiscount > 0 ? `<span class="text-success">Customer Discount: -${customerDiscount}% ($${Math.round(discountAmount)})</span><br>` : ''}
+            <strong>Total: $${Math.round(total)}</strong><br>
+            <hr>
+            Requested start: ${start.toLocaleString()}<br>
+            Requested finish: ${end.toLocaleString()}
+        </div>
+    `;
 }
 
 function goToStep(step){
@@ -446,15 +529,16 @@ function goToStep(step){
     if(step === 3 && selectedEvent){
         calculateFromEvent(selectedEvent);
     }
+
     if(step === 3 && !isLoggedIn && !discountPopupShown){
-    discountPopupShown = true;
+        discountPopupShown = true;
 
-    const discountModal = new bootstrap.Modal(
-        document.getElementById('discountLoginModal')
-    );
+        const discountModal = new bootstrap.Modal(
+            document.getElementById('discountLoginModal')
+        );
 
-    discountModal.show();
-}
+        discountModal.show();
+    }
 }
 
 function sendToZoho(){
@@ -470,7 +554,7 @@ function sendToZoho(){
 
     if(selectedEvent){
         fd.append('requested_start', formatLocalDateTime(selectedEvent.start));
-fd.append('requested_end', formatLocalDateTime(selectedEvent.end));
+        fd.append('requested_end', formatLocalDateTime(selectedEvent.end));
     }
 
     fetch('process_quote.php',{method:'POST',body:fd})
@@ -493,7 +577,7 @@ function bookNow(){
     fd.append('service', document.getElementById('serviceType').value);
     fd.append('description', document.getElementById('custDescription').value);
     fd.append('requested_start', formatLocalDateTime(selectedEvent.start));
-fd.append('requested_end', formatLocalDateTime(selectedEvent.end));
+    fd.append('requested_end', formatLocalDateTime(selectedEvent.end));
 
     fetch('create_booking.php', {
         method:'POST',
@@ -550,17 +634,6 @@ Thanks.`
 
     window.location.href = `mailto:mike@mikeofalltrades.com.au?subject=${subject}&body=${body}`;
 }
-
-function jumpToCalendarDate(){
-    const date = document.getElementById('calendarJumpDate').value;
-
-    if(!date || !calendar){
-        return;
-    }
-
-    calendar.gotoDate(date);
-}
-
 </script>
 
 <?php include 'includes/footer.php'; ?>
