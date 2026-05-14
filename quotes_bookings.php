@@ -575,22 +575,39 @@ function bookNow(){
 
     fd.append('service', document.getElementById('serviceType').value);
     fd.append('description', document.getElementById('custDescription').value);
+    fd.append('total', document.getElementById('totalDisplay').innerText.replace('$',''));
     fd.append('requested_start', formatLocalDateTime(selectedEvent.start));
     fd.append('requested_end', formatLocalDateTime(selectedEvent.end));
+
+    const status = document.getElementById('zohoStatus');
+    status.innerText = 'Saving booking...';
 
     fetch('create_booking.php', {
         method:'POST',
         body:fd
     })
-    .then(r => r.json())
-    .then(res => {
-        document.getElementById('zohoStatus').innerText =
-            res.success ? 'Booking saved successfully.' : res.message;
+    .then(async r => {
+        const text = await r.text();
 
+        try {
+            return JSON.parse(text);
+        } catch(e) {
+            throw new Error(text || 'Invalid server response.');
+        }
+    })
+    .then(res => {
         if(res.success){
+            status.innerText = 'Booking saved successfully.';
             alert('Booking saved. You can now view it under My Bookings.');
             window.location.href = 'customer/dashboard.php';
+        } else {
+            status.innerText = res.message || 'Could not save booking.';
+            alert(res.message || 'Could not save booking.');
         }
+    })
+    .catch(err => {
+        status.innerText = 'Booking failed: ' + err.message;
+        alert('Booking failed: ' + err.message);
     });
 }
 
