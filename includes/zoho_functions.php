@@ -218,6 +218,7 @@ function createZohoEstimate($customer_id, $name, $service_description, $total) {
 /**
  * ---------------------------------------------------------
  * SEND ESTIMATE EMAIL
+ * USE ZOHO EMAIL TEMPLATE
  * ---------------------------------------------------------
  */
 function sendZohoEstimate($estimate_id, $email) {
@@ -231,17 +232,52 @@ function sendZohoEstimate($estimate_id, $email) {
             $email
         ],
 
+        "send_from_org_email_id" => true
+    ];
+
+    return zohoRequest("POST", $url, $payload);
+}
+
+/**
+ * ---------------------------------------------------------
+ * SEND BOOKING CONFIRMATION EMAIL
+ * CUSTOM BOOKING-SPECIFIC EMAIL BODY
+ * ---------------------------------------------------------
+ */
+function sendZohoBookingEstimate($estimate_id, $email) {
+
+    $url = "https://www.zohoapis.com.au/invoice/v3/estimates/{$estimate_id}/email"
+         . "?organization_id=" . ZOHO_ORG_ID;
+
+    $payload = [
+
+        "to_mail_ids" => [
+            $email
+        ],
+
+        "cc_mail_ids" => [
+            "mike@mikeofalltrades.com.au"
+        ],
+
         "subject" =>
-            "Your Project Quote",
+            "Booking Confirmation - Mike Of All Trades",
 
         "body" =>
             "Hi,\n\n"
-          . "Please find your quotation attached as a PDF.\n\n"
-          . "If you have any questions or would like to proceed, simply reply to this email.\n\n"
-          . "Kind regards",
+          . "Thank you for making a booking with Mike Of All Trades.\n\n"
+          . "This email confirms that your requested booking has been received and added to our booking system.\n\n"
+          . "Please check the attached PDF document carefully to make sure your booking details, service details, date and time are correct.\n\n"
+          . "If you need to edit or cancel your booking, please log back in to:\n"
+          . "https://mikeofalltrades.com.au/customer/dashboard.php\n\n"
+          . "If anything looks wrong or you need help, simply reply to this email.\n\n"
+          . "Kind regards,\n"
+          . "Mike Of All Trades",
 
         "send_from_org_email_id" => true
     ];
+
+    return zohoRequest("POST", $url, $payload);
+}
 
     return zohoRequest("POST", $url, $payload);
 }

@@ -192,8 +192,7 @@ Booking ID: {$parentId}";
     ");
     $updateZohoStmt->execute([$estimateId, $parentId]);
 
-    $send = sendZohoEstimate($estimateId, $user['email']);
-
+$send = sendZohoBookingEstimate($estimateId, $user['email']);
     if (($send['code'] ?? 0) >= 400) {
         throw new Exception('Booking saved and Zoho estimate created, but Zoho email failed: ' . ($send['raw'] ?? 'Unknown Zoho send error'));
     }
