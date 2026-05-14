@@ -280,8 +280,11 @@ function validateAndGoStep3(){
     goToStep(3);
 }
 
-document.getElementById('serviceType').addEventListener('change', checkValidation);
-document.getElementById('locationZone').addEventListener('change', checkValidation);
+document.addEventListener('DOMContentLoaded', function(){
+    document.getElementById('serviceType').addEventListener('change', checkValidation);
+    document.getElementById('locationZone').addEventListener('change', checkValidation);
+    checkValidation();
+});
 
 document.getElementById('hourSlider').addEventListener('input', function(){
     selectedDuration = parseFloat(this.value);
