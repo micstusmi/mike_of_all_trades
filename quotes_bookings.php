@@ -309,14 +309,16 @@ function initCalendar(){
             : 'timeGridWeek,timeGridDay'
     },
 
-    selectable:true,
-        editable:true,
-        selectAllow:function(info){
-            longPressDelay: 100,
+selectable:true,
+editable:true,
+
+longPressDelay: 100,
 selectLongPressDelay: 100,
 eventLongPressDelay: 100,
-        return info.start >= new Date();
-        },
+
+selectAllow:function(info){
+    return info.start >= new Date();
+},
         selectOverlap:false,
         eventOverlap:false,
         allDaySlot:false,
