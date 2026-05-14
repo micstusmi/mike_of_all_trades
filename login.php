@@ -30,8 +30,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
-        header('Location: customer/dashboard.php');
-        exit;
+$return = $_GET['return'] ?? '';
+
+if ($return === 'quotes_bookings.php') {
+    header('Location: quotes_bookings.php?restore=1');
+    exit;
+}
+
+header('Location: customer/dashboard.php');        exit;
     }
 
     $error = 'Invalid email or password.';

@@ -270,8 +270,7 @@ New discount requests may take up to 24 hours to review.
 Ignore / Continue
 </button>
 
-<a href="login.php" class="btn btn-warning rounded-pill fw-bold">
-I am already setup with a discount — Login
+<a href="login.php?return=quotes_bookings.php" class="btn btn-warning rounded-pill fw-bold" onclick="saveQuoteProgress()">I am already setup with a discount — Login
 </a>
 
 <a href="register.php?discount_request=1" class="btn btn-primary rounded-pill fw-bold">
@@ -634,6 +633,69 @@ Thanks.`
 
     window.location.href = `mailto:mike@mikeofalltrades.com.au?subject=${subject}&body=${body}`;
 }
+
+function saveQuoteProgress(){
+    const data = {
+        service: document.getElementById('serviceType').value,
+        location: document.getElementById('locationZone').value,
+        duration: document.getElementById('hourSlider').value,
+        description: document.getElementById('custDescription')?.value || '',
+        selectedStart: selectedEvent ? formatLocalDateTime(selectedEvent.start) : '',
+        selectedEnd: selectedEvent ? formatLocalDateTime(selectedEvent.end) : ''
+    };
+
+    sessionStorage.setItem('quoteProgress', JSON.stringify(data));
+}
+
+function restoreQuoteProgress(){
+    const saved = sessionStorage.getItem('quoteProgress');
+
+    if(!saved){
+        return;
+    }
+
+    const data = JSON.parse(saved);
+
+    if(data.service){
+        document.getElementById('serviceType').value = data.service;
+    }
+
+    if(data.location !== ''){
+        document.getElementById('locationZone').value = data.location;
+    }
+
+    if(data.duration){
+        selectedDuration = parseFloat(data.duration);
+        document.getElementById('hourSlider').value = data.duration;
+        document.getElementById('hourDisplay').innerText = data.duration;
+    }
+
+    if(data.description){
+        document.getElementById('custDescription').value = data.description;
+    }
+
+    checkValidation();
+
+    if(data.selectedStart){
+        goToStep(2);
+
+        setTimeout(function(){
+            const start = new Date(data.selectedStart.replace(' ', 'T'));
+            createPreviewBooking(start);
+            goToStep(3);
+            sessionStorage.removeItem('quoteProgress');
+        }, 400);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+    const params = new URLSearchParams(window.location.search);
+
+    if(params.get('restore') === '1'){
+        setTimeout(restoreQuoteProgress, 300);
+    }
+});
+
 </script>
 
 <?php include 'includes/footer.php'; ?>
