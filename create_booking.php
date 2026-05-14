@@ -30,8 +30,15 @@ try {
     $description = trim($_POST['description'] ?? '');
     $start = $_POST['requested_start'] ?? '';
     $end = $_POST['requested_end'] ?? '';
-    $total = $_POST['total'] ?? 0;
+    $total = (float)($_POST['total'] ?? 0);
+
+    $bookingMode = $_POST['booking_mode'] ?? 'hours';
+    $durationUnits = (float)($_POST['duration_units'] ?? 0);
+    $billableHours = (float)($_POST['billable_hours'] ?? 0);
+
     $buffer = 30;
+    $bookingGroupId = uniqid('booking_', true);
+    $title = 'Customer Booking - ' . $service;
 
     if (!$start || !$end) {
         throw new Exception('Please select a booking time first.');
@@ -49,97 +56,247 @@ try {
         throw new Exception('Invalid booking time.');
     }
 
-    /*
-     * Double-booking protection including buffer window
-     */
-    $bufferStart = clone $startDT;
-    $bufferStart->modify("-{$buffer} minutes");
+    function hasOverlap($pdo, $startDT, $endDT) {
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*)
+            FROM calendar_events
+            WHERE start_datetime < ?
+            AND end_datetime > ?
+        ");
 
-    $bufferEnd = clone $endDT;
-    $bufferEnd->modify("+{$buffer} minutes");
+        $stmt->execute([
+            $endDT->format('Y-m-d H:i:s'),
+            $startDT->format('Y-m-d H:i:s')
+        ]);
 
-    $overlapStmt = $pdo->prepare("
-        SELECT COUNT(*)
-        FROM calendar_events
-        WHERE is_buffer = 0
-        AND start_datetime < ?
-        AND end_datetime > ?
-    ");
-
-    $overlapStmt->execute([
-        $bufferEnd->format('Y-m-d H:i:s'),
-        $bufferStart->format('Y-m-d H:i:s')
-    ]);
-
-    if ((int)$overlapStmt->fetchColumn() > 0) {
-        throw new Exception('Sorry, that time is no longer available. Please choose another time.');
+        return (int)$stmt->fetchColumn() > 0;
     }
 
-    /*
-     * Save booking locally first
-     */
+    function insertBookingBlock($pdo, $title, $description, $startDT, $endDT, $buffer, $userId, $bookingGroupId, $bookingMode, $blockHours) {
+        $stmt = $pdo->prepare("
+            INSERT INTO calendar_events
+            (
+                title,
+                notes,
+                event_type,
+                start_datetime,
+                end_datetime,
+                color,
+                is_buffer,
+                parent_event_id,
+                buffer_minutes,
+                created_by,
+                customer_id,
+                booking_group_id,
+                booking_mode,
+                billable_hours
+            )
+            VALUES
+            (?, ?, 'customer_booking', ?, ?, '#0d6efd', 0, NULL, ?, 'customer', ?, ?, ?, ?)
+        ");
+
+        $stmt->execute([
+            $title,
+            $description,
+            $startDT->format('Y-m-d H:i:s'),
+            $endDT->format('Y-m-d H:i:s'),
+            $buffer,
+            $userId,
+            $bookingGroupId,
+            $bookingMode,
+            $blockHours
+        ]);
+
+        $parentId = $pdo->lastInsertId();
+
+        $bufferStmt = $pdo->prepare("
+            INSERT INTO calendar_events
+            (title, notes, event_type, start_datetime, end_datetime, color, is_buffer, parent_event_id, buffer_minutes, created_by, customer_id, booking_group_id, booking_mode)
+            VALUES
+            (?, ?, 'buffer', ?, ?, '#999999', 1, ?, ?, 'system', ?, ?, ?)
+        ");
+
+        $beforeStart = clone $startDT;
+        $beforeStart->modify("-{$buffer} minutes");
+
+        $bufferStmt->execute([
+            'Driving / buffer time',
+            'Automatic buffer before customer booking',
+            $beforeStart->format('Y-m-d H:i:s'),
+            $startDT->format('Y-m-d H:i:s'),
+            $parentId,
+            $buffer,
+            $userId,
+            $bookingGroupId,
+            $bookingMode
+        ]);
+
+        $afterEnd = clone $endDT;
+        $afterEnd->modify("+{$buffer} minutes");
+
+        $bufferStmt->execute([
+            'Driving / buffer time',
+            'Automatic buffer after customer booking',
+            $endDT->format('Y-m-d H:i:s'),
+            $afterEnd->format('Y-m-d H:i:s'),
+            $parentId,
+            $buffer,
+            $userId,
+            $bookingGroupId,
+            $bookingMode
+        ]);
+
+        return $parentId;
+    }
+
+    function buildDayModeBlocks($pdo, $startDT, $requiredHours, $buffer) {
+        $blocks = [];
+        $remainingMinutes = (int)round($requiredHours * 60);
+
+        $day = clone $startDT;
+        $day->setTime(8, 0, 0);
+
+        $maxDaysToSearch = 60;
+        $searchedDays = 0;
+
+        while ($remainingMinutes > 0 && $searchedDays < $maxDaysToSearch) {
+            $searchedDays++;
+
+            $dayOfWeek = (int)$day->format('N');
+
+            if ($dayOfWeek <= 5) {
+                $windows = [
+                    ['08:00', '12:00'],
+                    ['13:00', '17:00']
+                ];
+
+                foreach ($windows as $window) {
+                    if ($remainingMinutes <= 0) {
+                        break;
+                    }
+
+                    $cursor = new DateTime($day->format('Y-m-d') . ' ' . $window[0]);
+                    $windowEnd = new DateTime($day->format('Y-m-d') . ' ' . $window[1]);
+
+                    while ($cursor < $windowEnd && $remainingMinutes > 0) {
+                        $slotStart = clone $cursor;
+                        $slotEnd = clone $cursor;
+                        $slotEnd->modify('+30 minutes');
+
+                        if ($slotEnd > $windowEnd) {
+                            break;
+                        }
+
+                        $checkStart = clone $slotStart;
+                        $checkStart->modify("-{$buffer} minutes");
+
+                        $checkEnd = clone $slotEnd;
+                        $checkEnd->modify("+{$buffer} minutes");
+
+                        if (!hasOverlap($pdo, $checkStart, $checkEnd)) {
+                            if (empty($blocks) || end($blocks)['end']->format('Y-m-d H:i:s') !== $slotStart->format('Y-m-d H:i:s')) {
+                                $blocks[] = [
+                                    'start' => clone $slotStart,
+                                    'end' => clone $slotEnd,
+                                    'minutes' => 30
+                                ];
+                            } else {
+                                $lastIndex = count($blocks) - 1;
+                                $blocks[$lastIndex]['end'] = clone $slotEnd;
+                                $blocks[$lastIndex]['minutes'] += 30;
+                            }
+
+                            $remainingMinutes -= 30;
+                        }
+
+                        $cursor->modify('+30 minutes');
+                    }
+                }
+            }
+
+            $day->modify('+1 day');
+            $day->setTime(8, 0, 0);
+        }
+
+        if ($remainingMinutes > 0) {
+            throw new Exception('Sorry, there is not enough available time in the next 60 weekdays for this multi-day booking.');
+        }
+
+        return $blocks;
+    }
+
     $pdo->beginTransaction();
 
-    $title = 'Customer Booking - ' . $service;
+    $bookingIds = [];
+    $bookingLines = [];
 
-    $stmt = $pdo->prepare("
-        INSERT INTO calendar_events
-        (title, notes, event_type, start_datetime, end_datetime, color, is_buffer, parent_event_id, buffer_minutes, created_by, customer_id)
-        VALUES
-        (?, ?, 'customer_booking', ?, ?, '#0d6efd', 0, NULL, ?, 'customer', ?)
-    ");
+    if ($bookingMode === 'days') {
+        $blocks = buildDayModeBlocks($pdo, $startDT, $billableHours, $buffer);
 
-    $stmt->execute([
-        $title,
-        $description,
-        $startDT->format('Y-m-d H:i:s'),
-        $endDT->format('Y-m-d H:i:s'),
-        $buffer,
-        $userId
-    ]);
+        foreach ($blocks as $block) {
+            $blockHours = $block['minutes'] / 60;
 
-    $parentId = $pdo->lastInsertId();
+            $bookingIds[] = insertBookingBlock(
+                $pdo,
+                $title,
+                $description,
+                $block['start'],
+                $block['end'],
+                $buffer,
+                $userId,
+                $bookingGroupId,
+                $bookingMode,
+                $blockHours
+            );
 
-    $bufferStmt = $pdo->prepare("
-        INSERT INTO calendar_events
-        (title, notes, event_type, start_datetime, end_datetime, color, is_buffer, parent_event_id, buffer_minutes, created_by, customer_id)
-        VALUES
-        (?, ?, 'buffer', ?, ?, '#999999', 1, ?, ?, 'system', ?)
-    ");
+            $bookingLines[] =
+                $block['start']->format('l, d/m/Y') .
+                ' — ' .
+                $block['start']->format('g:i A') .
+                ' to ' .
+                $block['end']->format('g:i A') .
+                ' (' . number_format($blockHours, 1) . ' hrs)';
+        }
+    } else {
+        $bufferStart = clone $startDT;
+        $bufferStart->modify("-{$buffer} minutes");
 
-    $beforeStart = clone $startDT;
-    $beforeStart->modify("-{$buffer} minutes");
+        $bufferEnd = clone $endDT;
+        $bufferEnd->modify("+{$buffer} minutes");
 
-    $bufferStmt->execute([
-        'Driving / buffer time',
-        'Automatic buffer before customer booking',
-        $beforeStart->format('Y-m-d H:i:s'),
-        $startDT->format('Y-m-d H:i:s'),
-        $parentId,
-        $buffer,
-        $userId
-    ]);
+        if (hasOverlap($pdo, $bufferStart, $bufferEnd)) {
+            throw new Exception('Sorry, that time is no longer available. Please choose another time.');
+        }
 
-    $afterEnd = clone $endDT;
-    $afterEnd->modify("+{$buffer} minutes");
+        $blockHours = ($endDT->getTimestamp() - $startDT->getTimestamp()) / 3600;
 
-    $bufferStmt->execute([
-        'Driving / buffer time',
-        'Automatic buffer after customer booking',
-        $endDT->format('Y-m-d H:i:s'),
-        $afterEnd->format('Y-m-d H:i:s'),
-        $parentId,
-        $buffer,
-        $userId
-    ]);
+        $bookingIds[] = insertBookingBlock(
+            $pdo,
+            $title,
+            $description,
+            $startDT,
+            $endDT,
+            $buffer,
+            $userId,
+            $bookingGroupId,
+            $bookingMode,
+            $blockHours
+        );
+
+        $bookingLines[] =
+            $startDT->format('l, d/m/Y') .
+            ' — ' .
+            $startDT->format('g:i A') .
+            ' to ' .
+            $endDT->format('g:i A') .
+            ' (' . number_format($blockHours, 1) . ' hrs)';
+    }
+
+    $parentId = $bookingIds[0] ?? null;
 
     $pdo->commit();
 
-    /*
-     * Create Zoho estimate / booking document
-     */
-    $dateText = $startDT->format('l, d/m/Y');
-    $timeText = $startDT->format('g:i A') . ' - ' . $endDT->format('g:i A');
+    $bookingScheduleText = implode("\n", $bookingLines);
 
     $bookingDetails =
 "BOOKING CONFIRMATION
@@ -149,13 +306,17 @@ Customer: {$user['name']}
 Phone: {$user['phone']}
 Email: {$user['email']}
 
-Date: {$dateText}
-Time: {$timeText}
+Booking Mode: " . strtoupper($bookingMode) . "
+Requested Duration: {$durationUnits} " . ($bookingMode === 'days' ? 'day(s)' : 'hour(s)') . "
+Billable Hours: {$billableHours}
+
+Booked Schedule:
+{$bookingScheduleText}
 
 Notes:
 {$description}
 
-Booking ID: {$parentId}";
+Booking Group ID: {$bookingGroupId}";
 
     $customerId = getOrCreateZohoCustomer(
         $user['name'],
@@ -188,11 +349,12 @@ Booking ID: {$parentId}";
     $updateZohoStmt = $pdo->prepare("
         UPDATE calendar_events
         SET zoho_estimate_id = ?
-        WHERE id = ?
+        WHERE booking_group_id = ?
     ");
-    $updateZohoStmt->execute([$estimateId, $parentId]);
+    $updateZohoStmt->execute([$estimateId, $bookingGroupId]);
 
-$send = sendZohoBookingEstimate($estimateId, $user['email']);
+    $send = sendZohoBookingEstimate($estimateId, $user['email']);
+
     if (($send['code'] ?? 0) >= 400) {
         throw new Exception('Booking saved and Zoho estimate created, but Zoho email failed: ' . ($send['raw'] ?? 'Unknown Zoho send error'));
     }
@@ -200,6 +362,7 @@ $send = sendZohoBookingEstimate($estimateId, $user['email']);
     echo json_encode([
         'success' => true,
         'booking_id' => $parentId,
+        'booking_group_id' => $bookingGroupId,
         'estimate_id' => $estimateId
     ]);
 

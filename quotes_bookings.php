@@ -78,10 +78,27 @@ if (!empty($_SESSION['user_id'])) {
 </div>
 
 <div class="mt-4">
-<label class="form-label fw-bold">
-Duration: <span id="hourDisplay" class="text-info">4</span> hrs
-</label>
-<input type="range" id="hourSlider" class="form-range" min="1" max="12" step="0.5" value="4">
+    <label class="form-label fw-bold d-block">Booking Type</label>
+
+    <div class="btn-group mb-3" role="group">
+        <input type="radio" class="btn-check" name="bookingMode" id="modeHours" value="hours" checked>
+        <label class="btn btn-outline-info" for="modeHours">Hours</label>
+
+        <input type="radio" class="btn-check" name="bookingMode" id="modeDays" value="days">
+        <label class="btn btn-outline-info" for="modeDays">Days</label>
+    </div>
+
+    <label class="form-label fw-bold">
+        Duration:
+        <span id="hourDisplay" class="text-info">4</span>
+        <span id="durationUnitLabel">hrs</span>
+    </label>
+
+    <input type="range" id="hourSlider" class="form-range" min="1" max="12" step="0.5" value="4">
+
+    <small id="durationHelpText" class="text-light d-block">
+        Hour mode books the exact number of hours selected.
+    </small>
 </div>
 
 <div class="text-end mt-4">
@@ -136,6 +153,9 @@ Duration: <span id="hourDisplay" class="text-info">4</span> hrs
     <small class="text-secondary d-block mt-2">
         The calendar below shows unavailable times in grey.
     </small>
+    <small id="dayModePreviewNotice" class="text-warning d-block mt-2 d-none">
+    Day bookings may only preview the first day on the calendar. The full booking will be allocated automatically after you press Book Now.
+</small>
 </div>
 
 <div id="calendar"></div>
@@ -285,6 +305,47 @@ I want a discount — Register
 <script>
 let calendar;
 let selectedDuration = 4;
+let bookingMode = 'hours';
+let billableHours = 4;
+
+function updateDurationMode(){
+    bookingMode = document.querySelector('input[name="bookingMode"]:checked').value;
+
+    const slider = document.getElementById('hourSlider');
+    const unitLabel = document.getElementById('durationUnitLabel');
+    const helpText = document.getElementById('durationHelpText');
+    const dayNotice = document.getElementById('dayModePreviewNotice');
+
+if(dayNotice){
+    dayNotice.classList.toggle('d-none', bookingMode !== 'days');
+}
+
+    if(bookingMode === 'days'){
+        slider.min = 1;
+        slider.max = 10;
+        slider.step = 1;
+        slider.value = Math.max(1, Math.round(slider.value));
+
+        unitLabel.innerText = slider.value == 1 ? 'day' : 'days';
+        helpText.innerText = 'Day mode assumes 8 billable hours per work day, usually between 8am and 5pm.';
+    } else {
+        slider.min = 1;
+        slider.max = 12;
+        slider.step = 0.5;
+
+        unitLabel.innerText = 'hrs';
+        helpText.innerText = 'Hour mode books the exact number of hours selected.';
+    }
+
+    selectedDuration = parseFloat(slider.value);
+    billableHours = bookingMode === 'days' ? selectedDuration * 8 : selectedDuration;
+
+    document.getElementById('hourDisplay').innerText = slider.value;
+
+    if(selectedEvent){
+        createPreviewBooking(selectedEvent.start);
+    }
+}
 let selectedEvent = null;
 let customerDiscount = <?= json_encode($customerDiscount) ?>;
 let isLoggedIn = <?= json_encode($isLoggedIn) ?>;
@@ -337,16 +398,18 @@ document.addEventListener('DOMContentLoaded', function(){
     document.getElementById('serviceType').addEventListener('change', checkValidation);
     document.getElementById('locationZone').addEventListener('change', checkValidation);
 
-    document.getElementById('hourSlider').addEventListener('input', function(){
-        selectedDuration = parseFloat(this.value);
-        document.getElementById('hourDisplay').innerText = this.value;
+    document.getElementById('hourSlider').addEventListener('input', updateDurationMode);
+    document.getElementById('modeHours').addEventListener('change', updateDurationMode);
+    document.getElementById('modeDays').addEventListener('change', updateDurationMode);
 
-        if(selectedEvent){
-            createPreviewBooking(selectedEvent.start);
-        }
-    });
-
+    updateDurationMode();
     checkValidation();
+
+    const params = new URLSearchParams(window.location.search);
+
+    if(params.get('restore') === '1'){
+        setTimeout(restoreQuoteProgress, 300);
+    }
 });
 
 function removePreviewBlocks(){
@@ -367,7 +430,19 @@ function createPreviewBooking(start){
 
     removePreviewBlocks();
 
-    const end = new Date(start.getTime() + selectedDuration * 60 * 60 * 1000);
+    let end;
+
+if(bookingMode === 'days'){
+    const dayStart = new Date(start);
+    dayStart.setHours(8, 0, 0, 0);
+
+    end = new Date(dayStart);
+    end.setHours(17, 0, 0, 0);
+
+    start = dayStart;
+} else {
+    end = new Date(start.getTime() + selectedDuration * 60 * 60 * 1000);
+}
     const bufferMinutes = 30;
 
     const bufferBeforeStart = new Date(start.getTime() - bufferMinutes * 60000);
@@ -385,7 +460,7 @@ function createPreviewBooking(start){
 
     selectedEvent = calendar.addEvent({
         id:'customer-selection',
-        title:'Your requested time',
+        title:'Your requested start time',
         start:start,
         end:end,
         backgroundColor:'#0d6efd',
@@ -484,8 +559,7 @@ function updateEventDuration(event, hours){
 function calculateFromEvent(event){
     const start = event.start;
     const end = event.end;
-    const hours = (end - start) / 1000 / 60 / 60;
-
+    const hours = bookingMode === 'days' ? selectedDuration * 8 : (end - start) / 1000 / 60 / 60;
     const zone = parseInt(document.getElementById('locationZone').value || 0);
     const service = document.getElementById('serviceType').value;
 
@@ -500,7 +574,8 @@ function calculateFromEvent(event){
     document.getElementById('quoteSummary').innerHTML = `
         <div class="p-3 bg-dark rounded">
             <b>${service}</b><br>
-            ${hours.toFixed(1)} hours requested<br>
+            ${bookingMode === 'days' ? selectedDuration + ' work day(s)' : hours.toFixed(1) + ' hours'} requested<br>
+Billable hours: ${hours.toFixed(1)}<br>
             <hr>
             Base: $${Math.round(base)}<br>
             Location: $${zone}<br>
@@ -527,6 +602,13 @@ function goToStep(step){
 
     if(step === 3 && selectedEvent){
         calculateFromEvent(selectedEvent);
+        if(bookingMode === 'days'){
+    alert(
+        selectedDuration + ' work day(s) selected.\n\n' +
+        'The blue block shows the first available work day only.\n\n' +
+        'When you press Book Now, the system will automatically allocate the remaining available weekday time slots between 8am and 5pm.'
+    );
+}
     }
 
     if(step === 3 && !isLoggedIn && !discountPopupShown){
@@ -550,6 +632,9 @@ function sendToZoho(){
     fd.append('description', document.getElementById('custDescription').value);
     fd.append('service', document.getElementById('serviceType').value);
     fd.append('total', document.getElementById('totalDisplay').innerText.replace('$',''));
+    fd.append('booking_mode', bookingMode);
+fd.append('duration_units', selectedDuration);
+fd.append('billable_hours', bookingMode === 'days' ? selectedDuration * 8 : selectedDuration);
 
     if(selectedEvent){
         fd.append('requested_start', formatLocalDateTime(selectedEvent.start));
@@ -576,6 +661,9 @@ function bookNow(){
     fd.append('service', document.getElementById('serviceType').value);
     fd.append('description', document.getElementById('custDescription').value);
     fd.append('total', document.getElementById('totalDisplay').innerText.replace('$',''));
+    fd.append('booking_mode', bookingMode);
+fd.append('duration_units', selectedDuration);
+fd.append('billable_hours', bookingMode === 'days' ? selectedDuration * 8 : selectedDuration);
     fd.append('requested_start', formatLocalDateTime(selectedEvent.start));
     fd.append('requested_end', formatLocalDateTime(selectedEvent.end));
 
@@ -704,14 +792,6 @@ function restoreQuoteProgress(){
         }, 400);
     }
 }
-
-document.addEventListener('DOMContentLoaded', function(){
-    const params = new URLSearchParams(window.location.search);
-
-    if(params.get('restore') === '1'){
-        setTimeout(restoreQuoteProgress, 300);
-    }
-});
 
 </script>
 
