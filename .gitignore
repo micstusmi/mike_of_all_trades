@@ -10,3 +10,7 @@ includes/config.php
 # Ignore your PHP error logs if they exist
 php_errors.log
 *.log
+
+/includes/config.php
+/includes/db.php
+/admin/blockouts.json
