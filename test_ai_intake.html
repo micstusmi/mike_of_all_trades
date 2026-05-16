@@ -9,15 +9,17 @@
         textarea{min-height:90px}
         button{padding:10px 16px;border:none;border-radius:8px;cursor:pointer;margin:5px}
         .primary{background:#ffc107;color:black;font-weight:bold}
-        .option-btn{background:#333;color:white}
+        .option-btn{background:#0d6efd;color:white;border-radius:999px;font-weight:bold}
         .danger{background:#0dcaf0;color:#000;font-weight:bold}
         .frustrated{background:#dc3545;color:#fff;font-weight:bold}
-        #responseBox,#correctionBox,#contactBox{margin-top:25px;padding:20px;background:#222;border-radius:12px;display:none}
+        #responseBox,#replyBox,#overrideBox,#contactBox{margin-top:25px;padding:20px;background:#222;border-radius:12px;display:none}
+        #optionsBox{margin-top:20px;display:flex;flex-wrap:wrap;gap:10px}
         .assumption{color:#bbb;font-size:14px;margin:4px 0}
         .chat-line{border-bottom:1px solid #333;padding:8px 0}
         .hint{color:#aaa;font-size:14px}
     </style>
 </head>
+
 <body>
 
 <div class="card">
@@ -26,7 +28,7 @@
     <form id="aiForm">
         <label>What do you need done?</label>
         <input name="job" id="jobInput" placeholder="Example: paint some window frames" required>
-        <button class="primary">Continue</button>
+        <button class="primary">Start</button>
     </form>
 
     <div id="responseBox">
@@ -35,27 +37,31 @@
         <div id="optionsBox"></div>
     </div>
 
-    <div id="correctionBox">
-        <h3><h3>Reply to Mike AI</h3></h3>
-        <p class="hint">
-            Use this if the AI misunderstood you, asked the wrong question, or you want to steer the conversation.
-        </p>
+    <div id="replyBox">
+        <h3>Continue the conversation</h3>
+        <p class="hint">Reply naturally to answer the question or add more details.</p>
 
         <textarea
-            id="correctionInput"
-            placeholder="Example: There are 6 windows and I already have the paint."
+            id="replyInput"
+            placeholder="Example: There are 6 window frames and I already have the paint."
         ></textarea>
 
+        <button class="primary" type="button" onclick="sendReplyToAI()">
+            Send Reply
+        </button>
+    </div>
+
+    <div id="overrideBox">
         <h4>AI misunderstood?</h4>
+        <p class="hint">Use this if you want to correct the AI or redirect the conversation.</p>
 
-<textarea id="overrideInput"></textarea>
+        <textarea
+            id="overrideInput"
+            placeholder="Example: No, I don’t want advice. I just want to book Mike."
+        ></textarea>
 
-<button>
-Correct the AI
-</button>
-
-        <button class="primary" type="button" onclick="sendCorrectionToAI()">
-            Send feedback to AI
+        <button type="button" onclick="sendOverrideToAI()">
+            Correct the AI
         </button>
     </div>
 
@@ -96,23 +102,33 @@ document.getElementById('aiForm').addEventListener('submit', async function(e){
     }
 
     await sendMessageToAI(jobText, 'Customer');
-
-    // only clear after successful render
 });
 
-async function sendCorrectionToAI(){
-    const correctionText = document.getElementById('correctionInput').value.trim();
+async function sendReplyToAI(){
+    const replyText = document.getElementById('replyInput').value.trim();
 
-    if(!correctionText){
-        alert('Please type your correction or feedback first.');
+    if(!replyText){
+        alert('Please type your reply first.');
         return;
     }
 
-    await sendMessageToAI(correctionText, 'Customer correction');
+    await sendMessageToAI(replyText, 'Customer reply');
+    document.getElementById('replyInput').value = '';
+}
+
+async function sendOverrideToAI(){
+    const overrideText = document.getElementById('overrideInput').value.trim();
+
+    if(!overrideText){
+        alert('Please type what the AI misunderstood first.');
+        return;
+    }
+
+    await sendMessageToAI(overrideText, 'Customer correction');
+    document.getElementById('overrideInput').value = '';
 }
 
 async function sendMessageToAI(message, roleLabel){
-
     chatHistory.push({
         role: roleLabel,
         message: message
@@ -166,12 +182,12 @@ async function sendMessageToAI(message, roleLabel){
     renderChatHistory();
 
     document.getElementById('jobInput').value = '';
-    document.getElementById('correctionInput').value = '';
 }
 
 function renderAiResponse(parsed){
     document.getElementById('responseBox').style.display = 'block';
-    document.getElementById('correctionBox').style.display = 'block';
+    document.getElementById('replyBox').style.display = 'block';
+    document.getElementById('overrideBox').style.display = 'block';
 
     document.getElementById('replyText').innerText =
         parsed.reply || 'No reply returned.';
@@ -238,17 +254,16 @@ function renderAiResponse(parsed){
 }
 
 function handleNextStep(option, aiData){
-
     chatHistory.push({
         role: 'Customer selected',
         message: option
     });
 
     if(option === 'Add more information'){
-        document.getElementById('correctionBox').style.display = 'block';
-        document.getElementById('correctionInput').placeholder =
+        document.getElementById('replyBox').style.display = 'block';
+        document.getElementById('replyInput').placeholder =
             'Add more information about the job here...';
-        document.getElementById('correctionInput').focus();
+        document.getElementById('replyInput').focus();
         renderChatHistory();
         return;
     }
@@ -310,10 +325,10 @@ function handleNextStep(option, aiData){
     }
 
     if(option === 'Get advice' || option === 'Find out how long it may take'){
-        document.getElementById('correctionBox').style.display = 'block';
-        document.getElementById('correctionInput').placeholder =
+        document.getElementById('replyBox').style.display = 'block';
+        document.getElementById('replyInput').placeholder =
             'Add any extra details first, or type what you want to know...';
-        document.getElementById('correctionInput').focus();
+        document.getElementById('replyInput').focus();
         renderChatHistory();
         return;
     }
