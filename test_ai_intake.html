@@ -3,18 +3,20 @@
 <head>
     <title>AI Intake Test</title>
     <style>
-        body{font-family:Arial;background:#111;color:white;padding:40px}
-        .card{background:#1f1f1f;padding:20px;border-radius:12px;max-width:800px}
-        input, textarea{width:100%;padding:12px;border-radius:8px;border:none;margin-bottom:12px}
-        textarea{min-height:90px}
-        button{padding:10px 16px;border:none;border-radius:8px;cursor:pointer;margin:5px}
-        .primary{background:#ffc107;color:black;font-weight:bold}
-        .option-btn{background:#0d6efd;color:white;border-radius:999px;font-weight:bold}
-        .danger{background:#0dcaf0;color:#000;font-weight:bold}
-        .frustrated{background:#dc3545;color:#fff;font-weight:bold}
-        #responseBox,#replyBox,#overrideBox,#contactBox{margin-top:25px;padding:20px;background:#222;border-radius:12px;display:none}
-        #optionsBox{margin-top:20px;display:flex;flex-wrap:wrap;gap:10px}
-        .assumption{color:#bbb;font-size:14px;margin:4px 0}
+        body{font-family:Arial;background:#111;color:white;padding:30px}
+        .card{background:#1f1f1f;padding:20px;border-radius:14px;max-width:780px;margin:auto}
+        textarea,input{width:100%;padding:14px;border-radius:10px;border:none;margin-bottom:12px;box-sizing:border-box}
+        textarea{min-height:95px}
+        button{padding:11px 16px;border:none;border-radius:999px;cursor:pointer;margin:5px;font-weight:bold}
+        .primary{background:#ffc107;color:#000}
+        .quote{background:#f39200;color:#fff}
+        .booking{background:#198754;color:#fff}
+        .availability{background:#0d6efd;color:#fff}
+        .advice{background:#6f42c1;color:#fff}
+        .mike{background:#dc3545;color:#fff}
+        .correct{background:#444;color:#fff}
+        #responseBox,#contactBox{margin-top:20px;padding:18px;background:#222;border-radius:12px;display:none}
+        #actionButtons{margin-top:18px;display:flex;flex-wrap:wrap;gap:8px}
         .chat-line{border-bottom:1px solid #333;padding:8px 0}
         .hint{color:#aaa;font-size:14px}
     </style>
@@ -23,63 +25,44 @@
 <body>
 
 <div class="card">
-    <h2>AI Job Intake</h2>
+    <h2>Tell us what you want</h2>
+    <p class="hint">
+        Type what you need done, or continue replying to the assistant here.
+    </p>
 
     <form id="aiForm">
-        <label>What do you need done?</label>
-        <input name="job" id="jobInput" placeholder="Example: paint some window frames" required>
-        <button class="primary">Start</button>
+        <textarea
+            id="messageInput"
+            placeholder="Example: paint some window frames"
+            required
+        ></textarea>
+
+        <button class="primary" type="submit">
+            Send
+        </button>
     </form>
 
     <div id="responseBox">
         <p id="replyText"></p>
-        <div id="assumptionsBox"></div>
-        <div id="optionsBox"></div>
-    </div>
 
-    <div id="replyBox">
-        <h3>Continue the conversation</h3>
-        <p class="hint">Reply naturally to answer the question or add more details.</p>
-
-        <textarea
-            id="replyInput"
-            placeholder="Example: There are 6 window frames and I already have the paint."
-        ></textarea>
-
-        <button class="primary" type="button" onclick="sendReplyToAI()">
-            Send Reply
-        </button>
-    </div>
-
-    <div id="overrideBox">
-        <h4>AI misunderstood?</h4>
-        <p class="hint">Use this if you want to correct the AI or redirect the conversation.</p>
-
-        <textarea
-            id="overrideInput"
-            placeholder="Example: No, I don’t want advice. I just want to book Mike."
-        ></textarea>
-
-        <button type="button" onclick="sendOverrideToAI()">
-            Correct the AI
-        </button>
-    </div>
-
-    <div style="margin-top:20px;">
-        <button class="frustrated" type="button" onclick="showContactMikeBox()">
-            AI not helping? Send this chat to Mike
-        </button>
+        <div id="actionButtons">
+            <button class="quote" type="button" onclick="goQuote()">Get quote</button>
+            <button class="booking" type="button" onclick="goBooking()">Make booking</button>
+            <button class="availability" type="button" onclick="goAvailability()">See availability</button>
+            <button class="mike" type="button" onclick="showContactMikeBox()">Send this chat to Mike</button>
+            <button class="correct" type="button" onclick="focusCorrection()">Correct / redirect AI</button>
+        </div>
     </div>
 
     <div id="contactBox">
-        <h3>Ask Mike to step in</h3>
-        <p>If the AI has not quite understood, send this conversation to Mike.</p>
+        <h3>Send this chat to Mike</h3>
+        <p class="hint">Mike can review the conversation and contact you offline.</p>
 
         <input id="customerName" placeholder="Your name">
         <input id="customerEmail" placeholder="Your email">
         <input id="customerPhone" placeholder="Your phone">
 
-        <button class="danger" type="button" onclick="sendChatToMike()">
+        <button class="mike" type="button" onclick="sendChatToMike()">
             Send conversation to Mike
         </button>
 
@@ -91,42 +74,23 @@
 
 <script>
 let chatHistory = [];
+let lastAiData = {};
 
 document.getElementById('aiForm').addEventListener('submit', async function(e){
     e.preventDefault();
 
-    const jobText = document.getElementById('jobInput').value.trim();
+    const message = document.getElementById('messageInput').value.trim();
 
-    if(!jobText){
+    if(!message){
         return;
     }
 
-    await sendMessageToAI(jobText, 'Customer');
+    await sendMessageToAI(message, 'Customer');
+
+    document.getElementById('messageInput').value = '';
+    document.getElementById('messageInput').placeholder =
+        'Continue typing or responding to this chat...';
 });
-
-async function sendReplyToAI(){
-    const replyText = document.getElementById('replyInput').value.trim();
-
-    if(!replyText){
-        alert('Please type your reply first.');
-        return;
-    }
-
-    await sendMessageToAI(replyText, 'Customer reply');
-    document.getElementById('replyInput').value = '';
-}
-
-async function sendOverrideToAI(){
-    const overrideText = document.getElementById('overrideInput').value.trim();
-
-    if(!overrideText){
-        alert('Please type what the AI misunderstood first.');
-        return;
-    }
-
-    await sendMessageToAI(overrideText, 'Customer correction');
-    document.getElementById('overrideInput').value = '';
-}
 
 async function sendMessageToAI(message, roleLabel){
     chatHistory.push({
@@ -151,11 +115,8 @@ async function sendMessageToAI(message, roleLabel){
         data = await r.json();
     }catch(err){
         alert('Could not contact AI endpoint: ' + err.message);
-        console.error(err);
         return;
     }
-
-    console.log('AI endpoint response:', data);
 
     if(!data.success){
         alert(data.message || 'AI request failed.');
@@ -169,176 +130,58 @@ async function sendMessageToAI(message, roleLabel){
         parsed = JSON.parse(data.raw);
     }catch(err){
         alert('AI response could not be parsed. Check console.');
-        console.log('RAW AI RESPONSE:', data.raw);
+        console.log(data.raw);
         return;
     }
+
+    lastAiData = parsed;
 
     chatHistory.push({
         role: 'AI',
         message: parsed.reply || 'No reply returned.'
     });
 
-    renderAiResponse(parsed);
-    renderChatHistory();
-
-    document.getElementById('jobInput').value = '';
-}
-
-function renderAiResponse(parsed){
     document.getElementById('responseBox').style.display = 'block';
-    document.getElementById('replyBox').style.display = 'block';
-    document.getElementById('overrideBox').style.display = 'block';
-
     document.getElementById('replyText').innerText =
         parsed.reply || 'No reply returned.';
 
-    const assumptionsBox = document.getElementById('assumptionsBox');
-    assumptionsBox.innerHTML = '';
-
-    if(parsed.assumptions && parsed.assumptions.length){
-        const title = document.createElement('strong');
-        title.innerText = 'Current assumptions:';
-        assumptionsBox.appendChild(title);
-
-        parsed.assumptions.forEach(item => {
-            const p = document.createElement('div');
-            p.className = 'assumption';
-            p.innerText = '• ' + item;
-            assumptionsBox.appendChild(p);
-        });
-    }
-
-    const optionsBox = document.getElementById('optionsBox');
-    optionsBox.innerHTML = '';
-
-    const heading = document.createElement('h3');
-    heading.innerText = 'What would you like to do next?';
-    optionsBox.appendChild(heading);
-
-    let options = parsed.next_step_options || [];
-
-    const fallbackOptions = [
-        'Add more information',
-        'Get a quote',
-        'Make a booking',
-        "Check Mike's availability",
-        'Get advice',
-        'Find out how long it may take',
-        'Ask Mike to contact me'
-    ];
-
-    fallbackOptions.forEach(option => {
-        if(!options.includes(option)){
-            options.push(option);
-        }
-    });
-
-    options.forEach(option => {
-        const btn = document.createElement('button');
-        btn.className = 'option-btn';
-
-        if(option === 'Make a booking'){
-            btn.style.background = '#198754';
-        }
-
-        if(option === 'Ask Mike to contact me'){
-            btn.style.background = '#dc3545';
-        }
-
-        btn.innerText = option;
-        btn.type = 'button';
-        btn.onclick = () => handleNextStep(option, parsed);
-
-        optionsBox.appendChild(btn);
-    });
+    renderChatHistory();
 }
 
-function handleNextStep(option, aiData){
-    chatHistory.push({
-        role: 'Customer selected',
-        message: option
-    });
+function goQuote(){
+    saveAiIntake('Get a quote');
+    window.location.href = 'quotes_bookings.php?ai_intake=1';
+}
 
-    if(option === 'Add more information'){
-        document.getElementById('replyBox').style.display = 'block';
-        document.getElementById('replyInput').placeholder =
-            'Add more information about the job here...';
-        document.getElementById('replyInput').focus();
-        renderChatHistory();
-        return;
-    }
+function goBooking(){
+    saveAiIntake('Make a booking');
+    window.location.href = 'quotes_bookings.php?ai_intake=1';
+}
 
-    if(option === 'Ask Mike to contact me'){
-        showContactMikeBox();
-        renderChatHistory();
-        return;
-    }
+function goAvailability(){
+    saveAiIntake('See availability');
+    window.location.href = 'quotes_bookings.php?ai_intake=1&step=availability&view=week';
+}
 
-    if(option === 'Book a half day'){
-        sessionStorage.setItem('aiBookingPreset', JSON.stringify({
-            mode: 'hours',
-            duration: 4,
-            description: aiData.understood_job || ''
-        }));
-
-        window.location.href = 'quotes_bookings.php?ai_intake=1&preset=half_day';
-        return;
-    }
-
-    if(option === 'Book a full day'){
-        sessionStorage.setItem('aiBookingPreset', JSON.stringify({
-            mode: 'days',
-            duration: 1,
-            description: aiData.understood_job || ''
-        }));
-
-        window.location.href = 'quotes_bookings.php?ai_intake=1&preset=full_day';
-        return;
-    }
-
-    if(option === 'Upcoming day'){
-        window.location.href = 'quotes_bookings.php?ai_intake=1&step=availability&view=day';
-        return;
-    }
-
-    if(option === 'Upcoming week' || option === "Check Mike's availability"){
-        window.location.href = 'quotes_bookings.php?ai_intake=1&step=availability&view=week';
-        return;
-    }
-
-    if(option === 'Upcoming month'){
-        window.location.href = 'quotes_bookings.php?ai_intake=1&step=availability&view=month';
-        return;
-    }
-
-    if(option === 'Get a quote' || option === 'Make a booking' || option === 'Looks right'){
-        const savedData = {
-            original_job: formatChatHistory(),
-            understood_job: aiData.understood_job || '',
-            selected_option: option
-        };
-
-        sessionStorage.setItem('aiJobIntake', JSON.stringify(savedData));
-
-        window.location.href = 'quotes_bookings.php?ai_intake=1';
-        return;
-    }
-
-    if(option === 'Get advice' || option === 'Find out how long it may take'){
-        document.getElementById('replyBox').style.display = 'block';
-        document.getElementById('replyInput').placeholder =
-            'Add any extra details first, or type what you want to know...';
-        document.getElementById('replyInput').focus();
-        renderChatHistory();
-        return;
-    }
-
-    renderChatHistory();
+function focusCorrection(){
+    document.getElementById('messageInput').placeholder =
+        'Tell us what the AI got wrong, or what direction you want to go instead...';
+    document.getElementById('messageInput').focus();
 }
 
 function showContactMikeBox(){
     document.getElementById('contactBox').style.display = 'block';
     document.getElementById('customerName').focus();
+}
+
+function saveAiIntake(option){
+    const savedData = {
+        original_job: formatChatHistory(),
+        understood_job: lastAiData.understood_job || '',
+        selected_option: option
+    };
+
+    sessionStorage.setItem('aiJobIntake', JSON.stringify(savedData));
 }
 
 function sendChatToMike(){
@@ -356,7 +199,7 @@ function sendChatToMike(){
     .then(r => r.json())
     .then(res => {
         document.getElementById('sendStatus').innerText =
-            res.message || 'Sent.';
+            res.message || 'Sent to Mike.';
     });
 }
 
