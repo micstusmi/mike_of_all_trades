@@ -9,29 +9,61 @@
         textarea{min-height:95px}
         button{padding:11px 16px;border:none;border-radius:999px;cursor:pointer;margin:5px;font-weight:bold}
         .primary{background:#ffc107;color:#000}
-        .quote{background:#f39200;color:#fff}
-        .booking{background:#198754;color:#fff}
-        .availability{background:#0d6efd;color:#fff}
-        .advice{background:#6f42c1;color:#fff}
-        .mike{background:#dc3545;color:#fff}
-        .correct{background:#444;color:#fff}
-        #responseBox,#contactBox{margin-top:20px;padding:18px;background:#222;border-radius:12px;display:none}
-        #actionButtons{margin-top:18px;display:flex;flex-wrap:wrap;gap:8px}
-        .chat-line{border-bottom:1px solid #333;padding:8px 0}
-        .hint{color:#aaa;font-size:14px}
+
+        .quote,
+        .booking,
+        .availability,
+        .mike,
+        .correct{
+            background:#2d2d2d;
+            color:#d5d5d5;
+            border:1px solid #3d3d3d;
+            font-weight:600;
+            transition:0.2s;
+        }
+
+        .quote:hover,
+        .booking:hover,
+        .availability:hover,
+        .mike:hover,
+        .correct:hover{
+            background:#3a3a3a;
+            color:#fff;
+        }
+
+        #responseBox,#contactBox{
+            margin-top:20px;
+            padding:18px;
+            background:#222;
+            border-radius:12px;
+            display:none;
+        }
+
+        #actionButtons{
+            margin-top:25px;
+            padding-top:15px;
+            border-top:1px solid #2c2c2c;
+            display:flex;
+            flex-wrap:wrap;
+            gap:8px;
+            opacity:0.82;
+        }
 
         .chatInputBar{
-    position:sticky;
-    bottom:0;
-    background:#1f1f1f;
-    padding-top:15px;
-    margin-top:20px;
-}
+            position:sticky;
+            bottom:0;
+            background:#1f1f1f;
+            padding-top:15px;
+            margin-top:20px;
+        }
 
-.chatInputBar textarea{
-    min-height:70px;
-    margin-bottom:10px;
-}
+        .chatInputBar textarea{
+            min-height:70px;
+            margin-bottom:10px;
+        }
+
+        .chat-line{border-bottom:1px solid #333;padding:8px 0}
+        .hint{color:#aaa;font-size:14px}
     </style>
 </head>
 
@@ -45,14 +77,6 @@
 
     <div id="responseBox">
         <p id="replyText"></p>
-
-        <div id="actionButtons">
-            <button class="quote" type="button" onclick="goQuote()">Get quote</button>
-            <button class="booking" type="button" onclick="goBooking()">Make booking</button>
-            <button class="availability" type="button" onclick="goAvailability()">See availability</button>
-            <button class="mike" type="button" onclick="showContactMikeBox()">Send this chat to Mike</button>
-            <button class="correct" type="button" onclick="focusCorrection()">Correct / redirect AI</button>
-        </div>
     </div>
 
     <div id="contactBox">
@@ -71,21 +95,27 @@
     </div>
 
     <div id="chatHistoryBox" style="margin-top:25px;"></div>
+
+    <div id="actionButtons">
+        <button class="quote" type="button" onclick="goQuote()">Get quote</button>
+        <button class="booking" type="button" onclick="goBooking()">Make booking</button>
+        <button class="availability" type="button" onclick="goAvailability()">See availability</button>
+        <button class="mike" type="button" onclick="showContactMikeBox()">Send this chat to Mike</button>
+        <button class="correct" type="button" onclick="focusCorrection()">Correct / redirect AI</button>
+    </div>
+
+    <form id="aiForm" class="chatInputBar">
+        <textarea
+            id="messageInput"
+            placeholder="Type your message here..."
+            required
+        ></textarea>
+
+        <button class="primary" type="submit">
+            Send
+        </button>
+    </form>
 </div>
-
-<form id="aiForm" class="chatInputBar">
-
-    <textarea
-        id="messageInput"
-        placeholder="Type your message here..."
-        required
-    ></textarea>
-
-    <button class="primary" type="submit">
-        Send
-    </button>
-
-</form>
 
 <script>
 let chatHistory = [];
@@ -239,4 +269,3 @@ function renderChatHistory(){
 
 </body>
 </html>
-
