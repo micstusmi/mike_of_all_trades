@@ -36,15 +36,23 @@
     </div>
 
     <div id="correctionBox">
-        <h3>Correct or guide the AI</h3>
+        <h3><h3>Reply to Mike AI</h3></h3>
         <p class="hint">
             Use this if the AI misunderstood you, asked the wrong question, or you want to steer the conversation.
         </p>
 
         <textarea
             id="correctionInput"
-            placeholder="Example: No, I don’t want advice. I just want to book Mike for this job."
+            placeholder="Example: There are 6 windows and I already have the paint."
         ></textarea>
+
+        <h4>AI misunderstood?</h4>
+
+<textarea id="overrideInput"></textarea>
+
+<button>
+Correct the AI
+</button>
 
         <button class="primary" type="button" onclick="sendCorrectionToAI()">
             Send feedback to AI
