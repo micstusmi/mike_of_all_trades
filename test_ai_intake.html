@@ -180,6 +180,26 @@ async function sendMessageToAI(message, roleLabel){
 
     lastAiData = parsed;
 
+    const lowerMessage = message.toLowerCase();
+
+if(
+    lowerMessage === 'day' ||
+    lowerMessage === 'week' ||
+    lowerMessage === 'month'
+){
+    saveAiIntake('See availability');
+
+    let view = 'week';
+
+    if(lowerMessage === 'day') view = 'day';
+    if(lowerMessage === 'month') view = 'month';
+
+    window.location.href =
+        'quotes_bookings.php?ai_intake=1&step=availability&view=' + view;
+
+    return;
+}
+
     chatHistory.push({
         role: 'AI',
         message: parsed.reply || 'No reply returned.'
