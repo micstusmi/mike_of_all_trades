@@ -19,6 +19,19 @@
         #actionButtons{margin-top:18px;display:flex;flex-wrap:wrap;gap:8px}
         .chat-line{border-bottom:1px solid #333;padding:8px 0}
         .hint{color:#aaa;font-size:14px}
+
+        .chatInputBar{
+    position:sticky;
+    bottom:0;
+    background:#1f1f1f;
+    padding-top:15px;
+    margin-top:20px;
+}
+
+.chatInputBar textarea{
+    min-height:70px;
+    margin-bottom:10px;
+}
     </style>
 </head>
 
@@ -29,18 +42,6 @@
     <p class="hint">
         Type what you need done, or continue replying to the assistant here.
     </p>
-
-    <form id="aiForm">
-        <textarea
-            id="messageInput"
-            placeholder="Example: paint some window frames"
-            required
-        ></textarea>
-
-        <button class="primary" type="submit">
-            Send
-        </button>
-    </form>
 
     <div id="responseBox">
         <p id="replyText"></p>
@@ -71,6 +72,20 @@
 
     <div id="chatHistoryBox" style="margin-top:25px;"></div>
 </div>
+
+<form id="aiForm" class="chatInputBar">
+
+    <textarea
+        id="messageInput"
+        placeholder="Type your message here..."
+        required
+    ></textarea>
+
+    <button class="primary" type="submit">
+        Send
+    </button>
+
+</form>
 
 <script>
 let chatHistory = [];
@@ -224,3 +239,4 @@ function renderChatHistory(){
 
 </body>
 </html>
+
