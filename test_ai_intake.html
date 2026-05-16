@@ -89,7 +89,7 @@ document.getElementById('aiForm').addEventListener('submit', async function(e){
 
     await sendMessageToAI(jobText, 'Customer');
 
-    document.getElementById('jobInput').value = '';
+    // only clear after successful render
 });
 
 async function sendCorrectionToAI(){
@@ -101,8 +101,6 @@ async function sendCorrectionToAI(){
     }
 
     await sendMessageToAI(correctionText, 'Customer correction');
-
-    document.getElementById('correctionInput').value = '';
 }
 
 async function sendMessageToAI(message, roleLabel){
@@ -112,20 +110,32 @@ async function sendMessageToAI(message, roleLabel){
         message: message
     });
 
+    renderChatHistory();
+
     const fd = new FormData();
     fd.append('job', message);
     fd.append('history', formatChatHistory());
 
-    const r = await fetch('ai_intake.php', {
-        method:'POST',
-        body:fd
-    });
+    let data;
 
-    const data = await r.json();
+    try{
+        const r = await fetch('ai_intake.php', {
+            method:'POST',
+            body:fd
+        });
+
+        data = await r.json();
+    }catch(err){
+        alert('Could not contact AI endpoint: ' + err.message);
+        console.error(err);
+        return;
+    }
+
+    console.log('AI endpoint response:', data);
 
     if(!data.success){
         alert(data.message || 'AI request failed.');
-console.log(data);
+        console.log(data);
         return;
     }
 
@@ -134,25 +144,29 @@ console.log(data);
     try{
         parsed = JSON.parse(data.raw);
     }catch(err){
-        alert('AI response parse failed');
-        console.log(data.raw);
+        alert('AI response could not be parsed. Check console.');
+        console.log('RAW AI RESPONSE:', data.raw);
         return;
     }
 
     chatHistory.push({
         role: 'AI',
-        message: parsed.reply || ''
+        message: parsed.reply || 'No reply returned.'
     });
 
     renderAiResponse(parsed);
     renderChatHistory();
+
+    document.getElementById('jobInput').value = '';
+    document.getElementById('correctionInput').value = '';
 }
 
 function renderAiResponse(parsed){
     document.getElementById('responseBox').style.display = 'block';
     document.getElementById('correctionBox').style.display = 'block';
 
-    document.getElementById('replyText').innerText = parsed.reply || 'No reply';
+    document.getElementById('replyText').innerText =
+        parsed.reply || 'No reply returned.';
 
     const assumptionsBox = document.getElementById('assumptionsBox');
     assumptionsBox.innerHTML = '';
@@ -173,6 +187,10 @@ function renderAiResponse(parsed){
     const optionsBox = document.getElementById('optionsBox');
     optionsBox.innerHTML = '';
 
+    const heading = document.createElement('h3');
+    heading.innerText = 'What would you like to do next?';
+    optionsBox.appendChild(heading);
+
     let options = parsed.next_step_options || [];
 
     const fallbackOptions = [
@@ -191,34 +209,25 @@ function renderAiResponse(parsed){
         }
     });
 
-    optionsBox.innerHTML = '';
+    options.forEach(option => {
+        const btn = document.createElement('button');
+        btn.className = 'option-btn';
 
-const heading = document.createElement('h3');
-heading.innerText = 'What would you like to do next?';
-optionsBox.appendChild(heading);
+        if(option === 'Make a booking'){
+            btn.style.background = '#198754';
+        }
 
-options.forEach(option => {
+        if(option === 'Ask Mike to contact me'){
+            btn.style.background = '#dc3545';
+        }
 
-    const btn = document.createElement('button');
+        btn.innerText = option;
+        btn.type = 'button';
+        btn.onclick = () => handleNextStep(option, parsed);
 
-    btn.className = 'option-btn';
-
-    if(option === 'Make a booking'){
-        btn.style.background = '#198754';
-    }
-
-    if(option === 'Ask Mike to contact me'){
-        btn.style.background = '#dc3545';
-    }
-
-    btn.innerText = option;
-    'raw' => $content
-    btn.type = 'button';
-
-    btn.onclick = () => handleNextStep(option, parsed);
-
-    optionsBox.appendChild(btn);
-});
+        optionsBox.appendChild(btn);
+    });
+}
 
 function handleNextStep(option, aiData){
 
@@ -238,15 +247,6 @@ function handleNextStep(option, aiData){
 
     if(option === 'Ask Mike to contact me'){
         showContactMikeBox();
-        renderChatHistory();
-        return;
-    }
-
-    if(option === 'I need to correct something' || option === 'I already have materials'){
-        document.getElementById('correctionBox').style.display = 'block';
-        document.getElementById('correctionInput').placeholder =
-            'Tell me what needs correcting or what materials you already have...';
-        document.getElementById('correctionInput').focus();
         renderChatHistory();
         return;
     }
@@ -304,7 +304,7 @@ function handleNextStep(option, aiData){
     if(option === 'Get advice' || option === 'Find out how long it may take'){
         document.getElementById('correctionBox').style.display = 'block';
         document.getElementById('correctionInput').placeholder =
-            'Add any extra details first, or press Send feedback to AI to continue...';
+            'Add any extra details first, or type what you want to know...';
         document.getElementById('correctionInput').focus();
         renderChatHistory();
         return;
