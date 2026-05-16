@@ -410,6 +410,31 @@ document.addEventListener('DOMContentLoaded', function(){
     if(params.get('restore') === '1'){
         setTimeout(restoreQuoteProgress, 300);
     }
+
+if(params.get('step') === 'availability'){
+    setTimeout(function(){
+        goToStep(2);
+
+        setTimeout(function(){
+            if(calendar){
+                const view = params.get('view');
+
+                if(view === 'day'){
+                    calendar.changeView('timeGridDay');
+                }
+
+                if(view === 'week'){
+                    calendar.changeView('timeGridWeek');
+                }
+
+                if(view === 'month'){
+                    calendar.changeView('dayGridMonth');
+                }
+            }
+        }, 300);
+    }, 300);
+}
+
 });
 
 function removePreviewBlocks(){
@@ -792,6 +817,35 @@ function restoreQuoteProgress(){
         }, 400);
     }
 }
+
+function restoreAiIntake(){
+    const saved = sessionStorage.getItem('aiJobIntake');
+
+    if(!saved){
+        return;
+    }
+
+    const data = JSON.parse(saved);
+
+    if(data.understood_job){
+        document.getElementById('custDescription').value =
+            data.understood_job + "\n\nOriginal request: " + data.original_job;
+    }
+
+    if(data.understood_job.toLowerCase().includes('paint')){
+        document.getElementById('serviceType').value = 'General Trades';
+    }
+
+    checkValidation();
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+    const params = new URLSearchParams(window.location.search);
+
+    if(params.get('ai_intake') === '1'){
+        setTimeout(restoreAiIntake, 300);
+    }
+});
 
 </script>
 

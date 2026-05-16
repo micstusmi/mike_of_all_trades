@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Intake Test</title>
+    <style>
+        body{font-family:Arial;background:#111;color:white;padding:40px}
+        .card{background:#1f1f1f;padding:20px;border-radius:12px;max-width:760px}
+        input, textarea{width:100%;padding:12px;border-radius:8px;border:none;margin-bottom:12px}
+        button{padding:10px 16px;border:none;border-radius:8px;cursor:pointer;margin:5px}
+        .primary{background:#ffc107;color:black;font-weight:bold}
+        .option-btn{background:#333;color:white}
+        .danger{background:#0dcaf0;color:#000;font-weight:bold}
+        #responseBox,#contactBox{margin-top:25px;padding:20px;background:#222;border-radius:12px;display:none}
+        .assumption{color:#bbb;font-size:14px;margin:4px 0}
+        .chat-line{border-bottom:1px solid #333;padding:8px 0}
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>AI Job Intake</h2>
+
+    <form id="aiForm">
+        <input name="job" id="jobInput" placeholder="Describe what you need done..." required>
+        <button class="primary">Continue</button>
+    </form>
+
+    <div id="responseBox">
+        <p id="replyText"></p>
+        <div id="assumptionsBox"></div>
+        <div id="optionsBox"></div>
+    </div>
+
+    <div id="contactBox">
+        <h3>Ask Mike to step in</h3>
+        <p>If the AI has not quite understood, send this conversation to Mike.</p>
+
+        <input id="customerName" placeholder="Your name">
+        <input id="customerEmail" placeholder="Your email">
+        <input id="customerPhone" placeholder="Your phone">
+
+        <button class="danger" type="button" onclick="sendChatToMike()">
+            Send conversation to Mike
+        </button>
+
+        <p id="sendStatus"></p>
+    </div>
+
+    <div id="chatHistoryBox" style="margin-top:25px;"></div>
+</div>
+
+<script>
+let chatHistory = [];
+
+document.getElementById('aiForm').addEventListener('submit', async function(e){
+    e.preventDefault();
+
+    const jobText = document.getElementById('jobInput').value;
+
+    chatHistory.push({
+        role: 'Customer',
+        message: jobText
+    });
+
+    const fd = new FormData();
+    fd.append('job', jobText);
+    fd.append('history', formatChatHistory());
+
+    const r = await fetch('ai_intake.php', {
+        method:'POST',
+        body:fd
+    });
+
+    const data = await r.json();
+
+    let parsed;
+
+    try{
+        parsed = JSON.parse(data.raw);
+    }catch(err){
+        alert('AI response parse failed');
+        console.log(data.raw);
+        return;
+    }
+
+    chatHistory.push({
+        role: 'AI',
+        message: parsed.reply || ''
+    });
+
+    renderAiResponse(parsed);
+    renderChatHistory();
+
+    document.getElementById('jobInput').value = '';
+});
+
+function renderAiResponse(parsed){
+    document.getElementById('responseBox').style.display = 'block';
+    document.getElementById('replyText').innerText = parsed.reply || 'No reply';
+
+    const assumptionsBox = document.getElementById('assumptionsBox');
+    assumptionsBox.innerHTML = '';
+
+    if(parsed.assumptions && parsed.assumptions.length){
+        const title = document.createElement('strong');
+        title.innerText = 'Current assumptions:';
+        assumptionsBox.appendChild(title);
+
+        parsed.assumptions.forEach(item => {
+            const p = document.createElement('div');
+            p.className = 'assumption';
+            p.innerText = '• ' + item;
+            assumptionsBox.appendChild(p);
+        });
+    }
+
+    const optionsBox = document.getElementById('optionsBox');
+    optionsBox.innerHTML = '';
+
+    if(parsed.next_step_options){
+        parsed.next_step_options.forEach(option => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn';
+            btn.innerText = option;
+            btn.type = 'button';
+            btn.onclick = () => handleNextStep(option, parsed);
+            optionsBox.appendChild(btn);
+        });
+    }
+}
+
+function handleNextStep(option, aiData){
+
+    chatHistory.push({
+        role: 'Customer selected',
+        message: option
+    });
+
+    if(option === 'Ask Mike to contact me'){
+        document.getElementById('contactBox').style.display = 'block';
+        renderChatHistory();
+        return;
+    }
+
+    if(option === 'I need to correct something' || option === 'I already have materials'){
+        document.getElementById('jobInput').value = '';
+        document.getElementById('jobInput').placeholder = 'Tell me what needs correcting or what materials you already have...';
+        document.getElementById('jobInput').focus();
+        renderChatHistory();
+        return;
+    }
+
+    if(option === 'Book a half day'){
+        sessionStorage.setItem('aiBookingPreset', JSON.stringify({
+            mode: 'hours',
+            duration: 4,
+            description: aiData.understood_job || ''
+        }));
+
+        window.location.href = 'quotes_bookings.php?ai_intake=1&preset=half_day';
+        return;
+    }
+
+    if(option === 'Book a full day'){
+        sessionStorage.setItem('aiBookingPreset', JSON.stringify({
+            mode: 'days',
+            duration: 1,
+            description: aiData.understood_job || ''
+        }));
+
+        window.location.href = 'quotes_bookings.php?ai_intake=1&preset=full_day';
+        return;
+    }
+
+    if(option === 'Upcoming day'){
+        window.location.href = 'quotes_bookings.php?ai_intake=1&step=availability&view=day';
+        return;
+    }
+
+    if(option === 'Upcoming week' || option === "Check Mike's availability"){
+        window.location.href = 'quotes_bookings.php?ai_intake=1&step=availability&view=week';
+        return;
+    }
+
+    if(option === 'Upcoming month'){
+        window.location.href = 'quotes_bookings.php?ai_intake=1&step=availability&view=month';
+        return;
+    }
+
+    if(option === 'Get a quote' || option === 'Make a booking' || option === 'Looks right'){
+        const savedData = {
+            original_job: formatChatHistory(),
+            understood_job: aiData.understood_job || '',
+            selected_option: option
+        };
+
+        sessionStorage.setItem('aiJobIntake', JSON.stringify(savedData));
+
+        window.location.href = 'quotes_bookings.php?ai_intake=1';
+        return;
+    }
+
+    renderChatHistory();
+}
+
+function sendChatToMike(){
+    const fd = new FormData();
+
+    fd.append('name', document.getElementById('customerName').value);
+    fd.append('email', document.getElementById('customerEmail').value);
+    fd.append('phone', document.getElementById('customerPhone').value);
+    fd.append('chat', formatChatHistory());
+
+    fetch('ai_send_to_mike.php', {
+        method:'POST',
+        body:fd
+    })
+    .then(r => r.json())
+    .then(res => {
+        document.getElementById('sendStatus').innerText =
+            res.message || 'Sent.';
+    });
+}
+
+function formatChatHistory(){
+    return chatHistory.map(item => item.role + ': ' + item.message).join("\n\n");
+}
+
+function renderChatHistory(){
+    const box = document.getElementById('chatHistoryBox');
+    box.innerHTML = '<h3>Conversation so far</h3>';
+
+    chatHistory.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'chat-line';
+        div.innerHTML = '<strong>' + item.role + ':</strong><br>' + item.message;
+        box.appendChild(div);
+    });
+}
+</script>
+
+</body>
+</html>
