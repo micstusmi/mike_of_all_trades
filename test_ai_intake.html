@@ -125,6 +125,7 @@ async function sendMessageToAI(message, roleLabel){
 
     if(!data.success){
         alert(data.message || 'AI request failed.');
+console.log(data);
         return;
     }
 
@@ -211,7 +212,7 @@ options.forEach(option => {
     }
 
     btn.innerText = option;
-
+    'raw' => $content
     btn.type = 'button';
 
     btn.onclick = () => handleNextStep(option, parsed);
