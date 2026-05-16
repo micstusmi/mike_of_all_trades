@@ -6,37 +6,50 @@
         body{font-family:Arial;background:#111;color:white;padding:30px}
         .card{background:#1f1f1f;padding:20px;border-radius:14px;max-width:780px;margin:auto}
         textarea,input{width:100%;padding:14px;border-radius:10px;border:none;margin-bottom:12px;box-sizing:border-box}
-        textarea{min-height:95px}
-        button{padding:11px 16px;border:none;border-radius:999px;cursor:pointer;margin:5px;font-weight:bold}
+        textarea{min-height:70px}
+        button{padding:10px 14px;border:none;border-radius:999px;cursor:pointer;margin:4px;font-weight:bold}
         .primary{background:#ffc107;color:#000}
-
-        .quote,
-        .booking,
-        .availability,
-        .mike,
-        .correct{
-            background:#2d2d2d;
-            color:#d5d5d5;
-            border:1px solid #3d3d3d;
-            font-weight:600;
-            transition:0.2s;
-        }
-
-        .quote:hover,
-        .booking:hover,
-        .availability:hover,
-        .mike:hover,
-        .correct:hover{
-            background:#3a3a3a;
-            color:#fff;
-        }
 
         #responseBox,#contactBox{
             margin-top:20px;
-            padding:18px;
+            padding:16px;
             background:#222;
             border-radius:12px;
             display:none;
+        }
+
+        #chatHistoryBox{
+            margin-top:25px;
+            display:flex;
+            flex-direction:column;
+            gap:10px;
+        }
+
+        .chat-bubble{
+            max-width:78%;
+            padding:12px 14px;
+            border-radius:16px;
+            line-height:1.35;
+        }
+
+        .chat-customer{
+            align-self:flex-end;
+            background:#0d6efd;
+            color:white;
+            border-bottom-right-radius:4px;
+        }
+
+        .chat-ai{
+            align-self:flex-start;
+            background:#2b2b2b;
+            color:#f1f1f1;
+            border-bottom-left-radius:4px;
+        }
+
+        .chat-role{
+            font-size:12px;
+            opacity:0.7;
+            margin-bottom:4px;
         }
 
         #actionButtons{
@@ -45,8 +58,20 @@
             border-top:1px solid #2c2c2c;
             display:flex;
             flex-wrap:wrap;
-            gap:8px;
-            opacity:0.82;
+            gap:6px;
+            opacity:0.72;
+        }
+
+        #actionButtons button{
+            background:#2d2d2d;
+            color:#d5d5d5;
+            border:1px solid #3d3d3d;
+            font-size:13px;
+        }
+
+        #actionButtons button:hover{
+            background:#3a3a3a;
+            color:white;
         }
 
         .chatInputBar{
@@ -57,12 +82,6 @@
             margin-top:20px;
         }
 
-        .chatInputBar textarea{
-            min-height:70px;
-            margin-bottom:10px;
-        }
-
-        .chat-line{border-bottom:1px solid #333;padding:8px 0}
         .hint{color:#aaa;font-size:14px}
     </style>
 </head>
@@ -71,9 +90,7 @@
 
 <div class="card">
     <h2>Tell us what you want</h2>
-    <p class="hint">
-        Type what you need done, or continue replying to the assistant here.
-    </p>
+    <p class="hint">Type what you need done, or continue replying to the assistant here.</p>
 
     <div id="responseBox">
         <p id="replyText"></p>
@@ -87,33 +104,23 @@
         <input id="customerEmail" placeholder="Your email">
         <input id="customerPhone" placeholder="Your phone">
 
-        <button class="mike" type="button" onclick="sendChatToMike()">
-            Send conversation to Mike
-        </button>
-
+        <button type="button" onclick="sendChatToMike()">Send conversation to Mike</button>
         <p id="sendStatus"></p>
     </div>
 
-    <div id="chatHistoryBox" style="margin-top:25px;"></div>
+    <div id="chatHistoryBox"></div>
 
     <div id="actionButtons">
-        <button class="quote" type="button" onclick="goQuote()">Get quote</button>
-        <button class="booking" type="button" onclick="goBooking()">Make booking</button>
-        <button class="availability" type="button" onclick="goAvailability()">See availability</button>
-        <button class="mike" type="button" onclick="showContactMikeBox()">Send this chat to Mike</button>
-        <button class="correct" type="button" onclick="focusCorrection()">Correct / redirect AI</button>
+        <button type="button" onclick="goQuote()">Get quote</button>
+        <button type="button" onclick="goBooking()">Make booking</button>
+        <button type="button" onclick="goAvailability()">See availability</button>
+        <button type="button" onclick="showContactMikeBox()">Send this chat to Mike</button>
+        <button type="button" onclick="focusCorrection()">Correct / redirect AI</button>
     </div>
 
     <form id="aiForm" class="chatInputBar">
-        <textarea
-            id="messageInput"
-            placeholder="Type your message here..."
-            required
-        ></textarea>
-
-        <button class="primary" type="submit">
-            Send
-        </button>
+        <textarea id="messageInput" placeholder="Type your message here..." required></textarea>
+        <button class="primary" type="submit">Send</button>
     </form>
 </div>
 
@@ -125,10 +132,7 @@ document.getElementById('aiForm').addEventListener('submit', async function(e){
     e.preventDefault();
 
     const message = document.getElementById('messageInput').value.trim();
-
-    if(!message){
-        return;
-    }
+    if(!message) return;
 
     await sendMessageToAI(message, 'Customer');
 
@@ -138,11 +142,7 @@ document.getElementById('aiForm').addEventListener('submit', async function(e){
 });
 
 async function sendMessageToAI(message, roleLabel){
-    chatHistory.push({
-        role: roleLabel,
-        message: message
-    });
-
+    chatHistory.push({ role: roleLabel, message });
     renderChatHistory();
 
     const fd = new FormData();
@@ -156,7 +156,6 @@ async function sendMessageToAI(message, roleLabel){
             method:'POST',
             body:fd
         });
-
         data = await r.json();
     }catch(err){
         alert('Could not contact AI endpoint: ' + err.message);
@@ -220,13 +219,11 @@ function showContactMikeBox(){
 }
 
 function saveAiIntake(option){
-    const savedData = {
+    sessionStorage.setItem('aiJobIntake', JSON.stringify({
         original_job: formatChatHistory(),
         understood_job: lastAiData.understood_job || '',
         selected_option: option
-    };
-
-    sessionStorage.setItem('aiJobIntake', JSON.stringify(savedData));
+    }));
 }
 
 function sendChatToMike(){
@@ -254,14 +251,19 @@ function formatChatHistory(){
 
 function renderChatHistory(){
     const box = document.getElementById('chatHistoryBox');
-    box.innerHTML = '<h3>Conversation so far</h3>';
+    box.innerHTML = '';
 
     chatHistory.forEach(item => {
         const div = document.createElement('div');
-        div.className = 'chat-line';
+
+        const isCustomer = item.role.toLowerCase().includes('customer');
+
+        div.className = 'chat-bubble ' + (isCustomer ? 'chat-customer' : 'chat-ai');
+
         div.innerHTML =
-            '<strong>' + item.role + ':</strong><br>' +
+            '<div class="chat-role">' + item.role + '</div>' +
             item.message.replace(/\n/g, '<br>');
+
         box.appendChild(div);
     });
 }
