@@ -4,15 +4,18 @@
     <title>AI Intake Test</title>
     <style>
         body{font-family:Arial;background:#111;color:white;padding:40px}
-        .card{background:#1f1f1f;padding:20px;border-radius:12px;max-width:760px}
+        .card{background:#1f1f1f;padding:20px;border-radius:12px;max-width:800px}
         input, textarea{width:100%;padding:12px;border-radius:8px;border:none;margin-bottom:12px}
+        textarea{min-height:90px}
         button{padding:10px 16px;border:none;border-radius:8px;cursor:pointer;margin:5px}
         .primary{background:#ffc107;color:black;font-weight:bold}
         .option-btn{background:#333;color:white}
         .danger{background:#0dcaf0;color:#000;font-weight:bold}
-        #responseBox,#contactBox{margin-top:25px;padding:20px;background:#222;border-radius:12px;display:none}
+        .frustrated{background:#dc3545;color:#fff;font-weight:bold}
+        #responseBox,#correctionBox,#contactBox{margin-top:25px;padding:20px;background:#222;border-radius:12px;display:none}
         .assumption{color:#bbb;font-size:14px;margin:4px 0}
         .chat-line{border-bottom:1px solid #333;padding:8px 0}
+        .hint{color:#aaa;font-size:14px}
     </style>
 </head>
 <body>
@@ -21,7 +24,8 @@
     <h2>AI Job Intake</h2>
 
     <form id="aiForm">
-        <input name="job" id="jobInput" placeholder="Describe what you need done..." required>
+        <label>What do you need done?</label>
+        <input name="job" id="jobInput" placeholder="Example: paint some window frames" required>
         <button class="primary">Continue</button>
     </form>
 
@@ -29,6 +33,28 @@
         <p id="replyText"></p>
         <div id="assumptionsBox"></div>
         <div id="optionsBox"></div>
+    </div>
+
+    <div id="correctionBox">
+        <h3>Correct or guide the AI</h3>
+        <p class="hint">
+            Use this if the AI misunderstood you, asked the wrong question, or you want to steer the conversation.
+        </p>
+
+        <textarea
+            id="correctionInput"
+            placeholder="Example: No, I don’t want advice. I just want to book Mike for this job."
+        ></textarea>
+
+        <button class="primary" type="button" onclick="sendCorrectionToAI()">
+            Send feedback to AI
+        </button>
+    </div>
+
+    <div style="margin-top:20px;">
+        <button class="frustrated" type="button" onclick="showContactMikeBox()">
+            AI not helping? Send this chat to Mike
+        </button>
     </div>
 
     <div id="contactBox">
@@ -55,15 +81,39 @@ let chatHistory = [];
 document.getElementById('aiForm').addEventListener('submit', async function(e){
     e.preventDefault();
 
-    const jobText = document.getElementById('jobInput').value;
+    const jobText = document.getElementById('jobInput').value.trim();
+
+    if(!jobText){
+        return;
+    }
+
+    await sendMessageToAI(jobText, 'Customer');
+
+    document.getElementById('jobInput').value = '';
+});
+
+async function sendCorrectionToAI(){
+    const correctionText = document.getElementById('correctionInput').value.trim();
+
+    if(!correctionText){
+        alert('Please type your correction or feedback first.');
+        return;
+    }
+
+    await sendMessageToAI(correctionText, 'Customer correction');
+
+    document.getElementById('correctionInput').value = '';
+}
+
+async function sendMessageToAI(message, roleLabel){
 
     chatHistory.push({
-        role: 'Customer',
-        message: jobText
+        role: roleLabel,
+        message: message
     });
 
     const fd = new FormData();
-    fd.append('job', jobText);
+    fd.append('job', message);
     fd.append('history', formatChatHistory());
 
     const r = await fetch('ai_intake.php', {
@@ -72,6 +122,11 @@ document.getElementById('aiForm').addEventListener('submit', async function(e){
     });
 
     const data = await r.json();
+
+    if(!data.success){
+        alert(data.message || 'AI request failed.');
+        return;
+    }
 
     let parsed;
 
@@ -90,12 +145,12 @@ document.getElementById('aiForm').addEventListener('submit', async function(e){
 
     renderAiResponse(parsed);
     renderChatHistory();
-
-    document.getElementById('jobInput').value = '';
-});
+}
 
 function renderAiResponse(parsed){
     document.getElementById('responseBox').style.display = 'block';
+    document.getElementById('correctionBox').style.display = 'block';
+
     document.getElementById('replyText').innerText = parsed.reply || 'No reply';
 
     const assumptionsBox = document.getElementById('assumptionsBox');
@@ -117,17 +172,52 @@ function renderAiResponse(parsed){
     const optionsBox = document.getElementById('optionsBox');
     optionsBox.innerHTML = '';
 
-    if(parsed.next_step_options){
-        parsed.next_step_options.forEach(option => {
-            const btn = document.createElement('button');
-            btn.className = 'option-btn';
-            btn.innerText = option;
-            btn.type = 'button';
-            btn.onclick = () => handleNextStep(option, parsed);
-            optionsBox.appendChild(btn);
-        });
+    let options = parsed.next_step_options || [];
+
+    const fallbackOptions = [
+        'Add more information',
+        'Get a quote',
+        'Make a booking',
+        "Check Mike's availability",
+        'Get advice',
+        'Find out how long it may take',
+        'Ask Mike to contact me'
+    ];
+
+    fallbackOptions.forEach(option => {
+        if(!options.includes(option)){
+            options.push(option);
+        }
+    });
+
+    optionsBox.innerHTML = '';
+
+const heading = document.createElement('h3');
+heading.innerText = 'What would you like to do next?';
+optionsBox.appendChild(heading);
+
+options.forEach(option => {
+
+    const btn = document.createElement('button');
+
+    btn.className = 'option-btn';
+
+    if(option === 'Make a booking'){
+        btn.style.background = '#198754';
     }
-}
+
+    if(option === 'Ask Mike to contact me'){
+        btn.style.background = '#dc3545';
+    }
+
+    btn.innerText = option;
+
+    btn.type = 'button';
+
+    btn.onclick = () => handleNextStep(option, parsed);
+
+    optionsBox.appendChild(btn);
+});
 
 function handleNextStep(option, aiData){
 
@@ -136,16 +226,26 @@ function handleNextStep(option, aiData){
         message: option
     });
 
+    if(option === 'Add more information'){
+        document.getElementById('correctionBox').style.display = 'block';
+        document.getElementById('correctionInput').placeholder =
+            'Add more information about the job here...';
+        document.getElementById('correctionInput').focus();
+        renderChatHistory();
+        return;
+    }
+
     if(option === 'Ask Mike to contact me'){
-        document.getElementById('contactBox').style.display = 'block';
+        showContactMikeBox();
         renderChatHistory();
         return;
     }
 
     if(option === 'I need to correct something' || option === 'I already have materials'){
-        document.getElementById('jobInput').value = '';
-        document.getElementById('jobInput').placeholder = 'Tell me what needs correcting or what materials you already have...';
-        document.getElementById('jobInput').focus();
+        document.getElementById('correctionBox').style.display = 'block';
+        document.getElementById('correctionInput').placeholder =
+            'Tell me what needs correcting or what materials you already have...';
+        document.getElementById('correctionInput').focus();
         renderChatHistory();
         return;
     }
@@ -200,7 +300,21 @@ function handleNextStep(option, aiData){
         return;
     }
 
+    if(option === 'Get advice' || option === 'Find out how long it may take'){
+        document.getElementById('correctionBox').style.display = 'block';
+        document.getElementById('correctionInput').placeholder =
+            'Add any extra details first, or press Send feedback to AI to continue...';
+        document.getElementById('correctionInput').focus();
+        renderChatHistory();
+        return;
+    }
+
     renderChatHistory();
+}
+
+function showContactMikeBox(){
+    document.getElementById('contactBox').style.display = 'block';
+    document.getElementById('customerName').focus();
 }
 
 function sendChatToMike(){
@@ -233,7 +347,9 @@ function renderChatHistory(){
     chatHistory.forEach(item => {
         const div = document.createElement('div');
         div.className = 'chat-line';
-        div.innerHTML = '<strong>' + item.role + ':</strong><br>' + item.message;
+        div.innerHTML =
+            '<strong>' + item.role + ':</strong><br>' +
+            item.message.replace(/\n/g, '<br>');
         box.appendChild(div);
     });
 }
