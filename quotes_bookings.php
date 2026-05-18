@@ -38,6 +38,50 @@ if (!empty($_SESSION['user_id'])) {
 
 <main class="py-5 bg-dark">
 <div class="container mt-5">
+    <div id="aiHelperWrapper" class="mb-4">
+
+    <div class="card bg-dark text-light border border-info rounded-4 shadow-lg">
+
+        <div class="card-body">
+
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+
+                <div>
+                    <h3 class="text-info mb-1">
+                        AI Helper Assistant
+                    </h3>
+
+                    <p class="mb-0 text-light small">
+                        Describe what you need done and the AI can help guide your quote or booking.
+                    </p>
+                </div>
+
+                <div class="d-flex gap-2 flex-wrap">
+
+                    <a
+                        href="test_ai_intake.html"
+                        class="btn btn-info rounded-pill fw-bold"
+                    >
+                        Start with AI Helper
+                    </a>
+
+                    <button
+                        class="btn btn-outline-light rounded-pill"
+                        type="button"
+                        onclick="disableAiHelper()"
+                    >
+                        Continue without AI
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
 
 <div class="row mb-5 text-center">
     <div class="col-4">
@@ -397,7 +441,7 @@ function validateAndGoStep3(){
 document.addEventListener('DOMContentLoaded', function(){
     document.getElementById('serviceType').addEventListener('change', checkValidation);
     document.getElementById('locationZone').addEventListener('change', checkValidation);
-
+    
     document.getElementById('hourSlider').addEventListener('input', updateDurationMode);
     document.getElementById('modeHours').addEventListener('change', updateDurationMode);
     document.getElementById('modeDays').addEventListener('change', updateDurationMode);
@@ -845,7 +889,26 @@ document.addEventListener('DOMContentLoaded', function(){
     if(params.get('ai_intake') === '1'){
         setTimeout(restoreAiIntake, 300);
     }
+
+    if(localStorage.getItem('useAiHelper') === '0'){
+    const wrapper = document.getElementById('aiHelperWrapper');
+
+    if(wrapper){
+        wrapper.style.display = 'none';
+    }
+}
 });
+
+function disableAiHelper(){
+    localStorage.setItem('useAiHelper', '0');
+
+document.getElementById('aiHelperWrapper').style.display = 'none';
+
+alert(
+    'AI Helper disabled.\n\n' +
+    'You can continue using the standard quote and booking form below.'
+);
+}
 
 </script>
 
