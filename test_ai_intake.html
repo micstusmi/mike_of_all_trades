@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Intake Test</title>
     <style>
         body{font-family:Arial;background:#111;color:white;padding:30px}
@@ -83,6 +84,64 @@
         }
 
         .hint{color:#aaa;font-size:14px}
+
+        @media (max-width: 768px){
+
+    body{
+        padding:12px;
+    }
+
+    .card{
+        max-width:100%;
+        padding:16px;
+        border-radius:12px;
+    }
+
+    h2{
+        font-size:28px;
+        line-height:1.15;
+    }
+
+    .hint{
+        font-size:13px;
+    }
+
+    .chat-bubble{
+        max-width:92%;
+        font-size:15px;
+        padding:11px 12px;
+    }
+
+    #actionButtons{
+        gap:5px;
+    }
+
+    #actionButtons button{
+        font-size:12px;
+        padding:9px 11px;
+        flex:1 1 calc(50% - 10px);
+    }
+
+    .chatInputBar textarea{
+        min-height:58px;
+        font-size:16px;
+    }
+
+    .primary{
+        width:100%;
+        padding:14px;
+        font-size:16px;
+    }
+
+    input{
+        font-size:16px;
+    }
+
+    textarea{
+        font-size:16px;
+    }
+
+}
     </style>
 </head>
 
