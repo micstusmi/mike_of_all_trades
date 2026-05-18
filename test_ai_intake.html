@@ -85,6 +85,27 @@
 
         .hint{color:#aaa;font-size:14px}
 
+        #contextualActions{
+    margin-top:18px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+}
+
+#contextualActions button{
+    background:#198754;
+    color:white;
+    border:none;
+    padding:11px 14px;
+    border-radius:999px;
+    font-size:14px;
+    font-weight:bold;
+}
+
+#contextualActions button:hover{
+    opacity:0.92;
+}
+
         @media (max-width: 768px){
 
     body{
@@ -168,6 +189,7 @@
     </div>
 
     <div id="chatHistoryBox"></div>
+    <div id="contextualActions"></div>
 
     <div id="actionButtons">
         <button type="button" onclick="goQuote()">Get quote</button>
@@ -276,6 +298,7 @@ if(
     }
 
     lastAiData = parsed;
+    renderContextualActions(parsed.intent);
 
     if(parsed.intent === 'availability'){
 
@@ -391,6 +414,45 @@ function formatChatHistory(){
     return chatHistory.map(item => item.role + ': ' + item.message).join("\n\n");
 }
 
+function renderContextualActions(intent){
+
+    const box = document.getElementById('contextualActions');
+
+    box.innerHTML = '';
+
+    if(intent === 'job_quote'){
+
+        box.innerHTML = `
+            <button onclick="goQuote()">
+                Review quote form
+            </button>
+
+            <button onclick="goBooking()">
+                Book Mike in with these chat details
+            </button>
+        `;
+    }
+
+    if(intent === 'availability'){
+
+        box.innerHTML = `
+            <button onclick="goAvailability()">
+                Open Mike's availability calendar
+            </button>
+        `;
+    }
+
+    box.innerHTML += `
+        <button onclick="showContactMikeBox()">
+            Send this chat to Mike
+        </button>
+
+        <button onclick="disableAiHelper()">
+            Continue without AI
+        </button>
+    `;
+}
+
 function renderChatHistory(){
     const box = document.getElementById('chatHistoryBox');
     box.innerHTML = '';
@@ -432,6 +494,12 @@ async function saveAiConversation(){
         localStorage.setItem('aiConversationToken', aiConversationToken);
     }
 }
+
+function disableAiHelper(){
+    saveAiIntake('Continue without AI');
+    window.location.href = 'quotes_bookings.php?manual=1';
+}
+
 </script>
 
 </body>
