@@ -184,6 +184,7 @@
 </div>
 
 <script>
+    let aiConversationToken = localStorage.getItem('aiConversationToken') || '';
 let chatHistory = [];
 let lastAiData = {};
 
@@ -215,8 +216,32 @@ async function sendMessageToAI(message, roleLabel){
     });
 
     renderChatHistory();
+    saveAiConversation();
 
     const fd = new FormData();
+    const lowerMessage = message.toLowerCase().trim();
+
+if(
+    lowerMessage === 'day' ||
+    lowerMessage === 'week' ||
+    lowerMessage === 'month'
+){
+
+    let calendarView = 'week';
+
+    if(lowerMessage === 'day'){
+        calendarView = 'day';
+    }
+
+    if(lowerMessage === 'month'){
+        calendarView = 'month';
+    }
+
+    window.location.href =
+    'quotes_bookings.php?ai_intake=1&step=availability&view=' + calendarView;
+
+    return;
+}
     fd.append('job', message);
     fd.append('history', formatChatHistory());
 
@@ -252,14 +277,50 @@ async function sendMessageToAI(message, roleLabel){
 
     lastAiData = parsed;
 
+    if(parsed.intent === 'availability'){
+
+    try{
+
+        const availabilityResponse = await fetch('ai_availability_summary.php');
+        const availabilityData = await availabilityResponse.json();
+
+        if(
+            availabilityData.success &&
+            availabilityData.summary
+        ){
+            replaceThinkingMessage(
+                thinkingId,
+                availabilityData.summary
+            );
+        }else{
+            replaceThinkingMessage(
+                thinkingId,
+                parsed.reply || 'No reply returned.'
+            );
+        }
+
+    }catch(err){
+
+        replaceThinkingMessage(
+            thinkingId,
+            parsed.reply || 'No reply returned.'
+        );
+
+    }
+
+}else{
+
     replaceThinkingMessage(
         thinkingId,
         parsed.reply || 'No reply returned.'
     );
 
+}
+
     document.getElementById('responseBox').style.display = 'none';
 
     renderChatHistory();
+    saveAiConversation();
 }
 
 function replaceThinkingMessage(thinkingId, newMessage){
@@ -270,6 +331,7 @@ function replaceThinkingMessage(thinkingId, newMessage){
     }
 
     renderChatHistory();
+    saveAiConversation();
 }
 
 async function goQuote(){
@@ -348,6 +410,29 @@ function renderChatHistory(){
 
         box.appendChild(div);
     });
+}
+
+async function saveAiConversation(){
+    if(chatHistory.length === 0){
+        return;
+    }
+
+    const fd = new FormData();
+
+    fd.append('token', aiConversationToken);
+    fd.append('chat', formatChatHistory());
+
+    const r = await fetch('save_ai_conversation.php', {
+        method:'POST',
+        body:fd
+    });
+
+    const data = await r.json();
+
+    if(data.success && data.token){
+        aiConversationToken = data.token;
+        localStorage.setItem('aiConversationToken', aiConversationToken);
+    }
 }
 </script>
 
