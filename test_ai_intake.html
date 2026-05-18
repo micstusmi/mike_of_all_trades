@@ -201,7 +201,19 @@ document.getElementById('aiForm').addEventListener('submit', async function(e){
 });
 
 async function sendMessageToAI(message, roleLabel){
-    chatHistory.push({ role: roleLabel, message });
+    chatHistory.push({
+        role: roleLabel,
+        message: message
+    });
+
+    const thinkingId = 'thinking_' + Date.now();
+
+    chatHistory.push({
+        id: thinkingId,
+        role: 'AI',
+        message: 'Thinking. Please wait a second.'
+    });
+
     renderChatHistory();
 
     const fd = new FormData();
@@ -215,14 +227,15 @@ async function sendMessageToAI(message, roleLabel){
             method:'POST',
             body:fd
         });
+
         data = await r.json();
     }catch(err){
-        alert('Could not contact AI endpoint: ' + err.message);
+        replaceThinkingMessage(thinkingId, 'Sorry, I had trouble contacting the AI.');
         return;
     }
 
     if(!data.success){
-        alert(data.message || 'AI request failed.');
+        replaceThinkingMessage(thinkingId, data.message || 'AI request failed.');
         console.log(data);
         return;
     }
@@ -232,48 +245,38 @@ async function sendMessageToAI(message, roleLabel){
     try{
         parsed = JSON.parse(data.raw);
     }catch(err){
-        alert('AI response could not be parsed. Check console.');
+        replaceThinkingMessage(thinkingId, 'Sorry, I had trouble understanding the AI response.');
         console.log(data.raw);
         return;
     }
 
     lastAiData = parsed;
 
-    const lowerMessage = message.toLowerCase();
+    replaceThinkingMessage(
+        thinkingId,
+        parsed.reply || 'No reply returned.'
+    );
 
-if(
-    lowerMessage === 'day' ||
-    lowerMessage === 'week' ||
-    lowerMessage === 'month'
-){
-    saveAiIntake('See availability');
-
-    let view = 'week';
-
-    if(lowerMessage === 'day') view = 'day';
-    if(lowerMessage === 'month') view = 'month';
-
-    window.location.href =
-        'quotes_bookings.php?ai_intake=1&step=availability&view=' + view;
-
-    return;
-}
-
-    chatHistory.push({
-        role: 'AI',
-        message: parsed.reply || 'No reply returned.'
-    });
-
-    document.getElementById('responseBox').style.display = 'block';
-    document.getElementById('replyText').innerText =
-        parsed.reply || 'No reply returned.';
+    document.getElementById('responseBox').style.display = 'none';
 
     renderChatHistory();
 }
 
-function goQuote(){
-    saveAiIntake('Get a quote');
-    window.location.href = 'quotes_bookings.php?ai_intake=1';
+function replaceThinkingMessage(thinkingId, newMessage){
+    const index = chatHistory.findIndex(item => item.id === thinkingId);
+
+    if(index !== -1){
+        chatHistory[index].message = newMessage;
+    }
+
+    renderChatHistory();
+}
+
+async function goQuote(){
+    await sendMessageToAI(
+        'I want to get a quote. Please ask me the next most important quote question, such as quantity, materials, photos, measurements, or whether Mike needs to supply materials.',
+        'Customer selected'
+    );
 }
 
 function goBooking(){
