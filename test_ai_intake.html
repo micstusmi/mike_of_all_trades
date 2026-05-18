@@ -334,11 +334,9 @@ function replaceThinkingMessage(thinkingId, newMessage){
     saveAiConversation();
 }
 
-async function goQuote(){
-    await sendMessageToAI(
-        'I want to get a quote. Please ask me the next most important quote question, such as quantity, materials, photos, measurements, or whether Mike needs to supply materials.',
-        'Customer selected'
-    );
+function goQuote(){
+    saveAiIntake('Get a quote');
+    window.location.href = 'quotes_bookings.php?ai_intake=1';
 }
 
 function goBooking(){
