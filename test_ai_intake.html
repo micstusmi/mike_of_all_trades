@@ -209,6 +209,7 @@
 let aiConversationToken = localStorage.getItem('aiConversationToken') || '';
 let chatHistory = [];
 let lastAiData = {};
+let isSavingConversation = false;
 
 document.getElementById('aiForm').addEventListener('submit', async function(e){
     e.preventDefault();
@@ -321,26 +322,59 @@ function replaceThinkingMessage(thinkingId, newMessage){
     saveAiConversation();
 }
 
-function goQuote(){
-    saveAiIntake('Review quote form');
+async function goQuote(){
 
-    const intake = JSON.parse(localStorage.getItem('aiJobIntake') || '{}');
+    if(isSavingConversation){
 
-    if(aiConversationToken){
-        const params = new URLSearchParams();
-        params.set('token', aiConversationToken);
+        alert(
+            'Still saving your conversation. Please wait 1 second and try again.'
+        );
 
-        if(intake.estimated_hours) params.set('hours', intake.estimated_hours);
-        if(intake.estimated_price) params.set('price', intake.estimated_price);
-        if(intake.service) params.set('service', intake.service);
-        if(intake.suburb) params.set('suburb', intake.suburb);
-
-        window.location.href = 'ai_quote_preview.php?' + params.toString();
         return;
     }
 
-    alert('Saving your chat first. Please try again in a second.');
-    saveAiConversation();
+    if(!aiConversationToken){
+
+        await saveAiConversation();
+
+        if(!aiConversationToken){
+
+            alert(
+                'Could not prepare quote preview yet.'
+            );
+
+            return;
+        }
+    }
+
+    saveAiIntake('Review quote form');
+
+    const intake = JSON.parse(
+        localStorage.getItem('aiJobIntake') || '{}'
+    );
+
+    const params = new URLSearchParams();
+
+    params.set('token', aiConversationToken);
+
+    if(intake.estimated_hours){
+        params.set('hours', intake.estimated_hours);
+    }
+
+    if(intake.estimated_price){
+        params.set('price', intake.estimated_price);
+    }
+
+    if(intake.service){
+        params.set('service', intake.service);
+    }
+
+    if(intake.suburb){
+        params.set('suburb', intake.suburb);
+    }
+
+    window.location.href =
+        'ai_quote_preview.php?' + params.toString();
 }
 
 function goBooking(){
@@ -483,9 +517,12 @@ function renderChatHistory(){
 }
 
 async function saveAiConversation(){
+
     if(chatHistory.length === 0){
         return;
     }
+
+    isSavingConversation = true;
 
     const fd = new FormData();
 
@@ -493,6 +530,7 @@ async function saveAiConversation(){
     fd.append('chat', formatChatHistory());
 
     try{
+
         const r = await fetch('save_ai_conversation.php', {
             method:'POST',
             body:fd
@@ -501,12 +539,25 @@ async function saveAiConversation(){
         const data = await r.json();
 
         if(data.success && data.token){
+
             aiConversationToken = data.token;
-            localStorage.setItem('aiConversationToken', aiConversationToken);
+
+            localStorage.setItem(
+                'aiConversationToken',
+                aiConversationToken
+            );
         }
+
     }catch(err){
-        console.log('Could not save AI conversation:', err);
+
+        console.log(
+            'Could not save AI conversation:',
+            err
+        );
+
     }
+
+    isSavingConversation = false;
 }
 
 function disableAiHelper(){
