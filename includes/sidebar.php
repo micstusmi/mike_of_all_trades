@@ -53,10 +53,11 @@ $baseUrl = $isLocalhost ? '/mike_of_all_trades/' : '/';
                 Admin Calendar
             </a>
 
-            <a class="nav-link fw-bold text-info" href="<?= $baseUrl ?>admin_ai_chats.php">
-                <i class="bi bi-chat-dots-fill me-2"></i>
-                AI Chat Submissions
-            </a>
+            <a class="nav-link fw-bold text-info" href="<?php echo $baseUrl; ?>admin_ai_chats.php">
+    <i class="bi bi-chat-dots-fill me-2"></i>
+    AI Chat Submissions
+</a>
+<?php endif; ?>
 
         <?php if (!empty($_SESSION['user_id']) && ($_SESSION['user_role'] ?? '') !== 'admin'): ?>
             <a class="nav-link fw-bold text-info" href="<?= $baseUrl ?>customer/dashboard.php">
