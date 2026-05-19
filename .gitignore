@@ -14,3 +14,4 @@ php_errors.log
 /includes/config.php
 /includes/db.php
 /admin/blockouts.json
+/vendor/
