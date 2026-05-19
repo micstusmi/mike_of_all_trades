@@ -1,6 +1,11 @@
 <?php
 header('Content-Type: application/json');
 require_once __DIR__ . '/includes/db.php';
+require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/includes/config.php';
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
 
 try {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -31,12 +36,6 @@ try {
         $phone,
         $chat
     ]);
-
-    require_once __DIR__ . '/vendor/autoload.php';
-require_once __DIR__ . '/includes/config.php';
-
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
 
 $chatLink = 'https://mikeofalltrades.com.au/view_ai_conversation.php?token=' . urlencode($token);
 
@@ -103,7 +102,7 @@ try {
         $customerMail->send();
     }
 
-} catch (Exception $e) {
+} catch (MailException $e) {
 
     error_log('Mailer Error: ' . $mail->ErrorInfo);
 
