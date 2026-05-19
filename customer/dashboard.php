@@ -1,6 +1,14 @@
 <?php
 require '../includes/auth_user.php';
 include '../includes/header.php';
+
+$stmt = $pdo->prepare("
+    SELECT COUNT(*)
+    FROM ai_conversations
+    WHERE user_id = ?
+");
+$stmt->execute([$_SESSION['user_id']]);
+$savedChatCount = (int) $stmt->fetchColumn();
 ?>
 
 <style>
@@ -60,6 +68,18 @@ include '../includes/header.php';
 
         <div id="myBookingsTable" class="booking-table p-3">
             Loading bookings...
+        </div>
+
+        <div class="card mt-4 p-4 border-0 rounded-4 text-dark">
+            <h3>Saved AI Chats</h3>
+
+            <p class="text-muted mb-3">
+                You have <?= $savedChatCount ?> saved AI chat<?= $savedChatCount === 1 ? '' : 's' ?>.
+            </p>
+
+            <a href="ai_chats.php" class="btn btn-info rounded-pill fw-bold">
+                View My Saved AI Chats
+            </a>
         </div>
 
     </div>
@@ -219,29 +239,6 @@ document.addEventListener('DOMContentLoaded', function(){
     calendar.render();
     loadMyBookings();
 });
-
 </script>
-
-<?php
-$stmt = $pdo->prepare("
-    SELECT COUNT(*)
-    FROM ai_conversations
-    WHERE user_id = ?
-");
-$stmt->execute([$_SESSION['user_id']]);
-$savedChatCount = (int) $stmt->fetchColumn();
-?>
-
-<div class="card mt-4 p-4 border-0 rounded-4">
-    <h3>Saved AI Chats</h3>
-
-    <p class="text-muted mb-3">
-        You have <?= $savedChatCount ?> saved AI chat<?= $savedChatCount === 1 ? '' : 's' ?>.
-    </p>
-
-    <a href="ai_chats.php" class="btn btn-info rounded-pill fw-bold">
-        View My Saved AI Chats
-    </a>
-</div>
 
 <?php include '../includes/footer.php'; ?>
