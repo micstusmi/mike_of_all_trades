@@ -482,7 +482,6 @@ if(params.get('step') === 'availability'){
 if(params.get('ai_booking') === '1'){
     setTimeout(function(){
         restoreAiBookingDraft();
-        goToStep(2);
     }, 400);
 }
 
@@ -941,8 +940,7 @@ updateDurationMode();
     }
 
     document.getElementById('serviceType').value = 'General Trades';
-
-    /if(data.suburb){
+    if(data.suburb){
     const suburb = data.suburb.toLowerCase();
 
     if(
@@ -956,7 +954,9 @@ updateDurationMode();
     }
 }
 
-    checkValidation();
+checkValidation();
+
+goToStep(2);
 
     alert('Your AI booking details have been added. Please choose a date and time on the calendar.');
 }
