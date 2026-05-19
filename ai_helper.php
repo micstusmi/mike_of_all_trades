@@ -240,7 +240,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
         <nav class="ai-nav">
             <a href="/">Home</a>
-            <a href="/services.php">Services</a>
+            <a href="/quotes_bookings.php">Quotes / Bookings</a>
 
             <?php if (!empty($_SESSION['user_id'])): ?>
                 <a href="/customer/dashboard.php">My Dashboard</a>
