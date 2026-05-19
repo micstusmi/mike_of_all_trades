@@ -52,6 +52,11 @@ $baseUrl = $isLocalhost ? '/mike_of_all_trades/' : '/';
                 <i class="bi bi-calendar-week-fill me-2"></i>
                 Admin Calendar
             </a>
+
+            <a href="/admin_ai_chats.php">
+                <i class="fa fa-comments"></i>
+                AI Chat Submissions
+            </a>
         <?php endif; ?>
 
         <?php if (!empty($_SESSION['user_id']) && ($_SESSION['user_role'] ?? '') !== 'admin'): ?>

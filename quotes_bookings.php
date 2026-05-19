@@ -848,10 +848,13 @@ function saveQuoteProgress(){
     };
 
     sessionStorage.setItem('quoteProgress', JSON.stringify(data));
+    localStorage.setItem('quoteProgress', JSON.stringify(data));
 }
 
 function restoreQuoteProgress(){
-    const saved = sessionStorage.getItem('quoteProgress');
+    const saved =
+        sessionStorage.getItem('quoteProgress') ||
+        localStorage.getItem('quoteProgress');
 
     if(!saved){
         return;
@@ -866,6 +869,14 @@ function restoreQuoteProgress(){
     if(data.location !== ''){
         document.getElementById('locationZone').value = data.location;
     }
+
+    if(data.bookingMode === 'days'){
+        document.getElementById('modeDays').checked = true;
+    }else{
+        document.getElementById('modeHours').checked = true;
+    }
+
+    updateDurationMode();
 
     if(data.duration){
         selectedDuration = parseFloat(data.duration);
@@ -887,6 +898,7 @@ function restoreQuoteProgress(){
             createPreviewBooking(start);
             goToStep(3);
             sessionStorage.removeItem('quoteProgress');
+            localStorage.removeItem('quoteProgress');
         }, 400);
     }
 }
