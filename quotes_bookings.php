@@ -59,7 +59,7 @@ if (!empty($_SESSION['user_id'])) {
                 <div class="d-flex gap-2 flex-wrap">
 
                     <a
-                        href="test_ai_intake.html"
+                        href="ai_helper.php?new=1"
                         class="btn btn-info rounded-pill fw-bold"
                     >
                         Start with AI Helper

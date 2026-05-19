@@ -106,9 +106,9 @@ if ($token !== '') {
         <pre><?= htmlspecialchars($conversation['conversation_text']) ?></pre>
 
         <p>
-            <a href="/test_ai_intake.html">
-                Start another conversation with the AI Helper
-            </a>
+            <a href="/ai_helper.php?new=1">
+    Start another conversation with the AI Helper
+</a>
         </p>
 
     <?php endif; ?>

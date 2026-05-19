@@ -1,0 +1,674 @@
+<?php
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+?>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Helper | Mike Of All Trades</title>
+    <style>
+        body{font-family:Arial;background:#111;color:white;padding:30px}
+        .card{background:#1f1f1f;padding:20px;border-radius:14px;max-width:780px;margin:auto}
+        textarea,input{width:100%;padding:14px;border-radius:10px;border:none;margin-bottom:12px;box-sizing:border-box}
+        textarea{min-height:70px}
+        button{padding:10px 14px;border:none;border-radius:999px;cursor:pointer;margin:4px;font-weight:bold}
+        .primary{background:#ffc107;color:#000}
+
+        #responseBox,#contactBox{
+            margin-top:20px;
+            padding:16px;
+            background:#222;
+            border-radius:12px;
+            display:none;
+        }
+
+        #chatHistoryBox{
+            margin-top:25px;
+            display:flex;
+            flex-direction:column;
+            gap:10px;
+        }
+
+        .chat-bubble{
+            max-width:78%;
+            padding:12px 14px;
+            border-radius:16px;
+            line-height:1.35;
+        }
+
+        .chat-customer{
+            align-self:flex-end;
+            background:#0d6efd;
+            color:white;
+            border-bottom-right-radius:4px;
+        }
+
+        .chat-ai{
+            align-self:flex-start;
+            background:#2b2b2b;
+            color:#f1f1f1;
+            border-bottom-left-radius:4px;
+        }
+
+        .chat-role{
+            font-size:12px;
+            opacity:0.7;
+            margin-bottom:4px;
+        }
+
+        #actionButtons{
+            margin-top:25px;
+            padding-top:15px;
+            border-top:1px solid #2c2c2c;
+            display:flex;
+            flex-wrap:wrap;
+            gap:6px;
+            opacity:0.72;
+        }
+
+        #actionButtons button{
+            background:#2d2d2d;
+            color:#d5d5d5;
+            border:1px solid #3d3d3d;
+            font-size:13px;
+        }
+
+        #actionButtons button:hover{
+            background:#3a3a3a;
+            color:white;
+        }
+
+        .chatInputBar{
+            position:sticky;
+            bottom:0;
+            background:#1f1f1f;
+            padding-top:15px;
+            margin-top:20px;
+        }
+
+        .hint{color:#aaa;font-size:14px}
+
+        #contextualActions{
+    margin-top:18px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+}
+
+#contextualActions button{
+    background:#198754;
+    color:white;
+    border:none;
+    padding:11px 14px;
+    border-radius:999px;
+    font-size:14px;
+    font-weight:bold;
+}
+
+#contextualActions button:hover{
+    opacity:0.92;
+}
+
+        @media (max-width: 768px){
+
+    body{
+        padding:12px;
+    }
+
+    .card{
+        max-width:100%;
+        padding:16px;
+        border-radius:12px;
+    }
+
+    h2{
+        font-size:28px;
+        line-height:1.15;
+    }
+
+    .hint{
+        font-size:13px;
+    }
+
+    .chat-bubble{
+        max-width:92%;
+        font-size:15px;
+        padding:11px 12px;
+    }
+
+    #actionButtons{
+        gap:5px;
+    }
+
+    #actionButtons button{
+        font-size:12px;
+        padding:9px 11px;
+        flex:1 1 calc(50% - 10px);
+    }
+
+    .chatInputBar textarea{
+        min-height:58px;
+        font-size:16px;
+    }
+
+    .primary{
+        width:100%;
+        padding:14px;
+        font-size:16px;
+    }
+
+    input{
+        font-size:16px;
+    }
+
+    textarea{
+        font-size:16px;
+    }
+
+}
+    </style>
+</head>
+
+<body data-logged-in="<?= !empty($_SESSION['user_id']) ? '1' : '0' ?>">
+
+<div class="card">
+    <h2>Tell us what you want</h2>
+    <p class="hint">Type what you need done, or continue replying to the assistant here.</p>
+
+    <div id="responseBox">
+        <p id="replyText"></p>
+    </div>
+
+    <div id="contactBox">
+        <h3>Send this chat to Mike</h3>
+        <p class="hint">Mike can review the conversation and contact you offline.</p>
+
+        <input id="customerName" placeholder="Your name">
+        <input id="customerEmail" placeholder="Your email">
+        <input id="customerPhone" placeholder="Your phone">
+
+        <button type="button" onclick="sendChatToMike()">Send conversation to Mike</button>
+        <p id="sendStatus"></p>
+    </div>
+
+    <div id="chatHistoryBox"></div>
+    <div id="contextualActions"></div>
+
+    <div id="actionButtons">
+        <button type="button" onclick="goQuote()">Get quote</button>
+        <button type="button" onclick="goBooking()">Make booking</button>
+        <button type="button" onclick="goAvailability()">See availability</button>
+        <button type="button" onclick="showContactMikeBox()">Send this chat to Mike</button>
+        <button type="button" onclick="focusCorrection()">Correct / redirect AI</button>
+    </div>
+
+    <form id="aiForm" class="chatInputBar">
+        <textarea id="messageInput" placeholder="Type your message here..." required></textarea>
+        <button class="primary" type="submit">Send</button>
+    </form>
+</div>
+
+<script>
+    const pageParams = new URLSearchParams(window.location.search);
+
+if(pageParams.get('new') === '1'){
+    localStorage.removeItem('aiConversationToken');
+    localStorage.removeItem('aiJobIntake');
+}
+let aiConversationToken = localStorage.getItem('aiConversationToken') || '';
+let chatHistory = [];
+let lastAiData = {};
+let isSavingConversation = false;
+
+document.getElementById('aiForm').addEventListener('submit', async function(e){
+    e.preventDefault();
+
+    const message = document.getElementById('messageInput').value.trim();
+    if(!message) return;
+
+    await sendMessageToAI(message, 'Customer');
+
+    document.getElementById('messageInput').value = '';
+    document.getElementById('messageInput').placeholder =
+        'Continue typing or responding to this chat...';
+});
+
+async function sendMessageToAI(message, roleLabel){
+    chatHistory.push({ role: roleLabel, message: message });
+
+    const thinkingId = 'thinking_' + Date.now();
+
+    chatHistory.push({
+        id: thinkingId,
+        role: 'AI',
+        message: 'Thinking. Please wait a second.'
+    });
+
+    renderChatHistory();
+    saveAiConversation();
+
+    const lowerMessage = message.toLowerCase().trim();
+
+    if(lowerMessage === 'day' || lowerMessage === 'week' || lowerMessage === 'month'){
+        let calendarView = lowerMessage === 'day' ? 'day' : lowerMessage === 'month' ? 'month' : 'week';
+
+        window.location.href =
+            'quotes_bookings.php?ai_intake=1&step=availability&view=' + calendarView;
+
+        return;
+    }
+
+    const fd = new FormData();
+    fd.append('job', message);
+    fd.append('history', formatChatHistory());
+
+    let data;
+
+    try{
+        const r = await fetch('ai_intake.php', {
+            method:'POST',
+            body:fd
+        });
+
+        data = await r.json();
+    }catch(err){
+        replaceThinkingMessage(thinkingId, 'Sorry, I had trouble contacting the AI.');
+        return;
+    }
+
+    if(!data.success){
+        replaceThinkingMessage(thinkingId, data.message || 'AI request failed.');
+        console.log(data);
+        return;
+    }
+
+    let parsed;
+
+    try{
+        parsed = JSON.parse(data.raw);
+    }catch(err){
+        replaceThinkingMessage(thinkingId, 'Sorry, I had trouble understanding the AI response.');
+        console.log(data.raw);
+        return;
+    }
+
+    lastAiData = parsed;
+    renderContextualActions(parsed.intent);
+
+    if(parsed.intent === 'availability'){
+        try{
+            const availabilityResponse = await fetch('ai_availability_summary.php');
+            const availabilityData = await availabilityResponse.json();
+
+            replaceThinkingMessage(
+                thinkingId,
+                availabilityData.success && availabilityData.summary
+                    ? availabilityData.summary
+                    : (parsed.reply || 'No reply returned.')
+            );
+
+        }catch(err){
+            replaceThinkingMessage(thinkingId, parsed.reply || 'No reply returned.');
+        }
+    }else{
+        replaceThinkingMessage(thinkingId, parsed.reply || 'No reply returned.');
+    }
+
+    document.getElementById('responseBox').style.display = 'none';
+
+    renderChatHistory();
+    saveAiConversation();
+}
+
+function replaceThinkingMessage(thinkingId, newMessage){
+    const index = chatHistory.findIndex(item => item.id === thinkingId);
+
+    if(index !== -1){
+        chatHistory[index].message = newMessage;
+    }
+
+    renderChatHistory();
+    saveAiConversation();
+}
+
+async function goQuote(){
+
+    await saveAiConversation();
+
+if(!aiConversationToken){
+    alert('Could not prepare quote preview yet. Please try again in a moment.');
+    return;
+}
+
+    saveAiIntake('Review quote form');
+
+    const intake = JSON.parse(
+        localStorage.getItem('aiJobIntake') || '{}'
+    );
+
+    const params = new URLSearchParams();
+
+    params.set('token', aiConversationToken);
+
+    if(intake.estimated_hours){
+        params.set('hours', intake.estimated_hours);
+    }
+
+    if(intake.estimated_price){
+        params.set('price', intake.estimated_price);
+    }
+
+    if(intake.service){
+        params.set('service', intake.service);
+    }
+
+    if(intake.suburb){
+        params.set('suburb', intake.suburb);
+    }
+
+    window.location.href =
+        'ai_quote_preview.php?' + params.toString();
+}
+
+async function goBooking(){
+    await saveAiConversation();
+
+    if(!aiConversationToken){
+        alert('Could not prepare booking preview yet. Please try again in a moment.');
+        return;
+    }
+
+    saveAiIntake('Make a booking');
+
+    const intake = JSON.parse(localStorage.getItem('aiJobIntake') || '{}');
+
+    const params = new URLSearchParams();
+    params.set('token', aiConversationToken);
+
+    if(intake.estimated_hours) params.set('hours', intake.estimated_hours);
+    if(intake.service) params.set('service', intake.service);
+    if(intake.suburb) params.set('suburb', intake.suburb);
+
+    window.location.href = 'ai_booking_preview.php?' + params.toString();
+}
+
+function goAvailability(){
+    saveAiIntake('See availability');
+    window.location.href = 'quotes_bookings.php?ai_intake=1&step=availability&view=week';
+}
+
+function focusCorrection(){
+    document.getElementById('messageInput').placeholder =
+        'Tell us what the AI got wrong, or what direction you want to go instead...';
+    document.getElementById('messageInput').focus();
+}
+
+function showContactMikeBox(){
+    document.getElementById('contactBox').style.display = 'block';
+    document.getElementById('customerName').focus();
+}
+
+function saveAiIntake(option){
+    const data = {
+        original_job: formatChatHistory(),
+        understood_job: lastAiData.understood_job || '',
+        selected_option: option,
+        conversation_token: aiConversationToken,
+        estimated_hours: lastAiData.estimated_hours || '',
+        estimated_price: lastAiData.estimated_price || '',
+        service: lastAiData.service || '',
+        suburb: lastAiData.suburb || '',
+        quote_ready: lastAiData.quote_ready || false
+    };
+
+    sessionStorage.setItem('aiJobIntake', JSON.stringify(data));
+    localStorage.setItem('aiJobIntake', JSON.stringify(data));
+}
+
+function sendChatToMike(){
+    const fd = new FormData();
+
+    fd.append('name', document.getElementById('customerName').value);
+    fd.append('email', document.getElementById('customerEmail').value);
+    fd.append('phone', document.getElementById('customerPhone').value);
+    fd.append('chat', formatChatHistory());
+
+    fetch('ai_send_to_mike.php', {
+        method:'POST',
+        body:fd
+    })
+    .then(r => r.json())
+    .then(res => {
+        document.getElementById('sendStatus').innerText =
+            res.message || 'Sent to Mike.';
+    });
+}
+
+function formatChatHistory(){
+    return chatHistory.map(item => item.role + ': ' + item.message).join("\n\n");
+}
+
+function renderContextualActions(intent){
+
+    const box = document.getElementById('contextualActions');
+    const fallbackButtons = document.getElementById('actionButtons');
+
+    if(fallbackButtons){
+        fallbackButtons.style.display = 'none';
+    }
+
+    box.innerHTML = '';
+
+    const fullChat = formatChatHistory().toLowerCase();
+
+    const looksLikeBookingFlow =
+    intent === 'booking' ||
+    fullChat.includes('book ') ||
+    fullChat.includes('booked') ||
+    fullChat.includes('booking') ||
+    fullChat.includes('reserve') ||
+    fullChat.includes('lock it in') ||
+    fullChat.includes('just book') ||
+    fullChat.includes('book him in') ||
+    fullChat.includes('book mike');
+
+const looksLikeQuoteFlow =
+    !looksLikeBookingFlow &&
+    (
+        fullChat.includes('quote') ||
+        fullChat.includes('$') ||
+        fullChat.includes('estimate') ||
+        fullChat.includes('review the quote form') ||
+        fullChat.includes('send the formal quote')
+    );
+
+    if(
+        !looksLikeBookingFlow &&
+        (
+        intent === 'job_quote' ||
+        intent === 'quote_ready' ||
+        intent === 'quote' ||
+        looksLikeQuoteFlow
+        )
+    ){
+
+        box.innerHTML += `
+            <button type="button" onclick="goQuote()">
+                Review quote form
+            </button>
+
+            <button type="button" onclick="goBooking()">
+                Book Mike in with these chat details
+            </button>
+        `;
+    }
+
+if(looksLikeBookingFlow){
+        box.innerHTML += `
+        <button type="button" onclick="goBooking()">
+            Book Mike in with these chat details
+        </button>
+    `;
+}
+
+    if(intent === 'availability'){
+        box.innerHTML += `
+            <button type="button" onclick="goAvailability()">
+                Open Mike's availability calendar
+            </button>
+        `;
+    }
+
+    box.innerHTML += `
+        <button type="button" onclick="saveChatForLater()">
+            Save this chat for later
+        </button>
+
+        <button type="button" onclick="showContactMikeBox()">
+            Send this chat to Mike
+        </button>
+
+        <button type="button" onclick="disableAiHelper()">
+            Continue without AI
+        </button>
+    `;
+}
+function renderChatHistory(){
+    const box = document.getElementById('chatHistoryBox');
+    box.innerHTML = '';
+
+    chatHistory.forEach(item => {
+        const div = document.createElement('div');
+        const isCustomer = item.role.toLowerCase().includes('customer');
+
+        div.className = 'chat-bubble ' + (isCustomer ? 'chat-customer' : 'chat-ai');
+
+        div.innerHTML =
+            '<div class="chat-role">' + item.role + '</div>' +
+            item.message.replace(/\n/g, '<br>');
+
+        box.appendChild(div);
+    });
+}
+
+async function saveAiConversation(){
+
+    if(chatHistory.length === 0){
+        return;
+    }
+
+    isSavingConversation = true;
+
+    const fd = new FormData();
+
+    fd.append('token', aiConversationToken);
+    fd.append('chat', formatChatHistory());
+
+    try{
+
+        const r = await fetch('save_ai_conversation.php', {
+            method:'POST',
+            body:fd
+        });
+
+        const data = await r.json();
+
+        if(data.success && data.token){
+
+            aiConversationToken = data.token;
+
+            localStorage.setItem(
+                'aiConversationToken',
+                aiConversationToken
+            );
+        }
+
+    }catch(err){
+
+        console.log(
+            'Could not save AI conversation:',
+            err
+        );
+
+    }
+
+    isSavingConversation = false;
+}
+
+function disableAiHelper(){
+    saveAiIntake('Continue without AI');
+    window.location.href = 'quotes_bookings.php?manual=1';
+}
+
+async function saveChatForLater(){
+
+    const fd = new FormData();
+
+    fd.append('token', aiConversationToken);
+    fd.append('chat', formatChatHistory());
+
+    try{
+
+        const r = await fetch('save_ai_chat.php', {
+            method:'POST',
+            body:fd
+        });
+
+        const data = await r.json();
+
+        if(!data.success){
+            alert(data.message || 'Could not save the chat.');
+            return;
+        }
+
+        if(data.token){
+
+    aiConversationToken = data.token;
+
+    localStorage.setItem(
+        'aiConversationToken',
+        aiConversationToken
+    );
+
+    const loggedIn =
+        document.body.dataset.loggedIn === '1';
+
+    if(!loggedIn){
+
+        alert(
+            'Your chat has been saved.\n\n' +
+            'To keep it safely attached to your account, ' +
+            'you will now be taken to login/register.'
+        );
+
+        window.location.href =
+            'login.php?claim_ai_chat=' +
+            encodeURIComponent(data.token);
+
+        return;
+    }
+
+    alert('Chat saved successfully.');
+
+    window.location.href =
+        'customer/ai_chats.php';
+
+    return;
+}
+
+    }catch(err){
+
+        alert(
+            'Could not save the chat: ' +
+            err.message
+        );
+
+    }
+}
+
+</script>
+
+</body>
+</html>
