@@ -32,12 +32,41 @@ try {
         $chat
     ]);
 
-    $chatLink = 'https://mikeofalltrades.com.au/view_ai_conversation.php?token=' . urlencode($token);
+    require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/includes/config.php';
 
-    $to = 'mike@mikeofalltrades.com.au';
-    $subject = 'New AI chat submitted';
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
 
-    $message =
+$chatLink = 'https://mikeofalltrades.com.au/view_ai_conversation.php?token=' . urlencode($token);
+
+$mail = new PHPMailer(true);
+
+try {
+
+    $mail->isSMTP();
+    $mail->Host       = SMTP_HOST;
+    $mail->SMTPAuth   = true;
+    $mail->Username   = SMTP_USERNAME;
+    $mail->Password   = SMTP_PASSWORD;
+    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+    $mail->Port       = SMTP_PORT;
+
+    $mail->setFrom(SMTP_FROM_EMAIL, SMTP_FROM_NAME);
+
+    // Send to Mike
+    $mail->addAddress('mike@mikeofalltrades.com.au', 'Mike');
+
+    // Reply directly to customer if provided
+    if (!empty($email)) {
+        $mail->addReplyTo($email, $name ?: 'Customer');
+    }
+
+    $mail->isHTML(false);
+
+    $mail->Subject = 'New AI chat submitted';
+
+    $mail->Body =
         "A customer has sent an AI chat to Mike.\n\n" .
         "Name: " . ($name ?: 'Not provided') . "\n" .
         "Email: " . ($email ?: 'Not provided') . "\n" .
@@ -45,10 +74,40 @@ try {
         "View chat:\n" . $chatLink . "\n\n" .
         "Admin list:\nhttps://mikeofalltrades.com.au/admin_ai_chats.php";
 
-    $headers = "From: website@mikeofalltrades.com.au\r\n";
-    $headers .= "Reply-To: " . ($email ?: 'mike@mikeofalltrades.com.au') . "\r\n";
+    $mail->send();
 
-    @mail($to, $subject, $message, $headers);
+    // Optional customer confirmation email
+    if (!empty($email)) {
+
+        $customerMail = new PHPMailer(true);
+
+        $customerMail->isSMTP();
+        $customerMail->Host       = SMTP_HOST;
+        $customerMail->SMTPAuth   = true;
+        $customerMail->Username   = SMTP_USERNAME;
+        $customerMail->Password   = SMTP_PASSWORD;
+        $customerMail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        $customerMail->Port       = SMTP_PORT;
+
+        $customerMail->setFrom(SMTP_FROM_EMAIL, SMTP_FROM_NAME);
+
+        $customerMail->addAddress($email, $name ?: 'Customer');
+
+        $customerMail->Subject = 'Your AI chat has been received';
+
+        $customerMail->Body =
+            "Thanks for contacting Mike Of All Trades.\n\n" .
+            "Mike has received your AI chat submission and will review it shortly.\n\n" .
+            "Conversation link:\n" . $chatLink;
+
+        $customerMail->send();
+    }
+
+} catch (Exception $e) {
+
+    error_log('Mailer Error: ' . $mail->ErrorInfo);
+
+}
 
     echo json_encode([
         'success' => true,
