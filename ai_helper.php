@@ -168,10 +168,90 @@ if (session_status() === PHP_SESSION_NONE) {
     }
 
 }
+
+.ai-topbar{
+    width:100%;
+    background:#121212;
+    border-bottom:1px solid #2a2a2a;
+    position:sticky;
+    top:0;
+    z-index:1000;
+}
+
+.ai-topbar-inner{
+    max-width:1200px;
+    margin:auto;
+    padding:14px 24px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:20px;
+}
+
+.ai-logo{
+    color:#fff;
+    text-decoration:none;
+    font-weight:700;
+    letter-spacing:1px;
+    font-size:0.95rem;
+}
+
+.ai-nav{
+    display:flex;
+    align-items:center;
+    gap:18px;
+    flex-wrap:wrap;
+}
+
+.ai-nav a{
+    color:#bbb;
+    text-decoration:none;
+    font-size:0.9rem;
+    transition:0.2s;
+}
+
+.ai-nav a:hover{
+    color:#fff;
+}
+
+@media(max-width:700px){
+
+    .ai-topbar-inner{
+        flex-direction:column;
+        align-items:flex-start;
+    }
+
+    .ai-nav{
+        width:100%;
+        gap:14px;
+    }
+}
     </style>
 </head>
 
 <body data-logged-in="<?= !empty($_SESSION['user_id']) ? '1' : '0' ?>">
+
+<header class="ai-topbar">
+    <div class="ai-topbar-inner">
+
+        <a href="/" class="ai-logo">
+            MIKE OF ALL TRADES
+        </a>
+
+        <nav class="ai-nav">
+            <a href="/">Home</a>
+            <a href="/services.php">Services</a>
+
+            <?php if (!empty($_SESSION['user_id'])): ?>
+                <a href="/customer/dashboard.php">My Dashboard</a>
+            <?php else: ?>
+                <a href="/login.php">Login</a>
+                <a href="/register.php">Register</a>
+            <?php endif; ?>
+        </nav>
+
+    </div>
+</header>
 
 <div class="card">
     <h2>Tell us what you want</h2>
