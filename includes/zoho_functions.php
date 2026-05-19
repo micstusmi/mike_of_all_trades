@@ -196,16 +196,20 @@ function createZohoEstimate($customer_id, $name, $service_description, $total) {
 
         "line_items" => [
             [
-                "name"        => "Project Works",
-                "description" => $service_description,
-                "rate"        => (float)$total,
-                "quantity"    => 1
-            ]
+    "name"           => "Project Works",
+    "description"    => $service_description,
+    "rate"           => (float)$total,
+    "quantity"       => 1,
+    "tax_id"         => "",
+    "tax_name"       => "",
+    "tax_percentage" => 0
+]
         ],
 
         "notes" =>
             "Thank you for the opportunity to provide this quotation.\n\n"
           . "Please review the scope carefully and contact us if you require any adjustments.\n\n"
+          . "Mike's ABN is not currently setup for GST so NO GST would be added.\n\n"
           . "Quote valid for 30 days.",
 
         "terms" =>

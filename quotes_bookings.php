@@ -871,33 +871,33 @@ function restoreAiIntake(){
 
     const data = JSON.parse(saved);
 
+    let description = '';
+
     if(data.understood_job){
-        document.getElementById('custDescription').value =
-            data.understood_job + "\n\nOriginal request: " + data.original_job;
+        description += data.understood_job + "\n\n";
     }
 
-    if(data.understood_job.toLowerCase().includes('paint')){
+    if(data.original_job){
+        description += "AI chat details:\n" + data.original_job + "\n\n";
+    }
+
+    if(data.conversation_token){
+        description += "AI conversation link:\n";
+        description += window.location.origin + "/view_ai_conversation.php?token=" + data.conversation_token;
+    }
+
+    document.getElementById('custDescription').value = description.trim();
+
+    if(
+        description.toLowerCase().includes('paint') ||
+        description.toLowerCase().includes('door') ||
+        description.toLowerCase().includes('frame')
+    ){
         document.getElementById('serviceType').value = 'General Trades';
     }
 
     checkValidation();
 }
-
-document.addEventListener('DOMContentLoaded', function(){
-    const params = new URLSearchParams(window.location.search);
-
-    if(params.get('ai_intake') === '1'){
-        setTimeout(restoreAiIntake, 300);
-    }
-
-    if(localStorage.getItem('useAiHelper') === '0'){
-    const wrapper = document.getElementById('aiHelperWrapper');
-
-    if(wrapper){
-        wrapper.style.display = 'none';
-    }
-}
-});
 
 function disableAiHelper(){
     localStorage.setItem('useAiHelper', '0');
