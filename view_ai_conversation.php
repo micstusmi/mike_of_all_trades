@@ -22,7 +22,7 @@ if ($token !== '') {
     <title>AI Chat Conversation</title>
     <style>
         body{font-family:Arial;background:#111;color:white;padding:24px}
-        .box{max-width:850px;margin:auto;background:#1f1f1f;padding:24px;border-radius:16px}
+        .box{max-width:850px;margin:auto;background:#1f1f1f;padding:24px;border-radius:16px;overflow:hidden;}
         pre{white-space:pre-wrap;font-family:Arial;line-height:1.5;background:#111;padding:18px;border-radius:12px}
         .hint{color:#aaa}
         a{color:#4db8ff}
@@ -36,8 +36,10 @@ if ($token !== '') {
         <p class="hint">Conversation not found.</p>
     <?php else: ?>
         <p class="hint">
-            This is a saved copy of the AI chat so the details do not need to be repeated.
-        </p>
+    This is a saved copy of the AI chat so the details do not need to be repeated.
+    Mike has a permanent copy of this conversation for future reference if needed.
+    If you would like to discuss this conversation further, feel free to contact Mike on +61 405 283 013.
+</p>
 
         <p>
             <strong>Name:</strong>
@@ -53,10 +55,19 @@ if ($token !== '') {
             <?= htmlspecialchars($conversation['created_at'] ?? '') ?>
         </p>
 
-        <pre><?= htmlspecialchars($conversation['conversation_text']) ?></pre>
+pre{
+    white-space:pre-wrap;
+    word-wrap:break-word;
+    overflow-wrap:break-word;
+    font-family:Arial;
+    line-height:1.5;
+    background:#111;
+    padding:18px;
+    border-radius:12px;
+}
 
         <p>
-            <a href="/test_ai_intake.html">Start or continue with the AI Helper</a>
+            <a href="/test_ai_intake.html">Start another conversation with the AI Helper</a>
         </p>
     <?php endif; ?>
 </div>
