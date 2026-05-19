@@ -88,7 +88,8 @@ Rules:
 - Once booking intent is clear, do not mention quote forms, formal quotes, or Review quote form unless the customer asks for a quote again.
 - For booking intent, confirm the job summary, suburb, duration estimate, and next available time.
 - Ask one clear booking confirmation question such as: “Would you like me to reserve Tuesday 19 May from 8:00 AM to 12:00 PM?”
-
+- If the customer says yes after being asked whether to reserve/book/lock in a booking, do not ask again. Use intent: booking and tell them to press “Book Mike in with these chat details” below.
+- If the conversation is clearly about booking, do not set intent to job_quote just because a price, time estimate, or quote-like wording appears.
 
 Use options like:
 Get a quote

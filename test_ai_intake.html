@@ -435,18 +435,35 @@ function renderContextualActions(intent){
 
     const fullChat = formatChatHistory().toLowerCase();
 
-    const looksLikeQuoteFlow =
+    const looksLikeBookingFlow =
+    intent === 'booking' ||
+    fullChat.includes('book ') ||
+    fullChat.includes('booked') ||
+    fullChat.includes('booking') ||
+    fullChat.includes('reserve') ||
+    fullChat.includes('lock it in') ||
+    fullChat.includes('just book') ||
+    fullChat.includes('book him in') ||
+    fullChat.includes('book mike');
+
+const looksLikeQuoteFlow =
+    !looksLikeBookingFlow &&
+    (
         fullChat.includes('quote') ||
         fullChat.includes('$') ||
         fullChat.includes('estimate') ||
         fullChat.includes('review the quote form') ||
-        fullChat.includes('send the formal quote');
+        fullChat.includes('send the formal quote')
+    );
 
     if(
+        !looksLikeBookingFlow &&
+        (
         intent === 'job_quote' ||
         intent === 'quote_ready' ||
         intent === 'quote' ||
         looksLikeQuoteFlow
+        )
     ){
 
         box.innerHTML += `
@@ -460,8 +477,8 @@ function renderContextualActions(intent){
         `;
     }
 
-if(intent === 'booking'){
-    box.innerHTML += `
+if(looksLikeBookingFlow){
+        box.innerHTML += `
         <button type="button" onclick="goBooking()">
             Book Mike in with these chat details
         </button>
