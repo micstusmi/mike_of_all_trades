@@ -1,5 +1,6 @@
 <?php
 require '../includes/auth_user.php';
+require '../includes/db.php';
 include '../includes/header.php';
 
 $stmt = $pdo->prepare("
