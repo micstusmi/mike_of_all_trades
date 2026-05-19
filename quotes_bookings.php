@@ -260,9 +260,9 @@ if (!empty($_SESSION['user_id'])) {
         Send Quote
     </button>
 
-    <button class="btn btn-primary w-100 rounded-pill fw-bold" type="button" onclick="bookNow()">
-        Book Now
-    </button>
+    <button class="btn btn-primary w-100 rounded-pill fw-bold" type="button" onclick="continueBooking()">
+    Continue booking
+</button>
 
     <button
         class="btn btn-outline-info w-100 rounded-pill fw-bold"
@@ -724,6 +724,28 @@ fd.append('billable_hours', bookingMode === 'days' ? selectedDuration * 8 : sele
     });
 }
 
+function continueBooking(){
+
+    if(!isLoggedIn){
+        saveQuoteProgress();
+
+        alert(
+            'Almost done — please log in or create an account so your booking details can be saved securely.'
+        );
+
+        const returnUrl = encodeURIComponent(
+            window.location.pathname + window.location.search
+        );
+
+        window.location.href =
+            'login.php?return=' + returnUrl;
+
+        return;
+    }
+
+    bookNow();
+}
+
 function bookNow(){
 
     if(!selectedEvent){
@@ -819,6 +841,7 @@ function saveQuoteProgress(){
         service: document.getElementById('serviceType').value,
         location: document.getElementById('locationZone').value,
         duration: document.getElementById('hourSlider').value,
+        bookingMode: bookingMode,
         description: document.getElementById('custDescription')?.value || '',
         selectedStart: selectedEvent ? formatLocalDateTime(selectedEvent.start) : '',
         selectedEnd: selectedEvent ? formatLocalDateTime(selectedEvent.end) : ''
