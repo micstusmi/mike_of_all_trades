@@ -361,9 +361,26 @@ if(!aiConversationToken){
         'ai_quote_preview.php?' + params.toString();
 }
 
-function goBooking(){
+async function goBooking(){
+    await saveAiConversation();
+
+    if(!aiConversationToken){
+        alert('Could not prepare booking preview yet. Please try again in a moment.');
+        return;
+    }
+
     saveAiIntake('Make a booking');
-    window.location.href = 'quotes_bookings.php?ai_intake=1';
+
+    const intake = JSON.parse(localStorage.getItem('aiJobIntake') || '{}');
+
+    const params = new URLSearchParams();
+    params.set('token', aiConversationToken);
+
+    if(intake.estimated_hours) params.set('hours', intake.estimated_hours);
+    if(intake.service) params.set('service', intake.service);
+    if(intake.suburb) params.set('suburb', intake.suburb);
+
+    window.location.href = 'ai_booking_preview.php?' + params.toString();
 }
 
 function goAvailability(){
