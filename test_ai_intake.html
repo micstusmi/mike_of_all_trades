@@ -592,12 +592,14 @@ function disableAiHelper(){
 }
 
 async function saveChatForLater(){
+
     const fd = new FormData();
 
     fd.append('token', aiConversationToken);
     fd.append('chat', formatChatHistory());
 
     try{
+
         const r = await fetch('save_ai_chat.php', {
             method:'POST',
             body:fd
@@ -605,23 +607,37 @@ async function saveChatForLater(){
 
         const data = await r.json();
 
-        if(data.success && data.token){
-            aiConversationToken = data.token;
-            localStorage.setItem('aiConversationToken', aiConversationToken);
-
-            alert(
-                'Your chat has been saved.\n\n' +
-                'You can come back to it here:\n' +
-                data.link
-            );
-        }else{
+        if(!data.success){
             alert(data.message || 'Could not save the chat.');
+            return;
+        }
+
+        if(data.token){
+
+            aiConversationToken = data.token;
+
+            localStorage.setItem(
+                'aiConversationToken',
+                aiConversationToken
+            );
+
+            window.location.href =
+                'login.php?claim_ai_chat=' +
+                encodeURIComponent(data.token);
+
+            return;
         }
 
     }catch(err){
-        alert('Could not save the chat: ' + err.message);
+
+        alert(
+            'Could not save the chat: ' +
+            err.message
+        );
+
     }
 }
+
 </script>
 
 </body>
