@@ -460,6 +460,14 @@ function renderContextualActions(intent){
         `;
     }
 
+if(intent === 'booking'){
+    box.innerHTML += `
+        <button type="button" onclick="goBooking()">
+            Book Mike in with these chat details
+        </button>
+    `;
+}
+
     if(intent === 'availability'){
         box.innerHTML += `
             <button type="button" onclick="goAvailability()">
