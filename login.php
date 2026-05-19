@@ -8,6 +8,9 @@ require_once __DIR__ . '/includes/db.php';
 
 $error = '';
 
+$claimAiChat = $_POST['claim_ai_chat'] ?? $_GET['claim_ai_chat'] ?? '';
+$return = $_GET['return'] ?? $_POST['return'] ?? '';
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $email = trim($_POST['email'] ?? '');
@@ -26,32 +29,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($user['role'] === 'admin') {
             $_SESSION['admin_logged_in'] = true;
-            $claimAiChat = $_GET['claim_ai_chat'] ?? '';
-
-if ($claimAiChat !== '') {
-    header('Location: claim_ai_chat.php?token=' . urlencode($claimAiChat));
-    exit;
-}
-
-$claimAiChat = $_GET['claim_ai_chat'] ?? '';
-
-if ($claimAiChat !== '') {
-    header('Location: claim_ai_chat.php?token=' . urlencode($claimAiChat));
-    exit;
-}
-
-header('Location: customer/dashboard.php');
-exit;
         }
 
-$return = $_GET['return'] ?? '';
+        if ($claimAiChat !== '') {
+            header('Location: claim_ai_chat.php?token=' . urlencode($claimAiChat));
+            exit;
+        }
 
-if ($return === 'quotes_bookings.php') {
-    header('Location: quotes_bookings.php?restore=1');
-    exit;
-}
+        if ($return === 'quotes_bookings.php') {
+            header('Location: quotes_bookings.php?restore=1');
+            exit;
+        }
 
-header('Location: customer/dashboard.php');        exit;
+        if ($user['role'] === 'admin') {
+            header('Location: admin/dashboard.php');
+            exit;
+        }
+
+        header('Location: customer/dashboard.php');
+        exit;
     }
 
     $error = 'Invalid email or password.';
@@ -65,6 +61,12 @@ include __DIR__ . '/includes/header.php';
 
         <h2 class="mb-4">Login</h2>
 
+        <?php if ($claimAiChat !== ''): ?>
+            <div class="alert alert-info">
+                Your AI chat has been saved. Please log in to attach it to your account.
+            </div>
+        <?php endif; ?>
+
         <?php if ($error): ?>
             <div class="alert alert-danger">
                 <?= htmlspecialchars($error) ?>
@@ -73,55 +75,73 @@ include __DIR__ . '/includes/header.php';
 
         <form method="POST" class="card p-4 bg-secondary border-0 rounded-4">
 
-    <div class="mb-3">
-        <label class="form-label fw-bold">Email Address</label>
-        <input
-            type="email"
-            name="email"
-            class="form-control"
-            placeholder="name@example.com"
-            required
-        >
-    </div>
+            <?php if ($claimAiChat !== ''): ?>
+                <input
+                    type="hidden"
+                    name="claim_ai_chat"
+                    value="<?= htmlspecialchars($claimAiChat) ?>"
+                >
+            <?php endif; ?>
 
-    <div class="mb-4">
-        <label class="form-label fw-bold">Password</label>
+            <?php if ($return !== ''): ?>
+                <input
+                    type="hidden"
+                    name="return"
+                    value="<?= htmlspecialchars($return) ?>"
+                >
+            <?php endif; ?>
 
-        <div class="input-group">
-            <input
-                type="password"
-                name="password"
-                id="loginPasswordField"
-                class="form-control"
-                placeholder="Password"
-                required
-            >
+            <div class="mb-3">
+                <label class="form-label fw-bold">Email Address</label>
+                <input
+                    type="email"
+                    name="email"
+                    class="form-control"
+                    placeholder="name@example.com"
+                    required
+                >
+            </div>
 
-            <button
-                class="btn btn-dark"
-                type="button"
-                onclick="toggleLoginPassword()"
-            >
-                <i id="loginPasswordEye" class="bi bi-eye"></i>
+            <div class="mb-4">
+                <label class="form-label fw-bold">Password</label>
+
+                <div class="input-group">
+                    <input
+                        type="password"
+                        name="password"
+                        id="loginPasswordField"
+                        class="form-control"
+                        placeholder="Password"
+                        required
+                    >
+
+                    <button
+                        class="btn btn-dark"
+                        type="button"
+                        onclick="toggleLoginPassword()"
+                    >
+                        <i id="loginPasswordEye" class="bi bi-eye"></i>
+                    </button>
+                </div>
+            </div>
+
+            <button class="btn btn-warning fw-bold rounded-pill w-100">
+                Login
             </button>
-        </div>
-    </div>
 
-    <button class="btn btn-warning fw-bold rounded-pill w-100">
-    Login
-</button>
+            <div class="text-center mt-3">
+                <a href="forgot_password.php" class="text-info">
+                    Forgot password?
+                </a>
+            </div>
 
-<div class="text-center mt-3">
-    <a href="forgot_password.php" class="text-info">
-        Forgot password?
-    </a>
-</div>
-
-</form>
+        </form>
 
         <p class="mt-3">
             No account yet?
-            <a href="register.php">Register here</a>
+            <a href="register.php<?= $claimAiChat !== '' ? '?claim_ai_chat=' . urlencode($claimAiChat) : '' ?>">
+                Register here
+            </a>
         </p>
 
     </div>
