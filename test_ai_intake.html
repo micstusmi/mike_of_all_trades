@@ -324,28 +324,12 @@ function replaceThinkingMessage(thinkingId, newMessage){
 
 async function goQuote(){
 
-    if(isSavingConversation){
+    await saveAiConversation();
 
-        alert(
-            'Still saving your conversation. Please wait 1 second and try again.'
-        );
-
-        return;
-    }
-
-    if(!aiConversationToken){
-
-        await saveAiConversation();
-
-        if(!aiConversationToken){
-
-            alert(
-                'Could not prepare quote preview yet.'
-            );
-
-            return;
-        }
-    }
+if(!aiConversationToken){
+    alert('Could not prepare quote preview yet. Please try again in a moment.');
+    return;
+}
 
     saveAiIntake('Review quote form');
 
