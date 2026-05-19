@@ -479,6 +479,13 @@ if(params.get('step') === 'availability'){
     }, 300);
 }
 
+if(params.get('ai_booking') === '1'){
+    setTimeout(function(){
+        restoreAiBookingDraft();
+        goToStep(2);
+    }, 400);
+}
+
 });
 
 function removePreviewBlocks(){
@@ -897,6 +904,61 @@ function restoreAiIntake(){
     }
 
     checkValidation();
+}
+
+function restoreAiBookingDraft(){
+    const saved =
+        sessionStorage.getItem('aiBookingDraft') ||
+        localStorage.getItem('aiBookingDraft');
+
+    if(!saved){
+        return;
+    }
+
+    const data = JSON.parse(saved);
+
+    document.getElementById('custName').value = data.name || '';
+    document.getElementById('custEmail').value = data.email || '';
+    document.getElementById('custPhone').value = data.phone || '';
+    document.getElementById('custDescription').value =
+    'AI booking details:\n\n' +
+    'Suburb: ' + (data.suburb || '') + '\n\n' +
+    (data.notes || '');
+
+    if(data.booking_mode === 'days'){
+    document.getElementById('modeDays').checked = true;
+}else{
+    document.getElementById('modeHours').checked = true;
+}
+
+updateDurationMode();
+
+    if(data.hours){
+        document.getElementById('hourSlider').value = data.hours;
+        selectedDuration = parseFloat(data.hours);
+        billableHours = selectedDuration;
+        document.getElementById('hourDisplay').innerText = data.hours;
+    }
+
+    document.getElementById('serviceType').value = 'General Trades';
+
+    /if(data.suburb){
+    const suburb = data.suburb.toLowerCase();
+
+    if(
+        suburb.includes('pakenham') ||
+        suburb.includes('officer') ||
+        suburb.includes('cranbourne')
+    ){
+        document.getElementById('locationZone').value = '100';
+    }else{
+        document.getElementById('locationZone').value = '0';
+    }
+}
+
+    checkValidation();
+
+    alert('Your AI booking details have been added. Please choose a date and time on the calendar.');
 }
 
 function disableAiHelper(){

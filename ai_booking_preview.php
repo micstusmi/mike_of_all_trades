@@ -97,6 +97,7 @@ function continueToCalendar(){
     };
 
     sessionStorage.setItem('aiBookingDraft', JSON.stringify(bookingData));
+    localStorage.setItem('aiBookingDraft', JSON.stringify(bookingData));
 
     window.location.href = 'quotes_bookings.php?ai_booking=1&step=availability&view=week';
 }
