@@ -104,8 +104,9 @@ try {
     }
 
 } catch (MailException $e) {
-
-    error_log('Mailer Error: ' . $mail->ErrorInfo);
+    error_log('Mailer ErrorInfo: ' . $mail->ErrorInfo);
+    error_log('Mailer Exception: ' . $e->getMessage());
+}
 
 }
 
