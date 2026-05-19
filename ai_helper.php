@@ -255,7 +255,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
 <div class="card">
     <h2>Tell us what you want</h2>
-    <p class="hint">Type what you need done, or continue replying to the assistant here.</p>
+    <p class="hint">Type what you need done, or continue replying to Mike's assistant here.</p>
 
     <div id="responseBox">
         <p id="replyText"></p>
@@ -281,7 +281,6 @@ if (session_status() === PHP_SESSION_NONE) {
         <button type="button" onclick="goBooking()">Make booking</button>
         <button type="button" onclick="goAvailability()">See availability</button>
         <button type="button" onclick="showContactMikeBox()">Send this chat to Mike</button>
-        <button type="button" onclick="focusCorrection()">Correct / redirect AI</button>
     </div>
 
     <form id="aiForm" class="chatInputBar">
