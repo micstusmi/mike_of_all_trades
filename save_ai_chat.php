@@ -30,38 +30,36 @@ try {
             VALUES (?, ?, ?)
         ");
 
-        $stmt->execute([
-            $token,
-            $userId,
-            $chat
-        ]);
+        $stmt->execute([$token, $userId, $chat]);
 
     } else {
-        $stmt = $pdo->prepare("
-            UPDATE ai_conversations
-            SET conversation_text = ?,
-                user_id = COALESCE(user_id, ?)
+        $check = $pdo->prepare("
+            SELECT id
+            FROM ai_conversations
             WHERE conversation_token = ?
+            LIMIT 1
         ");
+        $check->execute([$token]);
+        $existing = $check->fetch(PDO::FETCH_ASSOC);
 
-        $stmt->execute([
-            $chat,
-            $userId,
-            $token
-        ]);
+        if ($existing) {
+            $stmt = $pdo->prepare("
+                UPDATE ai_conversations
+                SET conversation_text = ?,
+                    user_id = COALESCE(user_id, ?)
+                WHERE conversation_token = ?
+            ");
 
-        if ($stmt->rowCount() === 0) {
+            $stmt->execute([$chat, $userId, $token]);
+
+        } else {
             $stmt = $pdo->prepare("
                 INSERT INTO ai_conversations
                 (conversation_token, user_id, conversation_text)
                 VALUES (?, ?, ?)
             ");
 
-            $stmt->execute([
-                $token,
-                $userId,
-                $chat
-            ]);
+            $stmt->execute([$token, $userId, $chat]);
         }
     }
 
