@@ -621,11 +621,17 @@ async function saveChatForLater(){
                 aiConversationToken
             );
 
-            window.location.href =
-                'login.php?claim_ai_chat=' +
-                encodeURIComponent(data.token);
+            alert(
+    'Your chat has been saved.\n\n' +
+    'To keep it safely attached to your account, you will now be taken to the login/register page.\n\n' +
+    'After logging in, you should be returned to your saved AI chats.'
+);
 
-            return;
+window.location.href =
+    'login.php?claim_ai_chat=' +
+    encodeURIComponent(data.token);
+
+return;
         }
 
     }catch(err){

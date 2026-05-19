@@ -26,8 +26,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($user['role'] === 'admin') {
             $_SESSION['admin_logged_in'] = true;
-            header('Location: admin/dashboard.php');
-            exit;
+            $claimAiChat = $_GET['claim_ai_chat'] ?? '';
+
+if ($claimAiChat !== '') {
+    header('Location: claim_ai_chat.php?token=' . urlencode($claimAiChat));
+    exit;
+}
+
+$claimAiChat = $_GET['claim_ai_chat'] ?? '';
+
+if ($claimAiChat !== '') {
+    header('Location: claim_ai_chat.php?token=' . urlencode($claimAiChat));
+    exit;
+}
+
+header('Location: customer/dashboard.php');
+exit;
         }
 
 $return = $_GET['return'] ?? '';
