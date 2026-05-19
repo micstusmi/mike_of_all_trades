@@ -64,6 +64,28 @@ include '../includes/header.php';
 
     </div>
 
+    <?php
+$stmt = $pdo->prepare("
+    SELECT COUNT(*)
+    FROM ai_conversations
+    WHERE user_id = ?
+");
+$stmt->execute([$_SESSION['user_id']]);
+$savedChatCount = (int) $stmt->fetchColumn();
+?>
+
+<div class="card mt-4 p-4 border-0 rounded-4">
+    <h3>Saved AI Chats</h3>
+
+    <p class="text-muted mb-3">
+        You have <?= $savedChatCount ?> saved AI chat<?= $savedChatCount === 1 ? '' : 's' ?>.
+    </p>
+
+    <a href="ai_chats.php" class="btn btn-info rounded-pill fw-bold">
+        View My Saved AI Chats
+    </a>
+</div>
+
 </main>
 
 <div class="modal fade" id="editBookingModal" tabindex="-1">
