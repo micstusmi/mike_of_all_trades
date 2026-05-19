@@ -108,8 +108,6 @@ try {
     error_log('Mailer Exception: ' . $e->getMessage());
 }
 
-}
-
     echo json_encode([
         'success' => true,
         'message' => 'Thanks — this chat has been saved for Mike to review.',
