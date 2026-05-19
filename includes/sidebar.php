@@ -64,6 +64,10 @@ $baseUrl = $isLocalhost ? '/mike_of_all_trades/' : '/';
                 <i class="bi bi-person-circle me-2"></i>
                 My Bookings
             </a>
+            <a class="nav-link fw-bold text-info" href="<?= $baseUrl ?>customer/ai_chats.php">
+    <i class="bi bi-chat-dots-fill me-2"></i>
+    My Saved AI Chats
+</a>
         <?php endif; ?>
     </nav>
 </div>
