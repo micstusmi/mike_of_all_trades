@@ -1,6 +1,8 @@
 <?php
-require '../includes/auth_admin.php';
-include '../includes/header.php';
+session_start();
+
+require_once __DIR__ . '/includes/db.php';
+require_once __DIR__ . '../includes/header.php';
 ?>
 
 <main class="py-5 bg-dark text-white">
