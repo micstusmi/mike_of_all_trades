@@ -2,7 +2,7 @@
 session_start();
 
 require_once __DIR__ . '/includes/db.php';
-require_once __DIR__ . '../includes/header.php';
+require_once __DIR__ . '/includes/header.php';
 ?>
 
 <main class="py-5 bg-dark text-white">
@@ -82,4 +82,4 @@ function sendInvite(){
 }
 </script>
 
-<?php include '../includes/footer.php'; ?>
+<?php include __DIR__ . '/includes/footer.php'; ?>
