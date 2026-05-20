@@ -330,23 +330,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
             events:'load_events.php',
 
-locale:'en-au',
-dayHeaderContent:function(arg){
-    const isMobile = window.innerWidth < 768;
-
-    const d = arg.date;
-    const day = d.getDate();
-    const month = d.getMonth() + 1;
-
-    if(isMobile){
-        const letters = ['S','M','T','W','T','F','S'];
-        return letters[d.getDay()] + ' ' + day + '/' + month;
-    }
-
-    return arg.text;
-},
-
-eventContent:function(arg){
+            eventContent:function(arg){
     const isBuffer = arg.event.extendedProps.is_buffer == 1;
     const isMobile = window.innerWidth < 768;
 
@@ -370,7 +354,23 @@ eventContent:function(arg){
     return {
         html:`<div><strong>${arg.timeText}</strong><br>${arg.event.title || 'Unavailable'}</div>`
     };
-}
+},
+
+locale:'en-au',
+dayHeaderContent:function(arg){
+    const isMobile = window.innerWidth < 768;
+
+    const d = arg.date;
+    const day = d.getDate();
+    const month = d.getMonth() + 1;
+
+    if(isMobile){
+        const letters = ['S','M','T','W','T','F','S'];
+        return letters[d.getDay()] + ' ' + day + '/' + month;
+    }
+
+    return arg.text;
+},
 
         eventContent:function(arg){
             const isBuffer = arg.event.extendedProps.is_buffer == 1;

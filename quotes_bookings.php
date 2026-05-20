@@ -657,7 +657,34 @@ function initCalendar(){
 
         events:'public_calendar_events.php',
 
-        select:function(info){
+eventContent:function(arg){
+    const isBuffer = arg.event.extendedProps.is_buffer == 1;
+    const isMobile = window.innerWidth < 768;
+
+    if(isBuffer){
+        return {
+            html:`<div style="display:flex;justify-content:space-between;align-items:center;width:100%;">
+                    <span>🚗</span>
+                    <span>travel</span>
+                  </div>`
+        };
+    }
+
+    if(isMobile && arg.event.title === 'Unavailable'){
+        return {
+            html:`<div style="writing-mode:vertical-rl;text-orientation:mixed;font-weight:700;">
+                    Unavailable
+                  </div>`
+        };
+    }
+
+    return {
+        html:`<div><strong>${arg.timeText}</strong><br>${arg.event.title || 'Unavailable'}</div>`
+    };
+},
+
+select:function(info){
+    
             createPreviewBooking(info.start);
             calendar.unselect();
         }
