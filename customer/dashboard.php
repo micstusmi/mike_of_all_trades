@@ -240,6 +240,24 @@ document.addEventListener('DOMContentLoaded', function(){
     calendar.render();
     loadMyBookings();
 });
+
+.travel-buffer-event .fc-event-time {
+    display: none !important;
+}
+
+.travel-buffer-event {
+    background-image: repeating-linear-gradient(
+        135deg,
+        rgba(0,0,0,0.06) 0,
+        rgba(0,0,0,0.06) 6px,
+        rgba(255,255,255,0.25) 6px,
+        rgba(255,255,255,0.25) 12px
+    ) !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    color: #333 !important;
+    border: 1px solid #ccc !important;
+}
 </script>
 
 <?php include '../includes/footer.php'; ?>

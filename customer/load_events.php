@@ -23,8 +23,8 @@ foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
         $title = 'Your Booking';
         $color = '#0d6efd';
     } elseif ($isBuffer) {
-        $title = 'Driving / buffer time';
-        $color = '#999999';
+    $title = '🚗 travel';
+    $color = '#d9d9d9';
     } else {
         $title = 'Unavailable';
         $color = '#999999';
@@ -36,7 +36,9 @@ foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
         'start' => str_replace(' ', 'T', $row['start_datetime']),
         'end' => str_replace(' ', 'T', $row['end_datetime']),
         'backgroundColor' => $color,
-        'borderColor' => $color,
+'borderColor' => $isBuffer ? '#cccccc' : $color,
+'textColor' => $isBuffer ? '#333333' : '#ffffff',
+'classNames' => $isBuffer ? ['travel-buffer-event'] : [],
         'editable' => false,
         'extendedProps' => [
             'is_own_booking' => $isOwnMainBooking ? 1 : 0,
