@@ -2,84 +2,199 @@
 session_start();
 
 require_once __DIR__ . '/includes/db.php';
-require_once __DIR__ . '/includes/header.php';
+
+$token = trim($_GET['token'] ?? $_POST['token'] ?? '');
+
+if ($token === '') {
+    die('Invalid invite link.');
+}
+
+$stmt = $pdo->prepare("
+    SELECT *
+    FROM special_customer_invites
+    WHERE token = ?
+    LIMIT 1
+");
+$stmt->execute([$token]);
+$invite = $stmt->fetch(PDO::FETCH_ASSOC);
+
+if (!$invite) {
+    die('Invite not found.');
+}
+
+if (!empty($invite['used_at'])) {
+    die('This invite has already been used.');
+}
+
+$error = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+    $password = $_POST['password'] ?? '';
+    $confirmPassword = $_POST['confirm_password'] ?? '';
+
+    if (strlen($password) < 8) {
+        $error = 'Please enter a password with at least 8 characters.';
+    } elseif ($password !== $confirmPassword) {
+        $error = 'Passwords do not match.';
+    } else {
+
+        $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+
+        $existingStmt = $pdo->prepare("
+            SELECT id
+            FROM users
+            WHERE email = ?
+            LIMIT 1
+        ");
+        $existingStmt->execute([$invite['email']]);
+        $existingUser = $existingStmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($existingUser) {
+
+            $updateStmt = $pdo->prepare("
+                UPDATE users
+                SET
+                    name = ?,
+                    phone = ?,
+                    address = ?,
+                    password_hash = ?,
+                    pricing_mode = ?,
+                    hourly_rate = ?,
+                    minimum_hours = ?,
+                    service_zone = ?
+                WHERE id = ?
+            ");
+
+            $updateStmt->execute([
+                $invite['contact_name'],
+                $invite['phone'],
+                $invite['billing_address'],
+                $passwordHash,
+                $invite['pricing_mode'],
+                $invite['hourly_rate'],
+                $invite['minimum_hours'],
+                $invite['service_zone'],
+                $existingUser['id']
+            ]);
+
+            $userId = $existingUser['id'];
+
+        } else {
+
+            $insertStmt = $pdo->prepare("
+                INSERT INTO users
+                (
+                    name,
+                    email,
+                    phone,
+                    address,
+                    password_hash,
+                    role,
+                    pricing_mode,
+                    hourly_rate,
+                    minimum_hours,
+                    service_zone
+                )
+                VALUES (?, ?, ?, ?, ?, 'customer', ?, ?, ?, ?)
+            ");
+
+            $insertStmt->execute([
+                $invite['contact_name'],
+                $invite['email'],
+                $invite['phone'],
+                $invite['billing_address'],
+                $passwordHash,
+                $invite['pricing_mode'],
+                $invite['hourly_rate'],
+                $invite['minimum_hours'],
+                $invite['service_zone']
+            ]);
+
+            $userId = $pdo->lastInsertId();
+        }
+
+        $usedStmt = $pdo->prepare("
+            UPDATE special_customer_invites
+            SET used_at = NOW()
+            WHERE id = ?
+        ");
+        $usedStmt->execute([$invite['id']]);
+
+        $_SESSION['user_id'] = $userId;
+        $_SESSION['user_name'] = $invite['contact_name'];
+        $_SESSION['user_role'] = 'customer';
+
+        header('Location: customer/dashboard.php');
+        exit;
+    }
+}
+
+include __DIR__ . '/includes/header.php';
 ?>
 
 <main class="py-5 bg-dark text-white">
-    <div class="container" style="max-width:700px;">
+    <div class="container" style="max-width:650px;">
 
-        <h2 class="text-info mb-4">Special Customer Invite</h2>
+        <h2 class="text-info mb-4">Complete Your Customer Account</h2>
 
         <div class="card bg-secondary p-4 rounded-4 border-0">
 
-            <label class="form-label fw-bold">Contact / Company Name</label>
-            <input id="contactName" class="form-control mb-3">
+            <p class="mb-3">
+                Hi <strong><?= htmlspecialchars($invite['contact_name']) ?></strong>,
+                Mike has set up special customer booking access for you.
+            </p>
 
-            <label class="form-label fw-bold">First Name</label>
-            <input id="firstName" class="form-control mb-3">
+            <div class="alert alert-dark">
+                <strong>Your agreed booking setup:</strong><br>
+                Hourly rate: $<?= number_format((float)$invite['hourly_rate'], 2) ?><br>
+                Minimum booking: <?= htmlspecialchars($invite['minimum_hours']) ?> hours<br>
+                Service zone: <?= htmlspecialchars($invite['service_zone']) ?>
+            </div>
 
-            <label class="form-label fw-bold">Last Name</label>
-            <input id="lastName" class="form-control mb-3">
+            <?php if ($error): ?>
+                <div class="alert alert-danger">
+                    <?= htmlspecialchars($error) ?>
+                </div>
+            <?php endif; ?>
 
-            <label class="form-label fw-bold">Email</label>
-            <input id="email" type="email" class="form-control mb-3">
+            <form method="POST">
 
-            <label class="form-label fw-bold">Phone</label>
-            <input id="phone" class="form-control mb-3">
+                <input type="hidden" name="token" value="<?= htmlspecialchars($token) ?>">
 
-            <label class="form-label fw-bold">Billing Address</label>
-            <textarea id="billingAddress" class="form-control mb-3"></textarea>
+                <label class="form-label fw-bold">Contact / Company Name</label>
+                <input class="form-control mb-3" value="<?= htmlspecialchars($invite['contact_name']) ?>" readonly>
 
-            <label class="form-label fw-bold">Hourly Rate</label>
-            <input id="hourlyRate" type="number" step="0.01" value="50" class="form-control mb-3">
+                <label class="form-label fw-bold">First Name</label>
+                <input class="form-control mb-3" value="<?= htmlspecialchars($invite['first_name'] ?? '') ?>" readonly>
 
-            <label class="form-label fw-bold">Minimum Hours</label>
-            <input id="minimumHours" type="number" step="0.5" value="4" class="form-control mb-3">
+                <label class="form-label fw-bold">Last Name</label>
+                <input class="form-control mb-3" value="<?= htmlspecialchars($invite['last_name'] ?? '') ?>" readonly>
 
-            <label class="form-label fw-bold">Service Zone</label>
-            <select id="serviceZone" class="form-select mb-4">
-                <option value="south_east">South East Melbourne</option>
-                <option value="standard">Standard</option>
-            </select>
+                <label class="form-label fw-bold">Email</label>
+                <input class="form-control mb-3" value="<?= htmlspecialchars($invite['email']) ?>" readonly>
 
-            <button class="btn btn-warning fw-bold rounded-pill" onclick="sendInvite()">
-                Send Special Customer Invite
-            </button>
+                <label class="form-label fw-bold">Phone</label>
+                <input class="form-control mb-3" value="<?= htmlspecialchars($invite['phone'] ?? '') ?>" readonly>
 
-            <div id="inviteStatus" class="mt-3"></div>
+                <label class="form-label fw-bold">Billing Address</label>
+                <textarea class="form-control mb-3" readonly><?= htmlspecialchars($invite['billing_address'] ?? '') ?></textarea>
+
+                <label class="form-label fw-bold">Create Password</label>
+                <input type="password" name="password" class="form-control mb-3" required>
+
+                <label class="form-label fw-bold">Confirm Password</label>
+                <input type="password" name="confirm_password" class="form-control mb-4" required>
+
+                <button class="btn btn-warning fw-bold rounded-pill w-100">
+                    Create My Account
+                </button>
+
+            </form>
 
         </div>
+
     </div>
 </main>
-
-<script>
-function sendInvite(){
-    const fd = new FormData();
-
-    fd.append('contact_name', document.getElementById('contactName').value);
-    fd.append('first_name', document.getElementById('firstName').value);
-    fd.append('last_name', document.getElementById('lastName').value);
-    fd.append('email', document.getElementById('email').value);
-    fd.append('phone', document.getElementById('phone').value);
-    fd.append('billing_address', document.getElementById('billingAddress').value);
-    fd.append('hourly_rate', document.getElementById('hourlyRate').value);
-    fd.append('minimum_hours', document.getElementById('minimumHours').value);
-    fd.append('service_zone', document.getElementById('serviceZone').value);
-
-    fetch('../send_special_customer_invite.php', {
-        method:'POST',
-        body:fd
-    })
-    .then(r => r.json())
-    .then(res => {
-        document.getElementById('inviteStatus').innerText =
-            res.message || 'Done.';
-    })
-    .catch(err => {
-        document.getElementById('inviteStatus').innerText =
-            'Error: ' + err.message;
-    });
-}
-</script>
 
 <?php include __DIR__ . '/includes/footer.php'; ?>
