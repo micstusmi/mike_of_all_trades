@@ -304,12 +304,6 @@ if (!empty($_SESSION['user_id'])) {
 
 <style>
 
-.travel-buffer-event .fc-event-main,
-.travel-buffer-event .fc-event-title,
-.travel-buffer-event .fc-event-time {
-    display:none!important;
-}
-
 .travel-buffer-inner {
     font-size:11px;
     font-weight:700;
@@ -799,7 +793,12 @@ eventContent:function(arg){
 
     if(isBuffer){
         return {
-            html:`<div class="travel-buffer-inner">🚗 travel</div>`
+html:`
+<div class="travel-buffer-content">
+    <span>🚗</span>
+    <span class="travel-word">travel</span>
+</div>
+`
         };
     }
 
