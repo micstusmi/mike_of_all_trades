@@ -633,7 +633,9 @@ function initCalendar(){
         snapDuration:'00:30:00',
         slotMinTime:'06:00:00',
         slotMaxTime:'23:00:00',
-        height:'auto',
+        height: window.innerWidth < 768 ? 700 : 'auto',
+            contentHeight: window.innerWidth < 768 ? 700 : 'auto',
+            expandRows: true,
 
         events:'public_calendar_events.php',
 

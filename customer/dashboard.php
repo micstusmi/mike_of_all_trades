@@ -13,10 +13,30 @@ $savedChatCount = (int) $stmt->fetchColumn();
 ?>
 
 <style>
+
+    .travel-buffer-event .fc-event-time {
+    display: none !important;
+}
+
+.travel-buffer-event {
+    background-image: repeating-linear-gradient(
+        135deg,
+        rgba(0,0,0,0.06) 0,
+        rgba(0,0,0,0.06) 6px,
+        rgba(255,255,255,0.25) 6px,
+        rgba(255,255,255,0.25) 12px
+    ) !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    color: #333 !important;
+    border: 1px solid #ccc !important;
+}
+
 #customerCalendar {
     background:#fff;
     padding:20px;
     border-radius:12px;
+    min-height:700px;
 }
 
 .fc-toolbar-title { color:#000; }
@@ -230,7 +250,9 @@ document.addEventListener('DOMContentLoaded', function(){
             slotDuration:'00:30:00',
             slotMinTime:'06:00:00',
             slotMaxTime:'23:00:00',
-            height:'auto',
+            height: window.innerWidth < 768 ? 700 : 'auto',
+            contentHeight: window.innerWidth < 768 ? 700 : 'auto',
+            expandRows: true,
             editable:false,
             selectable:false,
             events:'load_events.php'
@@ -241,23 +263,6 @@ document.addEventListener('DOMContentLoaded', function(){
     loadMyBookings();
 });
 
-.travel-buffer-event .fc-event-time {
-    display: none !important;
-}
-
-.travel-buffer-event {
-    background-image: repeating-linear-gradient(
-        135deg,
-        rgba(0,0,0,0.06) 0,
-        rgba(0,0,0,0.06) 6px,
-        rgba(255,255,255,0.25) 6px,
-        rgba(255,255,255,0.25) 12px
-    ) !important;
-    font-size: 11px !important;
-    font-weight: 700 !important;
-    color: #333 !important;
-    border: 1px solid #ccc !important;
-}
 </script>
 
 <?php include '../includes/footer.php'; ?>
