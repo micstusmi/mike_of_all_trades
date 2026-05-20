@@ -69,5 +69,13 @@ $baseUrl = $isLocalhost ? '/mike_of_all_trades/' : '/';
     My Saved AI Chats
 </a>
         <?php endif; ?>
+
+        <?php if (!empty($_SESSION['user_id']) && ($_SESSION['user_role'] ?? '') !== 'admin'): ?>
+                <a class="nav-link fw-bold text-info" href="<?= $baseUrl ?>admin/special_customer_invite.php">
+                    <i class="bi bi-person-plus-fill me-2"></i>
+                Special Customer Invites
+            </a>
+        <?php endif; ?>
+
     </nav>
 </div>
