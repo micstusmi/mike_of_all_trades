@@ -54,6 +54,27 @@ include '../includes/header.php';
     border-radius:12px;
     overflow:hidden;
 }
+
+.travel-buffer-event {
+    background-image: repeating-linear-gradient(
+        135deg,
+        rgba(0,0,0,0.06) 0,
+        rgba(0,0,0,0.06) 6px,
+        rgba(255,255,255,0.25) 6px,
+        rgba(255,255,255,0.25) 12px
+    ) !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    color: #333 !important;
+    border: 1px solid #ccc !important;
+}
+
+.travel-buffer-event .fc-event-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
 </style>
 
 <main class="admin-calendar-page bg-dark text-white">

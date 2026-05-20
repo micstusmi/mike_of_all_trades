@@ -16,11 +16,13 @@ foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
 
     $events[] = [
         'id' => 'busy-' . $row['id'],
-        'title' => $isBuffer ? 'Driving / buffer time' : 'Unavailable',
+        'title' => $isBuffer ? '🚗 travel' : 'Unavailable',
+        'classNames' => $isBuffer ? ['travel-buffer-event'] : [],
         'start' => str_replace(' ', 'T', $row['start_datetime']),
         'end' => str_replace(' ', 'T', $row['end_datetime']),
-        'backgroundColor' => '#999999',
-        'borderColor' => '#999999',
+        'backgroundColor' => $isBuffer ? '#d9d9d9' : '#999999',
+        'borderColor' => $isBuffer ? '#cccccc' : '#999999',
+        'textColor' => $isBuffer ? '#333333' : '#ffffff',
         'editable' => false
     ];
 }
