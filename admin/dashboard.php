@@ -4,6 +4,21 @@ include '../includes/header.php';
 ?>
 
 <style>
+
+.travel-buffer-event {
+    background-image: repeating-linear-gradient(
+        135deg,
+        rgba(0,0,0,0.06) 0,
+        rgba(0,0,0,0.06) 6px,
+        rgba(255,255,255,0.25) 6px,
+        rgba(255,255,255,0.25) 12px
+    ) !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    color: #333 !important;
+    border: 1px solid #ccc !important;
+}
+
 .admin-calendar-panel {
     background:#111;
     color:#fff;
@@ -55,24 +70,8 @@ include '../includes/header.php';
     overflow:hidden;
 }
 
-.travel-buffer-event {
-    background-image: repeating-linear-gradient(
-        135deg,
-        rgba(0,0,0,0.06) 0,
-        rgba(0,0,0,0.06) 6px,
-        rgba(255,255,255,0.25) 6px,
-        rgba(255,255,255,0.25) 12px
-    ) !important;
-    font-size: 11px !important;
-    font-weight: 700 !important;
-    color: #333 !important;
-    border: 1px solid #ccc !important;
-}
-
-.travel-buffer-event .fc-event-title {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+.travel-buffer-event .fc-event-time {
+    display: none !important;
 }
 
 </style>
@@ -321,10 +320,10 @@ document.addEventListener('DOMContentLoaded', function(){
             const isBuffer = arg.event.extendedProps.is_buffer == 1;
 
             if(isBuffer){
-                return {
-                    html:`<div><strong>${arg.timeText}</strong><br>Driving / buffer time</div>`
-                };
-            }
+    return {
+        html:`<div style="display:flex;justify-content:space-between;align-items:center;width:100%;"><span>🚗</span><span>travel</span></div>`
+    };
+}
 
             return {
                 html:`<div><strong>${arg.timeText}</strong><br>${arg.event.title || 'Unavailable'}</div>`
@@ -373,23 +372,6 @@ document.addEventListener('DOMContentLoaded', function(){
     loadAdminEvents();
 });
 
-.travel-buffer-event .fc-event-time {
-    display: none !important;
-}
-
-.travel-buffer-event {
-    background-image: repeating-linear-gradient(
-        135deg,
-        rgba(0,0,0,0.06) 0,
-        rgba(0,0,0,0.06) 6px,
-        rgba(255,255,255,0.25) 6px,
-        rgba(255,255,255,0.25) 12px
-    ) !important;
-    font-size: 11px !important;
-    font-weight: 700 !important;
-    color: #333 !important;
-    border: 1px solid #ccc !important;
-}
 </script>
 
 <?php include '../includes/footer.php'; ?>
