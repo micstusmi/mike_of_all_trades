@@ -6,6 +6,7 @@ if (session_status() === PHP_SESSION_NONE) {
 <!DOCTYPE html>
 <html>
 <head>
+    <link rel="icon" href="assets/favicon.ico">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Helper | Mike Of All Trades</title>
     <style>
@@ -704,43 +705,44 @@ async function saveChatForLater(){
 
         if(data.token){
 
-    aiConversationToken = data.token;
+            aiConversationToken = data.token;
 
-    localStorage.setItem(
-        'aiConversationToken',
-        aiConversationToken
-    );
+            localStorage.setItem(
+                'aiConversationToken',
+                aiConversationToken
+            );
 
-    const loggedIn =
-        document.body.dataset.loggedIn === '1';
+            const loggedIn =
+                document.body.dataset.loggedIn === '1';
 
-    if(!loggedIn){
+            if(!loggedIn){
 
-        alert(
-            'Your chat has been saved.\n\n' +
-            'To keep it safely attached to your account, ' +
-            'you will now be taken to login/register.'
-        );
+                alert(
+                    'Your chat has been saved.\n\n' +
+                    'To keep it safely attached to your account, ' +
+                    'you will now be taken to login/register.'
+                );
 
-        localStorage.removeItem('aiConversationToken');
-localStorage.removeItem('aiJobIntake');
+                localStorage.removeItem('aiConversationToken');
+                localStorage.removeItem('aiJobIntake');
 
-window.location.href =
-    'login.php?claim_ai_chat=' +
-    encodeURIComponent(data.token);
+                window.location.href =
+                    'login.php?claim_ai_chat=' +
+                    encodeURIComponent(data.token);
 
-return;
-    }
+                return;
+            }
 
-    alert('Chat saved successfully.');
+            alert('Chat saved successfully.');
 
-localStorage.removeItem('aiConversationToken');
-localStorage.removeItem('aiJobIntake');
+            localStorage.removeItem('aiConversationToken');
+            localStorage.removeItem('aiJobIntake');
 
-window.location.href =
-    'customer/ai_chats.php';
+            window.location.href =
+                'customer/ai_chats.php';
 
-return;
+            return;
+        }
 
     }catch(err){
 
