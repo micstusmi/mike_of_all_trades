@@ -57,6 +57,14 @@ $baseUrl = $isLocalhost ? '/mike_of_all_trades/' : '/';
     <i class="bi bi-chat-dots-fill me-2"></i>
     AI Chat Submissions
 </a>
+
+<?php if (!empty($_SESSION['user_id']) && ($_SESSION['user_role'] ?? '') !== 'admin'): ?>
+                <a class="nav-link fw-bold text-info" href="<?= $baseUrl ?>admin/special_customer_invite.php">
+                    <i class="bi bi-person-plus-fill me-2"></i>
+                Special Customer Invites
+            </a>
+        <?php endif; ?>
+
 <?php endif; ?>
 
         <?php if (!empty($_SESSION['user_id']) && ($_SESSION['user_role'] ?? '') !== 'admin'): ?>
@@ -68,13 +76,6 @@ $baseUrl = $isLocalhost ? '/mike_of_all_trades/' : '/';
     <i class="bi bi-chat-dots-fill me-2"></i>
     My Saved AI Chats
 </a>
-        <?php endif; ?>
-
-        <?php if (!empty($_SESSION['user_id']) && ($_SESSION['user_role'] ?? '') !== 'admin'): ?>
-                <a class="nav-link fw-bold text-info" href="<?= $baseUrl ?>admin/special_customer_invite.php">
-                    <i class="bi bi-person-plus-fill me-2"></i>
-                Special Customer Invites
-            </a>
         <?php endif; ?>
 
     </nav>
