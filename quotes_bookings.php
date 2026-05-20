@@ -303,6 +303,30 @@ if (!empty($_SESSION['user_id'])) {
 </main>
 
 <style>
+
+.travel-buffer-event .fc-event-main,
+.travel-buffer-event .fc-event-title,
+.travel-buffer-event .fc-event-time {
+    display:none!important;
+}
+
+.travel-buffer-inner {
+    font-size:11px;
+    font-weight:700;
+    line-height:1;
+    white-space:nowrap;
+    overflow:hidden;
+    text-align:center;
+    color:#333;
+    padding-top:2px;
+}
+
+.unavailable-vertical {
+    writing-mode:vertical-rl;
+    text-orientation:mixed;
+    font-weight:700;
+}
+
 .btn-pill{background:#f39200;color:#fff;border-radius:40px}
 .btn-locked{opacity:.4;pointer-events:none;background:#6c757d!important}
 .highlight-step{color:#f39200!important;border-bottom:2px solid #f39200!important}
@@ -775,18 +799,13 @@ eventContent:function(arg){
 
     if(isBuffer){
         return {
-            html:`<div class="travel-buffer-content" aria-label="travel buffer">
-                    <span class="travel-car">🚗</span>
-                    <span class="travel-word">travel</span>
-                  </div>`
+            html:`<div class="travel-buffer-inner">🚗 travel</div>`
         };
     }
 
     if(isMobile && arg.event.title === 'Unavailable'){
         return {
-            html:`<div style="writing-mode:vertical-rl;text-orientation:mixed;font-weight:700;">
-                    Unavailable
-                  </div>`
+            html:`<div class="unavailable-vertical">Unavailable</div>`
         };
     }
 
