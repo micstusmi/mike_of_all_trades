@@ -3,9 +3,9 @@ session_start();
 
 header('Content-Type: application/json');
 
-require_once __DIR__ . '/includes/db.php';
-require_once __DIR__ . '/includes/config.php';
-require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/config.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception as MailException;
