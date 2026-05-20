@@ -122,9 +122,9 @@ if (!empty($_SESSION['user_id'])) {
 <label class="form-label fw-bold">Service</label>
 <select id="serviceType" class="form-select bg-dark text-light border-secondary">
 <option value="" disabled selected>Select</option>
-<option value="General Trades">General Trades</option>
-<option value="Technical Infrastructure">Technical Infrastructure</option>
-<option value="Creative Media">Creative Media</option>
+<option value="Tradie Type Services / Handyman">General Trades</option>
+<option value="Technical Infrastructure">IT / Web Dev / Mobile Apps</option>
+<option value="Creative Media">Creative Media incl. Graphic Design, Photography, Videography, Editing</option>
 </select>
 </div>
 
