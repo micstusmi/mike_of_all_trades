@@ -4,7 +4,12 @@ require_once 'includes/db.php';
 
 $isLoggedIn = !empty($_SESSION['user_id']);
 
-$customerDiscount = 0;
+$customerPricing = [
+    'pricing_mode' => 'standard',
+    'hourly_rate' => null,
+    'minimum_hours' => 4,
+    'service_zone' => 'standard'
+];
 
 $loggedInCustomer = [
     'name' => '',
@@ -16,8 +21,17 @@ $loggedInCustomer = [
 if (!empty($_SESSION['user_id'])) {
 
     $stmt = $pdo->prepare("
-        SELECT name, email, phone, address, discount_percent
-        FROM users
+        SELECT
+    name,
+    email,
+    phone,
+    address,
+    discount_percent,
+    pricing_mode,
+    hourly_rate,
+    minimum_hours,
+    service_zone
+    FROM users
         WHERE id = ?
         LIMIT 1
     ");
@@ -32,6 +46,10 @@ if (!empty($_SESSION['user_id'])) {
         $loggedInCustomer['phone'] = $userData['phone'] ?? '';
         $loggedInCustomer['address'] = $userData['address'] ?? '';
         $customerDiscount = (float)($userData['discount_percent'] ?? 0);
+        $customerPricing['pricing_mode'] = $userData['pricing_mode'] ?? 'standard';
+        $customerPricing['hourly_rate'] = $userData['hourly_rate'] ?? null;
+        $customerPricing['minimum_hours'] = $userData['minimum_hours'] ?? 4;
+        $customerPricing['service_zone'] = $userData['service_zone'] ?? 'standard';
     }
 }
 ?>
@@ -393,6 +411,7 @@ if(dayNotice){
 let selectedEvent = null;
 let customerDiscount = <?= json_encode($customerDiscount) ?>;
 let isLoggedIn = <?= json_encode($isLoggedIn) ?>;
+let customerPricing = <?= json_encode($customerPricing) ?>;
 let discountPopupShown = false;
 
 function formatLocalDateTime(date){
@@ -638,11 +657,30 @@ function calculateFromEvent(event){
     const zone = parseInt(document.getElementById('locationZone').value || 0);
     const service = document.getElementById('serviceType').value;
 
-    let base = hours <= 1 ? 300 : hours <= 2 ? 350 : 400 + (hours - 2) * 100;
+    let base;
+let pricingNote = '';
 
-    let subtotal = base + zone;
-    let discountAmount = subtotal * (customerDiscount / 100);
-    let total = subtotal - discountAmount;
+if(
+    isLoggedIn &&
+    customerPricing.pricing_mode === 'flat_hourly' &&
+    customerPricing.hourly_rate
+){
+    const minimumHours = parseFloat(customerPricing.minimum_hours || 4);
+    const hourlyRate = parseFloat(customerPricing.hourly_rate);
+
+    billableHours = Math.max(hours, minimumHours);
+    base = billableHours * hourlyRate;
+
+    pricingNote =
+        `Flat hourly customer rate: $${hourlyRate}/hr, minimum ${minimumHours} hours<br>`;
+}else{
+    billableHours = hours;
+    base = hours <= 1 ? 300 : hours <= 2 ? 350 : 400 + (hours - 2) * 100;
+}
+
+let subtotal = base + zone;
+let discountAmount = subtotal * (customerDiscount / 100);
+let total = subtotal - discountAmount;
 
     document.getElementById('totalDisplay').innerText = '$' + Math.round(total);
 
@@ -650,7 +688,8 @@ function calculateFromEvent(event){
         <div class="p-3 bg-dark rounded">
             <b>${service}</b><br>
             ${bookingMode === 'days' ? selectedDuration + ' work day(s)' : hours.toFixed(1) + ' hours'} requested<br>
-Billable hours: ${hours.toFixed(1)}<br>
+Billable hours: ${billableHours.toFixed(1)}<br>
+${pricingNote}
             <hr>
             Base: $${Math.round(base)}<br>
             Location: $${zone}<br>
