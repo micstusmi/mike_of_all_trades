@@ -14,6 +14,18 @@ $savedChatCount = (int) $stmt->fetchColumn();
 
 <style>
 
+    @media (max-width: 767px) {
+    .fc-col-header-cell-cushion {
+        font-size: 14px !important;
+        line-height: 1.1 !important;
+        white-space: normal !important;
+    }
+
+    .fc-toolbar-title {
+        font-size: 26px !important;
+    }
+}
+
     .travel-buffer-event .fc-event-time {
     display: none !important;
 }
@@ -258,10 +270,19 @@ document.addEventListener('DOMContentLoaded', function(){
             events:'load_events.php',
 
 locale:'en-au',
-dayHeaderFormat:{
-    weekday:'short',
-    day:'2-digit',
-    month:'2-digit'
+dayHeaderContent:function(arg){
+    const isMobile = window.innerWidth < 768;
+
+    const d = arg.date;
+    const day = d.getDate();
+    const month = d.getMonth() + 1;
+
+    if(isMobile){
+        const letters = ['S','M','T','W','T','F','S'];
+        return letters[d.getDay()] + ' ' + day + '/' + month;
+    }
+
+    return arg.text;
 },
 
 eventContent:function(arg){
