@@ -317,19 +317,43 @@ if (!empty($_SESSION['user_id'])) {
 }
 
 .travel-buffer-event {
-    background:#d9d9d9!important;
+    background-color:#eeeeee!important;
+    background-image:repeating-linear-gradient(
+        135deg,
+        rgba(0,0,0,0.08) 0,
+        rgba(0,0,0,0.08) 6px,
+        rgba(255,255,255,0.65) 6px,
+        rgba(255,255,255,0.65) 12px
+    )!important;
     border-color:#cccccc!important;
     color:#333!important;
     font-size:11px!important;
     font-weight:700!important;
 }
 
-.travel-buffer-event .fc-event-time {
+.travel-buffer-event .fc-event-time,
+.travel-buffer-event .fc-event-title {
     display:none!important;
 }
 
 .travel-buffer-event .fc-event-main {
     color:#333!important;
+}
+
+.travel-buffer-label {
+    width:100%;
+    height:100%;
+    min-height:16px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:3px;
+    color:#333!important;
+    font-weight:800;
+    font-size:11px;
+    line-height:1;
+    white-space:nowrap;
+    overflow:hidden;
 }
 
 .unavailable-vertical {
@@ -768,17 +792,25 @@ function initCalendar(){
 
         events:'public_calendar_events.php',
 
+        displayEventTime:false,
+        displayEventEnd:false,
 
 eventContent:function(arg){
-    const isBuffer = arg.event.extendedProps.is_buffer == 1;
     const isMobile = window.innerWidth < 768;
+    const title = (arg.event.title || '').toLowerCase();
+    const classes = arg.event.classNames || [];
+
+    const isBuffer =
+        arg.event.extendedProps.is_buffer == 1 ||
+        arg.event.extendedProps.is_buffer === true ||
+        classes.includes('travel-buffer-event') ||
+        title.includes('travel') ||
+        title.includes('buffer') ||
+        title.includes('driving');
 
     if(isBuffer){
         return {
-            html:`<div style="display:flex;justify-content:space-between;align-items:center;width:100%;height:100%;padding:0 2px;">
-                    <span>🚗</span>
-                    <span>travel</span>
-                  </div>`
+            html:`<div class="travel-buffer-label"><span>🚗</span><span>travel</span></div>`
         };
     }
 
