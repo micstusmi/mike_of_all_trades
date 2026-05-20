@@ -346,14 +346,23 @@ if (!empty($_SESSION['user_id'])) {
     min-height:16px;
     display:flex;
     align-items:center;
-    justify-content:center;
-    gap:3px;
+    justify-content:flex-start;
+    gap:2px;
     color:#333!important;
     font-weight:800;
     font-size:11px;
     line-height:1;
     white-space:nowrap;
-    overflow:hidden;
+    overflow:visible;
+    padding-left:1px;
+}
+
+.travel-car {
+    flex:0 0 auto;
+}
+
+.travel-word {
+    flex:0 0 auto;
 }
 
 .unavailable-vertical {
@@ -810,7 +819,7 @@ eventContent:function(arg){
 
     if(isBuffer){
         return {
-            html:`<div class="travel-buffer-label"><span>🚗</span><span>travel</span></div>`
+html:`<div class="travel-buffer-label"><span class="travel-car">🚗</span><span class="travel-word">travel</span></div>`
         };
     }
 
