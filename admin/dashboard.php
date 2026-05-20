@@ -316,7 +316,40 @@ document.addEventListener('DOMContentLoaded', function(){
             contentHeight: window.innerWidth < 768 ? 700 : 'auto',
             expandRows: true,
 
-        events:'load_events.php',
+            events:'load_events.php',
+
+locale:'en-au',
+dayHeaderFormat:{
+    weekday:'short',
+    day:'2-digit',
+    month:'2-digit'
+},
+
+eventContent:function(arg){
+    const isBuffer = arg.event.extendedProps.is_buffer == 1;
+    const isMobile = window.innerWidth < 768;
+
+    if(isBuffer){
+        return {
+            html:`<div style="display:flex;justify-content:space-between;align-items:center;width:100%;">
+                    <span>🚗</span>
+                    <span>travel</span>
+                  </div>`
+        };
+    }
+
+    if(isMobile && arg.event.title === 'Unavailable'){
+        return {
+            html:`<div style="writing-mode:vertical-rl;text-orientation:mixed;font-weight:700;">
+                    Unavailable
+                  </div>`
+        };
+    }
+
+    return {
+        html:`<div><strong>${arg.timeText}</strong><br>${arg.event.title || 'Unavailable'}</div>`
+    };
+}
 
         eventContent:function(arg){
             const isBuffer = arg.event.extendedProps.is_buffer == 1;
