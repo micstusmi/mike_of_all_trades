@@ -57,6 +57,7 @@ $baseUrl = $isLocalhost ? '/mike_of_all_trades/' : '/';
     <i class="bi bi-chat-dots-fill me-2"></i>
     AI Chat Submissions
 </a>
+<?php endif; ?>
 
 <?php if (!empty($_SESSION['user_id']) && ($_SESSION['user_role'] ?? '') !== 'admin'): ?>
                 <a class="nav-link fw-bold text-info" href="<?= $baseUrl ?>admin/special_customer_invite.php">
@@ -64,8 +65,6 @@ $baseUrl = $isLocalhost ? '/mike_of_all_trades/' : '/';
                 Special Customer Invites
             </a>
         <?php endif; ?>
-
-<?php endif; ?>
 
         <?php if (!empty($_SESSION['user_id']) && ($_SESSION['user_role'] ?? '') !== 'admin'): ?>
             <a class="nav-link fw-bold text-info" href="<?= $baseUrl ?>customer/dashboard.php">
