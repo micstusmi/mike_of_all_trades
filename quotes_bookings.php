@@ -313,6 +313,42 @@ if (!empty($_SESSION['user_id'])) {
 .fc-timegrid-axis-cushion{color:#222!important;font-weight:600;font-size:12px}
 .fc-col-header-cell-cushion{color:#0d6efd!important;font-weight:700;text-decoration:none!important}
 
+/* Uniform travel buffer styling */
+.travel-buffer-event .fc-event-time,
+.travel-buffer-event .fc-event-title,
+.travel-buffer-event .fc-event-main-frame {
+    display:none!important;
+}
+
+.travel-buffer-content {
+    width:100%;
+    height:100%;
+    min-height:18px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:3px;
+    overflow:hidden;
+    color:#333;
+    font-weight:800;
+    line-height:1;
+    white-space:nowrap;
+    font-size:11px;
+}
+
+@media (max-width: 768px) {
+    .travel-buffer-content {
+        font-size:10px;
+        flex-direction:column;
+        gap:1px;
+    }
+
+    .travel-buffer-content .travel-word {
+        font-size:10px;
+        line-height:1;
+    }
+}
+
 @media (max-width: 768px) {
     #calendar {
         padding:10px;
@@ -424,6 +460,82 @@ function formatLocalDateTime(date){
         pad(date.getMinutes()) + ':00';
 }
 
+
+function isPreviewEventId(id){
+    return [
+        'customer-selection-buffer-before',
+        'customer-selection',
+        'customer-selection-buffer-after'
+    ].includes(id);
+}
+
+function getRequestedRangeWithBuffers(start){
+    let bookingStart = new Date(start);
+    let bookingEnd;
+
+    if(bookingMode === 'days'){
+        bookingStart.setHours(8, 0, 0, 0);
+        bookingEnd = new Date(bookingStart);
+        bookingEnd.setHours(17, 0, 0, 0);
+    } else {
+        bookingEnd = new Date(bookingStart.getTime() + selectedDuration * 60 * 60 * 1000);
+    }
+
+    const bufferMinutes = 30;
+
+    return {
+        bookingStart: bookingStart,
+        bookingEnd: bookingEnd,
+        bufferStart: new Date(bookingStart.getTime() - bufferMinutes * 60000),
+        bufferEnd: new Date(bookingEnd.getTime() + bufferMinutes * 60000)
+    };
+}
+
+function rangesOverlap(startA, endA, startB, endB){
+    return startA < endB && endA > startB;
+}
+
+function bookingRangeHasConflict(start, end){
+    if(!calendar){
+        return false;
+    }
+
+    return calendar.getEvents().some(function(event){
+        if(isPreviewEventId(event.id)){
+            return false;
+        }
+
+        if(!event.start || !event.end){
+            return false;
+        }
+
+        return rangesOverlap(start, end, event.start, event.end);
+    });
+}
+
+function canUseBookingStart(start, showAlert){
+    if(start < new Date()){
+        if(showAlert){
+            alert('Please choose a future time.');
+        }
+        return false;
+    }
+
+    const range = getRequestedRangeWithBuffers(start);
+
+    if(bookingRangeHasConflict(range.bufferStart, range.bufferEnd)){
+        if(showAlert){
+            alert(
+                'That time overlaps with an unavailable booking or travel buffer.\n\n' +
+                'Please choose a different start time.'
+            );
+        }
+        return false;
+    }
+
+    return true;
+}
+
 function checkValidation(){
     const service = document.getElementById('serviceType').value;
     const location = document.getElementById('locationZone').value;
@@ -522,38 +634,32 @@ function createPreviewBooking(start){
         return;
     }
 
+    if(!canUseBookingStart(start, true)){
+        removePreviewBlocks();
+        selectedEvent = null;
+        return;
+    }
+
     removePreviewBlocks();
 
-    let end;
-
-if(bookingMode === 'days'){
-    const dayStart = new Date(start);
-    dayStart.setHours(8, 0, 0, 0);
-
-    end = new Date(dayStart);
-    end.setHours(17, 0, 0, 0);
-
-    start = dayStart;
-} else {
-    end = new Date(start.getTime() + selectedDuration * 60 * 60 * 1000);
-}
-    const bufferMinutes = 30;
-
-    const bufferBeforeStart = new Date(start.getTime() - bufferMinutes * 60000);
-    const bufferAfterEnd = new Date(end.getTime() + bufferMinutes * 60000);
+    const range = getRequestedRangeWithBuffers(start);
+    start = range.bookingStart;
+    const end = range.bookingEnd;
+    const bufferBeforeStart = range.bufferStart;
+    const bufferAfterEnd = range.bufferEnd;
 
     calendar.addEvent({
-    id:'customer-selection-buffer-before',
-    title:'🚗 travel',
-    start:bufferBeforeStart,
-    end:start,
-    backgroundColor:'#d9d9d9',
-    borderColor:'#cccccc',
-    textColor:'#333333',
-    classNames:['travel-buffer-event'],
-    extendedProps:{ is_buffer:1 },
-    editable:false
-});
+        id:'customer-selection-buffer-before',
+        title:'🚗 travel',
+        start:bufferBeforeStart,
+        end:start,
+        backgroundColor:'#d9d9d9',
+        borderColor:'#cccccc',
+        textColor:'#333333',
+        classNames:['travel-buffer-event'],
+        extendedProps:{ is_buffer:1 },
+        editable:false
+    });
 
     selectedEvent = calendar.addEvent({
         id:'customer-selection',
@@ -566,17 +672,17 @@ if(bookingMode === 'days'){
     });
 
     calendar.addEvent({
-    id:'customer-selection-buffer-after',
-    title:'🚗 travel',
-    start:end,
-    end:bufferAfterEnd,
-    backgroundColor:'#d9d9d9',
-    borderColor:'#cccccc',
-    textColor:'#333333',
-    classNames:['travel-buffer-event'],
-    extendedProps:{ is_buffer:1 },
-    editable:false
-});
+        id:'customer-selection-buffer-after',
+        title:'🚗 travel',
+        start:end,
+        end:bufferAfterEnd,
+        backgroundColor:'#d9d9d9',
+        borderColor:'#cccccc',
+        textColor:'#333333',
+        classNames:['travel-buffer-event'],
+        extendedProps:{ is_buffer:1 },
+        editable:false
+    });
 
     calendar.gotoDate(start);
     calculateFromEvent(selectedEvent);
@@ -647,7 +753,7 @@ function initCalendar(){
         eventLongPressDelay:100,
 
         selectAllow:function(info){
-            return info.start >= new Date();
+            return canUseBookingStart(info.start, false);
         },
 
         selectOverlap:false,
@@ -669,9 +775,9 @@ eventContent:function(arg){
 
     if(isBuffer){
         return {
-            html:`<div style="display:flex;justify-content:space-between;align-items:center;width:100%;">
-                    <span>🚗</span>
-                    <span>travel</span>
+            html:`<div class="travel-buffer-content" aria-label="travel buffer">
+                    <span class="travel-car">🚗</span>
+                    <span class="travel-word">travel</span>
                   </div>`
         };
     }
@@ -691,7 +797,10 @@ eventContent:function(arg){
 
 select:function(info){
 
-            createPreviewBooking(info.start);
+            if(canUseBookingStart(info.start, true)){
+                createPreviewBooking(info.start);
+            }
+
             calendar.unselect();
         }
     });
@@ -842,6 +951,19 @@ function bookNow(){
 
     if(!selectedEvent){
         alert('Please select a booking time first.');
+        return;
+    }
+
+    const finalRange = getRequestedRangeWithBuffers(selectedEvent.start);
+
+    if(bookingRangeHasConflict(finalRange.bufferStart, finalRange.bufferEnd)){
+        alert(
+            'This time has become unavailable or overlaps with another booking/travel buffer.\n\n' +
+            'Please choose a different start time.'
+        );
+        removePreviewBlocks();
+        selectedEvent = null;
+        goToStep(2);
         return;
     }
 
