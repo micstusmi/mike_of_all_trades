@@ -173,7 +173,7 @@ if (!empty($_SESSION['user_id'])) {
 <div id="step2" class="booking-step d-none">
 <div class="card bg-secondary text-light p-4 rounded-4 shadow-lg border-0" style="background:#2c3e50!important;">
 <h3 class="text-info mb-3">Select Start Time</h3>
-<h5 class="text-info mb-4">* See availability in calendar below</h5>
+<h5 class="text-info mb-5">* See availability in calendar below</h5>
 <p class="text-light small">
     Grey blocks are unavailable. Choose a date and start time below, or select a time directly on the calendar.
 </p>
