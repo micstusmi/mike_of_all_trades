@@ -751,12 +751,12 @@ function initCalendar(){
 
     calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
 
-        initialView: window.innerWidth < 768 ? 'timeGridDay' : 'timeGridWeek',
+initialView: 'timeGridWeek',
 
         headerToolbar:{
             left:'prev,next today',
             center:'title',
-            right: window.innerWidth < 768 ? '' : 'timeGridWeek,timeGridDay'
+right: 'timeGridWeek,timeGridDay'
         },
 
         dayHeaderContent:function(arg){
