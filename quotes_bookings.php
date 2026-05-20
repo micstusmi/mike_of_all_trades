@@ -543,14 +543,17 @@ if(bookingMode === 'days'){
     const bufferAfterEnd = new Date(end.getTime() + bufferMinutes * 60000);
 
     calendar.addEvent({
-        id:'customer-selection-buffer-before',
-        title:'Driving / buffer time',
-        start:bufferBeforeStart,
-        end:start,
-        backgroundColor:'#999999',
-        borderColor:'#999999',
-        editable:false
-    });
+    id:'customer-selection-buffer-before',
+    title:'🚗 travel',
+    start:bufferBeforeStart,
+    end:start,
+    backgroundColor:'#d9d9d9',
+    borderColor:'#cccccc',
+    textColor:'#333333',
+    classNames:['travel-buffer-event'],
+    extendedProps:{ is_buffer:1 },
+    editable:false
+});
 
     selectedEvent = calendar.addEvent({
         id:'customer-selection',
@@ -563,14 +566,17 @@ if(bookingMode === 'days'){
     });
 
     calendar.addEvent({
-        id:'customer-selection-buffer-after',
-        title:'Driving / buffer time',
-        start:end,
-        end:bufferAfterEnd,
-        backgroundColor:'#999999',
-        borderColor:'#999999',
-        editable:false
-    });
+    id:'customer-selection-buffer-after',
+    title:'🚗 travel',
+    start:end,
+    end:bufferAfterEnd,
+    backgroundColor:'#d9d9d9',
+    borderColor:'#cccccc',
+    textColor:'#333333',
+    classNames:['travel-buffer-event'],
+    extendedProps:{ is_buffer:1 },
+    editable:false
+});
 
     calendar.gotoDate(start);
     calculateFromEvent(selectedEvent);
@@ -684,7 +690,7 @@ eventContent:function(arg){
 },
 
 select:function(info){
-    
+
             createPreviewBooking(info.start);
             calendar.unselect();
         }
