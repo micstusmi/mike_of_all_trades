@@ -615,6 +615,24 @@ function initCalendar(){
             right: window.innerWidth < 768 ? '' : 'timeGridWeek,timeGridDay'
         },
 
+        dayHeaderContent:function(arg){
+    const isMobile = window.innerWidth < 768;
+    const d = arg.date;
+    const day = d.getDate();
+    const month = d.getMonth() + 1;
+
+    if(isMobile){
+        const letters = ['S','M','T','W','T','F','S'];
+        return {
+            html:
+                '<div style="font-size:12px;font-weight:700;">' + letters[d.getDay()] + '</div>' +
+                '<div style="font-size:11px;">' + day + '/' + month + '</div>'
+        };
+    }
+
+    return { html:'<div style="font-weight:700;">' + arg.text + '</div>' };
+},
+
         selectable:true,
         editable:false,
 
