@@ -722,20 +722,25 @@ async function saveChatForLater(){
             'you will now be taken to login/register.'
         );
 
-        window.location.href =
-            'login.php?claim_ai_chat=' +
-            encodeURIComponent(data.token);
+        localStorage.removeItem('aiConversationToken');
+localStorage.removeItem('aiJobIntake');
 
-        return;
+window.location.href =
+    'login.php?claim_ai_chat=' +
+    encodeURIComponent(data.token);
+
+return;
     }
 
     alert('Chat saved successfully.');
 
-    window.location.href =
-        'customer/ai_chats.php';
+localStorage.removeItem('aiConversationToken');
+localStorage.removeItem('aiJobIntake');
 
-    return;
-}
+window.location.href =
+    'customer/ai_chats.php';
+
+return;
 
     }catch(err){
 
