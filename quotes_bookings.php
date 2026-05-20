@@ -304,15 +304,32 @@ if (!empty($_SESSION['user_id'])) {
 
 <style>
 
-.travel-buffer-inner {
-    font-size:11px;
-    font-weight:700;
-    line-height:1;
-    white-space:nowrap;
-    overflow:hidden;
-    text-align:center;
-    color:#333;
-    padding-top:2px;
+@media (max-width: 767px) {
+    .fc-col-header-cell-cushion {
+        font-size: 14px !important;
+        line-height: 1.1 !important;
+        white-space: normal !important;
+    }
+
+    .fc-toolbar-title {
+        font-size: 26px !important;
+    }
+}
+
+.travel-buffer-event {
+    background:#d9d9d9!important;
+    border-color:#cccccc!important;
+    color:#333!important;
+    font-size:11px!important;
+    font-weight:700!important;
+}
+
+.travel-buffer-event .fc-event-time {
+    display:none!important;
+}
+
+.travel-buffer-event .fc-event-main {
+    color:#333!important;
 }
 
 .unavailable-vertical {
@@ -330,50 +347,6 @@ if (!empty($_SESSION['user_id'])) {
 .fc-timegrid-slot-label-cushion,
 .fc-timegrid-axis-cushion{color:#222!important;font-weight:600;font-size:12px}
 .fc-col-header-cell-cushion{color:#0d6efd!important;font-weight:700;text-decoration:none!important}
-
-/* Uniform travel buffer styling */
-.travel-buffer-event {
-    background:#d9d9d9!important;
-    border-color:#cccccc!important;
-}
-
-.travel-buffer-event .fc-event-main {
-    color:#333!important;
-}
-
-.travel-buffer-content {
-    width:100%;
-    height:100%;
-    min-height:16px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    gap:3px;
-    overflow:hidden;
-    color:#333;
-    font-weight:800;
-    line-height:1;
-    white-space:nowrap;
-    font-size:11px;
-}
-
-.travel-buffer-content .travel-word {
-    font-size:11px;
-    line-height:1;
-}
-
-@media (max-width: 768px) {
-    .travel-buffer-content {
-        font-size:10px;
-        flex-direction:column;
-        gap:1px;
-    }
-
-    .travel-buffer-content .travel-word {
-        font-size:10px;
-        line-height:1;
-    }
-}
 
 @media (max-width: 768px) {
     #calendar {
@@ -795,7 +768,6 @@ function initCalendar(){
 
         events:'public_calendar_events.php',
 
-        displayEventTime:false,
 
 eventContent:function(arg){
     const isBuffer = arg.event.extendedProps.is_buffer == 1;
@@ -803,12 +775,10 @@ eventContent:function(arg){
 
     if(isBuffer){
         return {
-html:`
-<div class="travel-buffer-content">
-    <span>🚗</span>
-    <span class="travel-word">travel</span>
-</div>
-`
+            html:`<div style="display:flex;justify-content:space-between;align-items:center;width:100%;height:100%;padding:0 2px;">
+                    <span>🚗</span>
+                    <span>travel</span>
+                  </div>`
         };
     }
 
