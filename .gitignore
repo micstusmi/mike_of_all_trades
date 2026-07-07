@@ -15,3 +15,12 @@ php_errors.log
 /includes/db.php
 /admin/blockouts.json
 /vendor/
+
+# Temporary backup files
+*_BACKUP_before_*.php
+
+# Security testing
+quote_rate_limits/
+
+# Temporary saved files
+*.save
