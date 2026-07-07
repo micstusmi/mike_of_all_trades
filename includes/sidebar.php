@@ -33,6 +33,7 @@ $baseUrl = $isLocalhost ? '/mike_of_all_trades/' : '/';
         <a class="nav-link" href="<?= $baseUrl ?>handyman.php"><i class="bi bi-tools me-2"></i> Handyman</a>
         <a class="nav-link" href="<?= $baseUrl ?>property_maintenance.php"><i class="bi bi-house-gear me-2"></i> Maintenance</a>
         <a class="nav-link" href="<?= $baseUrl ?>home_improvements.php"><i class="bi bi-hammer me-2"></i> Home Improvements</a>
+        <a class="nav-link" href="<?= $baseUrl ?>painting.php"><i class="bi bi-hammer me-2"></i> Painting</a>
         <a class="nav-link" href="<?= $baseUrl ?>signage.php"><i class="bi bi-megaphone me-2"></i> Signage</a>
         <a class="nav-link" href="<?= $baseUrl ?>kitchen_and_bathroom_cabinets.php"><i class="bi bi-layout-sidebar me-2"></i> Kitchen & Cabinets</a>
         <a class="nav-link" href="<?= $baseUrl ?>flatpacks.php"><i class="bi bi-box me-2"></i> Flatpacks</a>
