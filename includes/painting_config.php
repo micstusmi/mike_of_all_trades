@@ -53,5 +53,6 @@ $paintingConfig = [
     'minimum_labour' => 250,
     'materials_percent_interior' => 0.18,
     'materials_percent_exterior' => 0.20,
-    'minimum_materials' => 250
+    'minimum_materials' => 250,
+    'materials_markup' => 0.50
 ];

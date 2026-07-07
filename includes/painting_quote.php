@@ -78,7 +78,7 @@ function painting_build_scope_of_works(array $payload): string {
     $condition = painting_label((string)($answers['condition'] ?? 'not specified'));
     $access = painting_label((string)($answers['access'] ?? 'not specified'));
     $paintSupply = ($answers['paint_supply'] ?? 'customer') === 'mike'
-        ? 'Paint and materials to be estimated/supplied by Mike where agreed.'
+        ? 'Paint and materials to be estimated/supplied by Mike where agreed. Paint/material supply includes a handling and procurement markup.'
         : 'Customer to supply all paint and materials unless otherwise agreed in writing.';
 
     $parts = [];
@@ -139,8 +139,8 @@ function painting_build_line_items(array $payload): array {
 
     if (($answers['paint_supply'] ?? 'customer') === 'mike' && !empty($estimate['materials'])) {
         $items[] = [
-            'name' => 'Estimated paint and materials',
-            'description' => 'Estimated allowance for paint and standard consumables. Final product selection and quantity to be confirmed before purchase.',
+            'name' => 'Estimated paint and materials including supply markup',
+            'description' => 'Estimated allowance for paint, standard consumables, procurement time and handling markup. Final product selection and quantity to be confirmed before purchase.',
             'quantity' => 'allowance',
             'rate' => '',
             'total' => (float)$estimate['materials']

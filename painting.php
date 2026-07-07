@@ -1,27 +1,650 @@
 <?php
+$pageTitle = "Painting Quote Builder";
+require_once __DIR__ . '/includes/header.php';
 require_once __DIR__ . '/includes/painting_config.php';
 require_once __DIR__ . '/includes/painting_questions.php';
 
 $questionsJson = json_encode($paintingQuestions, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 $configJson = json_encode($paintingConfig, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Painting Quote Builder</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+
 <style>
-:root{--blue:#1d72b8;--blue2:#155a91;--dark:#111;--soft:#f4f6f8;--line:#000;--green:#2e7d32;--orange:#c77700;--red:#b00020}
-*{box-sizing:border-box}body{font-family:Arial,sans-serif;background:var(--soft);margin:0;color:#222}.container{max-width:1180px;margin:30px auto;padding:20px}.page-title{text-align:center;margin-bottom:25px}.labour-note{background:#fff3cd;border:1px solid #ffe69c;padding:12px;border-radius:8px;display:inline-block;margin-top:10px}.card,.choice-card{background:#fff;border-radius:14px;padding:24px;box-shadow:0 2px 10px rgba(0,0,0,.08)}.quote-choice-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.choice-card{cursor:pointer;border:2px solid transparent}.choice-card:hover{border-color:var(--blue)}button{padding:12px 18px;border:none;border-radius:8px;background:var(--blue);color:#fff;cursor:pointer;font-size:16px;margin:8px 8px 0 0}button:hover{background:var(--blue2)}.secondary-btn{background:#555}.danger-btn{background:#8a3333}.success-btn{background:#2e7d32}input,textarea,select{width:100%;padding:12px;margin:8px 0 14px;border-radius:8px;border:1px solid #ccc;font-size:15px}textarea{min-height:110px}.quote-area{margin-top:25px;display:none}.builder-layout{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:22px;align-items:start}.side-summary{position:sticky;top:20px}.status-box{background:var(--dark);color:#fff;border-radius:12px;padding:18px;margin-bottom:18px}.status-row{margin-bottom:16px}.status-row:last-child{margin-bottom:0}.status-label{display:flex;justify-content:space-between;gap:12px;margin-bottom:6px;font-size:14px}.bar-bg{height:12px;background:#333;border-radius:20px;overflow:hidden}.bar-fill{height:100%;background:var(--blue);width:0%;transition:.3s}.accuracy-text{font-size:13px;color:#ddd;margin-top:6px;line-height:1.45}.builder-section{border-top:4px solid var(--line);padding-top:22px;margin-top:22px}.builder-section:first-child{border-top:none;margin-top:0}.hidden{display:none!important}.option-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.option-card{border:2px solid #ddd;border-radius:12px;padding:16px;cursor:pointer;background:#fff}.option-card:hover{border-color:var(--blue)}.option-card.selected{border-color:var(--blue);background:#eaf4ff}.answer-summary{background:#f1f1f1;border-radius:8px;padding:10px;margin-top:12px;font-size:14px}.answered-details{border-top:4px solid #000;margin-top:18px;padding-top:14px}.answered-details summary{cursor:pointer;font-weight:bold;font-size:17px}.multi-option{display:block;background:#fafafa;border:1px solid #ddd;border-radius:8px;padding:10px;margin:8px 0}.multi-option input{width:auto;margin-right:8px}.price-box{background:#eaf4ff;border:1px solid #b9dcff;border-radius:10px;padding:18px;margin-top:18px}.price{font-size:32px;font-weight:bold;color:var(--blue)}.range{font-size:22px;font-weight:bold;color:var(--blue2)}.small-note{color:#666;font-size:13px;line-height:1.5}.summary-mini{background:#fff;border-radius:14px;padding:18px;box-shadow:0 2px 10px rgba(0,0,0,.08)}.summary-mini h3{margin-top:0}.summary-amount{font-size:26px;font-weight:bold;color:var(--blue);margin:5px 0 12px}.summary-range{font-weight:bold;color:var(--blue2)}.summary-line{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid #eee;padding:7px 0}.summary-line span:first-child{color:#555}.estimate-table{width:100%;border-collapse:collapse;background:#fff;margin-top:12px}.estimate-table th,.estimate-table td{border-bottom:1px solid #ddd;text-align:left;padding:10px;vertical-align:top}.estimate-table th{background:#f2f2f2}.estimate-table td.num,.estimate-table th.num{text-align:right;white-space:nowrap}.explain{display:block;color:#666;font-size:12px;margin-top:3px;line-height:1.35}.quote-summary-hero{background:#111;color:#fff;border-radius:14px;padding:22px;margin-bottom:18px}.quote-summary-hero h2{margin-top:0}.hero-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.hero-tile{background:#222;border-radius:10px;padding:14px}.hero-tile strong{display:block;font-size:13px;color:#ddd}.hero-tile span{display:block;font-size:24px;font-weight:bold;margin-top:6px}.ready-box{background:#eef9ee;border:1px solid #b9e4b9;border-radius:10px;padding:16px;margin-top:16px}.resume-box{background:#eaf4ff;border:1px solid #b9dcff;border-radius:12px;padding:14px;margin:18px 0;text-align:center}@media(max-width:900px){.quote-choice-grid,.option-grid,.builder-layout,.hero-grid{grid-template-columns:1fr}.container{margin:10px auto;padding:14px}.side-summary{position:static}.status-label{display:block}.price{font-size:26px}.estimate-table{font-size:13px}.estimate-table th,.estimate-table td{padding:7px}}
+:root{
+    --blue:#1d72b8;
+    --blue2:#155a91;
+    --dark:#111;
+    --charcoal:#2f343a;
+    --heading-charcoal:#3d434a;
+    --charcoal2:#4b5563;
+    --text:#5d6773;
+    --muted:#666c73;
+    --soft:#f4f6f8;
+    --line:#000;
+    --green:#2e7d32;
+    --red:#8a3333;
+    --popular:#ffd166;
+}
+
+*{
+    box-sizing:border-box;
+}
+
+body{
+    font-family:Arial,sans-serif;
+    background:var(--soft);
+    margin:0;
+    color:var(--charcoal);
+}
+
+/* Main page layout */
+.painting-page{
+    margin-left:260px;
+    padding:24px 30px 80px;
+    background:var(--soft);
+    min-height:calc(100vh - 285px);
+}
+
+.painting-container{
+    width:100%;
+    max-width:1280px;
+    margin:0 auto;
+    padding:0;
+}
+
+/* Landing section */
+.page-title{
+    text-align:center;
+    margin-top:0;
+    margin-bottom:12px;
+}
+
+.page-title h1{
+    color:var(--heading-charcoal);
+    font-size:30px;
+    font-weight:600;
+    margin:0 0 6px;
+}
+
+.page-title p{
+    color:var(--charcoal2);
+    font-size:18px;
+    margin:8px 0;
+}
+
+.intro-helper{
+    text-align:center !important;
+    color:var(--text);
+    font-size:12px;
+    max-width:790px;
+    margin:10px auto 0;
+    line-height:1.45;
+}
+
+.labour-note{
+    background:#fff3cd;
+    border:1px solid #ffe69c;
+    color:var(--heading-charcoal);
+    padding:12px 16px;
+    border-radius:8px;
+    display:inline-block;
+    margin-top:18px;
+    font-size:16px;
+}
+
+/* Trust panel */
+.trust-panel{
+    background:#fff;
+    border-radius:16px;
+    padding:22px 24px;
+    margin:20px auto 22px;
+    max-width:980px;
+    box-shadow:0 2px 10px rgba(0,0,0,.06);
+}
+
+.trust-panel h3{
+    color:var(--heading-charcoal);
+    margin:0 0 16px;
+    text-align:center;
+    font-size:25px;
+}
+
+.trust-grid{
+    color:#40464d;
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:14px 24px;
+    font-size:16px;
+    text-align:left;
+}
+
+.choose-heading{
+    color:var(--heading-charcoal);
+    text-align:center;
+    margin:22px 0 20px;
+    font-size:24px;
+}
+
+/* Cards */
+.card,
+.choice-card{
+    background:#fff;
+    border-radius:14px;
+    padding:24px;
+    box-shadow:0 2px 10px rgba(0,0,0,.08);
+}
+
+.quote-choice-grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:18px;
+    align-items:stretch;
+}
+
+.quote-choice-grid::after{
+    content:"No obligation. Final pricing may change after site inspection, photos, access review or scope changes.";
+    grid-column:1 / -1;
+    display:block;
+    text-align:center;
+    color:var(--muted);
+    font-size:14px;
+    margin-top:8px;
+}
+
+.choice-card{
+    position:relative;
+    cursor:pointer;
+    border:2px solid transparent;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    min-height:195px;
+}
+
+.choice-card:hover{
+    border-color:var(--blue);
+}
+
+.choice-card h2{
+    color:var(--charcoal);
+    font-size:25px;
+    margin:0 0 14px;
+}
+
+.choice-card p{
+    color:var(--text);
+    font-size:17px;
+    line-height:1.45;
+    margin:0 0 18px;
+}
+
+.choice-card button{
+    align-self:flex-start;
+    padding:15px 26px;
+    font-size:17px;
+    font-weight:600;
+}
+
+.choice-card:nth-child(2)::before{
+    content:"Most Popular";
+    position:absolute;
+    top:-10px;
+    right:-10px;
+    background:var(--popular);
+    color:#111;
+    font-size:12px;
+    font-weight:700;
+    padding:5px 9px;
+    border-radius:999px;
+}
+
+.coming-soon-card{
+    opacity:.78;
+    cursor:not-allowed;
+    border-style:dashed;
+}
+
+.coming-soon-card button{
+    background:#777;
+    cursor:not-allowed;
+}
+
+.coming-soon-badge{
+    position:absolute;
+    top:-10px;
+    right:-10px;
+    background:#111;
+    color:#fff;
+    font-size:11px;
+    font-weight:700;
+    letter-spacing:.04em;
+    padding:5px 9px;
+    border-radius:999px;
+}
+
+/* Shared controls */
+button{
+    padding:12px 18px;
+    border:none;
+    border-radius:8px;
+    background:var(--blue);
+    color:#fff;
+    cursor:pointer;
+    font-size:16px;
+    margin:8px 8px 0 0;
+}
+
+button:hover{
+    background:var(--blue2);
+}
+
+.secondary-btn{
+    background:#555;
+}
+
+.danger-btn{
+    background:var(--red);
+}
+
+.success-btn{
+    background:var(--green);
+}
+
+input,
+textarea,
+select{
+    width:100%;
+    padding:12px;
+    margin:8px 0 14px;
+    border-radius:8px;
+    border:1px solid #ccc;
+    font-size:15px;
+}
+
+textarea{
+    min-height:110px;
+}
+
+/* Quote builder */
+.quote-area{
+    margin-top:25px;
+    display:none;
+}
+
+.builder-layout{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 330px;
+    gap:22px;
+    align-items:start;
+}
+
+.side-summary{
+    position:sticky;
+    top:20px;
+}
+
+.status-box{
+    background:var(--dark);
+    color:#fff;
+    border-radius:12px;
+    padding:18px;
+    margin-bottom:18px;
+}
+
+.status-row{
+    margin-bottom:16px;
+}
+
+.status-row:last-child{
+    margin-bottom:0;
+}
+
+.status-label{
+    display:flex;
+    justify-content:space-between;
+    gap:12px;
+    margin-bottom:6px;
+    font-size:14px;
+}
+
+.bar-bg{
+    height:12px;
+    background:#333;
+    border-radius:20px;
+    overflow:hidden;
+}
+
+.bar-fill{
+    height:100%;
+    background:var(--blue);
+    width:0%;
+    transition:.3s;
+}
+
+.accuracy-text{
+    font-size:13px;
+    color:#ddd;
+    margin-top:6px;
+    line-height:1.45;
+}
+
+.builder-section{
+    border-top:4px solid var(--line);
+    padding-top:22px;
+    margin-top:22px;
+}
+
+.builder-section:first-child{
+    border-top:none;
+    margin-top:0;
+}
+
+.hidden{
+    display:none!important;
+}
+
+.option-grid{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:14px;
+}
+
+.option-card{
+    border:2px solid #ddd;
+    border-radius:12px;
+    padding:16px;
+    cursor:pointer;
+    background:#fff;
+}
+
+.option-card:hover{
+    border-color:var(--blue);
+}
+
+.option-card.selected{
+    border-color:var(--blue);
+    background:#eaf4ff;
+}
+
+.answer-summary{
+    background:#f1f1f1;
+    border-radius:8px;
+    padding:10px;
+    margin-top:12px;
+    font-size:14px;
+}
+
+.answered-details{
+    border-top:4px solid #000;
+    margin-top:18px;
+    padding-top:14px;
+}
+
+.answered-details summary{
+    cursor:pointer;
+    font-weight:bold;
+    font-size:17px;
+}
+
+.multi-option{
+    display:block;
+    background:#fafafa;
+    border:1px solid #ddd;
+    border-radius:8px;
+    padding:10px;
+    margin:8px 0;
+}
+
+.multi-option input{
+    width:auto;
+    margin-right:8px;
+}
+
+/* Estimate displays */
+.price-box{
+    background:#eaf4ff;
+    border:1px solid #b9dcff;
+    border-radius:10px;
+    padding:18px;
+    margin-top:18px;
+}
+
+.price{
+    font-size:32px;
+    font-weight:bold;
+    color:var(--blue);
+}
+
+.range{
+    font-size:22px;
+    font-weight:bold;
+    color:var(--blue2);
+}
+
+.small-note{
+    color:#666;
+    font-size:13px;
+    line-height:1.5;
+}
+
+.summary-mini{
+    background:#fff;
+    border-radius:14px;
+    padding:18px;
+    box-shadow:0 2px 10px rgba(0,0,0,.08);
+}
+
+.summary-mini h3{
+    margin-top:0;
+}
+
+.summary-amount{
+    font-size:26px;
+    font-weight:bold;
+    color:var(--blue);
+    margin:5px 0 12px;
+}
+
+.summary-range{
+    font-weight:bold;
+    color:var(--blue2);
+}
+
+.summary-line{
+    display:flex;
+    justify-content:space-between;
+    gap:12px;
+    border-bottom:1px solid #eee;
+    padding:7px 0;
+}
+
+.summary-line span:first-child{
+    color:#555;
+}
+
+.estimate-table{
+    width:100%;
+    border-collapse:collapse;
+    background:#fff;
+    margin-top:12px;
+}
+
+.estimate-table th,
+.estimate-table td{
+    border-bottom:1px solid #ddd;
+    text-align:left;
+    padding:10px;
+    vertical-align:top;
+}
+
+.estimate-table th{
+    background:#f2f2f2;
+}
+
+.estimate-table td.num,
+.estimate-table th.num{
+    text-align:right;
+    white-space:nowrap;
+}
+
+.explain{
+    display:block;
+    color:#666;
+    font-size:12px;
+    margin-top:3px;
+    line-height:1.35;
+}
+
+.quote-summary-hero{
+    background:#111;
+    color:#fff;
+    border-radius:14px;
+    padding:22px;
+    margin-bottom:18px;
+}
+
+.quote-summary-hero h2{
+    margin-top:0;
+}
+
+.hero-grid{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:14px;
+}
+
+.hero-tile{
+    background:#222;
+    border-radius:10px;
+    padding:14px;
+}
+
+.hero-tile strong{
+    display:block;
+    font-size:13px;
+    color:#ddd;
+}
+
+.hero-tile span{
+    display:block;
+    font-size:24px;
+    font-weight:bold;
+    margin-top:6px;
+}
+
+.ready-box{
+    background:#eef9ee;
+    border:1px solid #b9e4b9;
+    border-radius:10px;
+    padding:16px;
+    margin-top:16px;
+}
+
+.resume-box{
+    background:#eaf4ff;
+    border:1px solid #b9dcff;
+    border-radius:12px;
+    padding:14px;
+    margin:18px 0;
+    text-align:center;
+}
+
+/* Responsive */
+@media(max-width:1200px){
+    .quote-choice-grid{
+        grid-template-columns:repeat(2,1fr);
+    }
+}
+
+@media(max-width:900px){
+    .painting-page{
+        margin-left:0;
+        padding:28px 14px 45px;
+        min-height:auto;
+    }
+
+    .painting-container{
+        max-width:100%;
+    }
+
+    .page-title{
+        margin-top:0;
+    }
+
+    .page-title h1{
+        font-size:32px;
+    }
+
+    .trust-grid{
+        grid-template-columns:1fr;
+    }
+
+    .option-grid,
+    .builder-layout,
+    .hero-grid{
+        grid-template-columns:1fr;
+    }
+
+    .side-summary{
+        position:static;
+    }
+
+    .status-label{
+        display:block;
+    }
+
+    .price{
+        font-size:26px;
+    }
+
+    .estimate-table{
+        font-size:13px;
+    }
+
+    .estimate-table th,
+    .estimate-table td{
+        padding:7px;
+    }
+}
+
+@media(max-width:700px){
+    .quote-choice-grid{
+        grid-template-columns:1fr;
+    }
+
+    .choice-card{
+        min-height:auto;
+    }
+}
+
+/* Force intro line to be truly centred */
+.page-title .intro-helper{
+    display:block !important;
+    width:100% !important;
+    max-width:780px !important;
+    margin:10px auto 0 auto !important;
+    text-align:center !important;
+}
 </style>
-</head>
-<body>
-<div class="container">
+
+<main class="painting-page">
+<div class="painting-container">
   <div class="page-title">
-    <h1>Painting Quote Builder</h1>
-    <p>Choose how detailed you want your manual painting estimate to be.</p>
+    <h1>🎨 Professional Painting Quote Builder</h1>
+    <p>Get an instant estimate in under 2 minutes.</p>
+    <p class="intro-helper">Whether you're painting one room or an entire property, choose the estimate level that suits you.</p>
     <div class="labour-note"><strong>Default:</strong> Labour-only estimate. Customer supplies paint and materials unless selected otherwise.</div>
+
+  <div class="trust-panel">
+    <h3>Why use this estimator?</h3>
+    <div class="trust-grid">
+      <div>✓ Built using professional painting production rates</div>
+      <div>✓ Choose between three estimate levels</div>
+      <div>✓ Free, no obligation estimate</div>
+      <div>✓ Final quotation personally reviewed before works commence</div>
+    </div>
+  </div>
+
+  <h2 class="choose-heading">Select how accurate you'd like your estimate to be</h2>
   </div>
 
   <div id="resumeBox" class="resume-box hidden">
@@ -31,13 +654,15 @@ $configJson = json_encode($paintingConfig, JSON_UNESCAPED_SLASHES | JSON_UNESCAP
   </div>
 
   <div class="quote-choice-grid">
-    <div class="choice-card" onclick="startQuote('quick', true)"><h2>⚡ Quick Estimate</h2><p>Fast rough price guide. Best if you only want a starting range.</p><button type="button">Start Quick Estimate</button></div>
-    <div class="choice-card" onclick="startQuote('detailed', true)"><h2>📋 Detailed Estimate</h2><p>More questions for a more useful price range.</p><button type="button">Start Detailed Estimate</button></div>
-    <div class="choice-card" onclick="startQuote('precise', true)"><h2>📐 Precise Quote</h2><p>More detailed manual questions, sizes, surfaces and access.</p><button type="button">Start Precise Quote</button></div>
+    <div class="choice-card" onclick="startQuote('quick', true)"><h2>⚡ Quick Estimate</h2><p><strong>30–60 seconds</strong><br>Budget estimate for early planning.</p><button type="button">Start Quick Estimate</button></div>
+    <div class="choice-card" onclick="startQuote('detailed', true)"><h2>📋 Detailed Estimate</h2><p><strong>2–3 minutes</strong><br>Recommended for most homeowners.</p><button type="button">Start Detailed Estimate</button></div>
+    <div class="choice-card" onclick="startQuote('precise', true)"><h2>⭐ Professional Estimate</h2><p><strong>4–5 minutes</strong><br>Highest estimating accuracy.</p><button type="button">Start Professional Estimate</button></div>
+    <div class="choice-card coming-soon-card"><span class="coming-soon-badge">COMING SOON</span><h2>🤖 AI Assisted</h2><p><strong>Upload photos or plans</strong><br>Let AI help interpret the job details.</p><button type="button" disabled>Coming Soon</button></div>
   </div>
 
   <div id="quoteArea" class="quote-area"></div>
 </div>
+</main>
 
 <script>
 const QUESTIONS = <?php echo $questionsJson; ?>;
@@ -274,7 +899,12 @@ function calculateEstimate(){
 
   let labour = Math.max(CONFIG.minimum_labour||250, Math.round(subtotal/50)*50);
   const materialsPercent = isExterior ? (CONFIG.materials_percent_exterior||0.20) : (CONFIG.materials_percent_interior||0.18);
-  let materials = answers.paint_supply==='mike' ? Math.max(CONFIG.minimum_materials||250, Math.round((labour*materialsPercent)/50)*50) : 0;
+  let materials = 0;
+  if(answers.paint_supply==='mike'){
+    const rawMaterials = Math.max(CONFIG.minimum_materials||250, Math.round((labour*materialsPercent)/50)*50);
+    const markup = CONFIG.materials_markup !== undefined ? Number(CONFIG.materials_markup) : 0.50;
+    materials = Math.round((rawMaterials * (1 + markup))/50)*50;
+  }
   const acc = estimateAccuracy().percent;
   const rangeFactor = mode==='quick' ? 0.50 : mode==='detailed' ? 0.25 : 0.12;
   const low = Math.round((labour*(1-rangeFactor))/50)*50, high = Math.round((labour*(1+rangeFactor))/50)*50;
@@ -303,7 +933,7 @@ function renderFinalSummary(){
         <p class="accuracy-text">Most jobs should sit near the midpoint if the information supplied is accurate, but final price may change after inspection, photos, measurements or scope changes.</p>
       </div>
       <div class="price-box">
-        <p>Estimated paint/materials:</p><div class="price">${materialsText}</div>
+        <p>Estimated paint/materials including supply markup:</p><div class="price">${materialsText}</div>
         <p>Total midpoint estimate:</p><div class="price">$${est.total.toLocaleString()}</div>
       </div>
       <h3>Labour Breakdown</h3>
@@ -391,5 +1021,4 @@ function cssEscape(str){ return String(str).replace(/[^a-zA-Z0-9_-]/g,'\\$&'); }
 function escapeAttr(str){ return escapeHtml(str).replace(/`/g,'&#96;'); }
 function escapeHtml(str){ return String(str).replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch])); }
 </script>
-</body>
-</html>
+<?php require_once __DIR__ . '/includes/footer.php'; ?>
