@@ -75,7 +75,7 @@ body{
     text-align:center !important;
     color:var(--text);
     font-size:12px;
-    max-width:800px;
+    max-width:860px;
     margin:10px auto 0;
     line-height:1.45;
 }
@@ -620,8 +620,8 @@ textarea{
 .page-title .intro-helper{
     display:block !important;
     width:100% !important;
-    max-width:780px !important;
-    margin:10px auto 0 auto !important;
+    max-width:810px !important;
+    margin:15px auto 0 auto !important;
     text-align:center !important;
 }
 </style>
@@ -629,9 +629,9 @@ textarea{
 <main class="painting-page">
 <div class="painting-container">
   <div class="page-title">
-    <h1>🎨 Professional Painting Quote Builder</h1>
+    <h1>🎨 Professional Painting - Instant Online Quote Builder</h1>
+    <p>Get an instant estimate in under 2 minutes. It's so easy!</p>
     <p class="intro-helper">Whether you're painting one room or an entire property, choose from the lists of options that suit you.</p>
-    <p>Get an instant estimate in under 2 minutes.</p>
 
   <div class="trust-panel">
     <h3>Why use this estimator?</h3>
@@ -639,7 +639,7 @@ textarea{
       <div>✓ Fast / instant estimates</div>
       <div>✓ Free, no obligation estimate</div>
       <div>✓ Choose between three estimate types depending on how precise / accurate / thorough you need the estimate to be</div>
-      <div>✓ Full transparency with no hidden costs showing a full breakdown of all costs including labour & materials</div>
+      <div>✓ Full transparency with no hidden costs, showing a full breakdown of all costs including labour & materials</div>
     </div>
   </div>
 
