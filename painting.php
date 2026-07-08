@@ -631,20 +631,19 @@ textarea{
   <div class="page-title">
     <h1>🎨 Professional Painting Quote Builder</h1>
     <p>Get an instant estimate in under 2 minutes.</p>
-    <p class="intro-helper">Whether you're painting one room or an entire property, choose the estimate level that suits you.</p>
-    <div class="labour-note"><strong>Default:</strong> Labour-only estimate. Customer supplies paint and materials unless selected otherwise.</div>
+    <p class="intro-helper">Whether you're painting one room or an entire property, choose from the lists of options that suit you.</p>
 
   <div class="trust-panel">
     <h3>Why use this estimator?</h3>
     <div class="trust-grid">
-      <div>✓ Built using professional painting production rates</div>
-      <div>✓ Choose between three estimate levels</div>
+      <div>✓ Fast / instant estimates</div>
       <div>✓ Free, no obligation estimate</div>
-      <div>✓ Final quotation personally reviewed before works commence</div>
+      <div>✓ Choose between three estimate types depending on how precise / accurate / thorough you need the estimate to be</div>
+      <div>✓ Full transparency with no hidden costs showing a full breakdown of all costs including labour & materials</div>
     </div>
   </div>
 
-  <h2 class="choose-heading">Select how accurate you'd like your estimate to be</h2>
+  <h2 class="choose-heading">Select how precise you'd like your estimate to be</h2>
   </div>
 
   <div id="resumeBox" class="resume-box hidden">
@@ -654,9 +653,9 @@ textarea{
   </div>
 
   <div class="quote-choice-grid">
-    <div class="choice-card" onclick="startQuote('quick', true)"><h2>⚡ Quick Estimate</h2><p><strong>30–60 seconds</strong><br>Budget estimate for early planning.</p><button type="button">Start Quick Estimate</button></div>
-    <div class="choice-card" onclick="startQuote('detailed', true)"><h2>📋 Detailed Estimate</h2><p><strong>2–3 minutes</strong><br>Recommended for most homeowners.</p><button type="button">Start Detailed Estimate</button></div>
-    <div class="choice-card" onclick="startQuote('precise', true)"><h2>⭐ Professional Estimate</h2><p><strong>4–5 minutes</strong><br>Highest estimating accuracy.</p><button type="button">Start Professional Estimate</button></div>
+    <div class="choice-card" onclick="startQuote('quick', true)"><h2>⚡ Rough Estimate</h2><p><strong>30–60 seconds</strong><br>Budget estimate for early planning.</p><button type="button">Start Quick Estimate</button></div>
+    <div class="choice-card" onclick="startQuote('detailed', true)"><h2>📋 Standard Estimate</h2><p><strong>2–3 minutes</strong><br>Recommended for most homeowners.</p><button type="button">Start Detailed Estimate</button></div>
+    <div class="choice-card" onclick="startQuote('precise', true)"><h2>⭐ Precise Estimate</h2><p><strong>4–5 minutes</strong><br>Highest estimating accuracy.</p><button type="button">Start Professional Estimate</button></div>
     <div class="choice-card coming-soon-card"><span class="coming-soon-badge">COMING SOON</span><h2>🤖 AI Assisted</h2><p><strong>Upload photos or plans</strong><br>Let AI help interpret the job details.</p><button type="button" disabled>Coming Soon</button></div>
   </div>
 
@@ -993,8 +992,8 @@ function requestQuote(){
     if(!data.success){ throw new Error(data.message || 'Quote could not be created.'); }
 
     const zohoLine = data.zoho && data.zoho.mode === 'live_zoho'
-      ? `<p><strong>Zoho estimate:</strong> ${escapeHtml(data.zoho.estimate_number || data.zoho.estimate_id || data.zoho.message || 'Created')}</p>`
-      : `<p><strong>Status:</strong> Quote request saved. Zoho live creation is not switched on yet.</p>`;
+  ? `<p><strong>Quote emailed:</strong> A document including your official estimate has been created and emailed to ${escapeHtml(email)}. Please allow up to 60 seconds for it to arrive. If you cannot see it, please check your Junk/Spam folder.</p>`
+  : `<p><strong>Status:</strong> Your estimate has been saved. If you need Mike to review it and follow it up with you please click here.</p>`;
 
     ready.innerHTML = `
       <div class="ready-box">

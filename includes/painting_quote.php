@@ -113,8 +113,9 @@ function painting_build_scope_of_works(array $payload): string {
     }
 
     $parts[] = $paintSupply;
-    $parts[] = 'Estimate is subject to inspection, final measurements, access, product selection, substrate condition, colour changes and final scope confirmation.';
-
+    $parts[] = 'Estimate is subject to inspection, final measurements, access, product selection, substrate condition, colour changes and final scope confirmation. ';
+    $parts[] = 'If a job is ongoing (more than a week), weekly progress payments would be required and all materials would need to be paid for by the customer up-front.';
+    
     if (!empty($customer['notes'])) {
         $parts[] = 'Customer notes: ' . trim((string)$customer['notes']);
     }
