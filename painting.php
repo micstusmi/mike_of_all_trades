@@ -75,7 +75,7 @@ body{
     text-align:center !important;
     color:var(--text);
     font-size:12px;
-    max-width:790px;
+    max-width:800px;
     margin:10px auto 0;
     line-height:1.45;
 }
@@ -630,8 +630,8 @@ textarea{
 <div class="painting-container">
   <div class="page-title">
     <h1>🎨 Professional Painting Quote Builder</h1>
-    <p>Get an instant estimate in under 2 minutes.</p>
     <p class="intro-helper">Whether you're painting one room or an entire property, choose from the lists of options that suit you.</p>
+    <p>Get an instant estimate in under 2 minutes.</p>
 
   <div class="trust-panel">
     <h3>Why use this estimator?</h3>
