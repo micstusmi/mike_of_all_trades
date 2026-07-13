@@ -613,9 +613,9 @@ function displayShortDate(string $date): string
 
                 <input
                     type="text"
-                    name="website"
+                    name="trip_company_field"
                     tabindex="-1"
-                    autocomplete="off"
+                    autocomplete="new-password"
                     class="honeypot"
                     aria-hidden="true"
                 >

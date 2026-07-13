@@ -11,8 +11,12 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 /*
  * Honeypot spam protection.
  */
-if (trim($_POST['website'] ?? '') !== '') {
-    header('Location: index.php?success=1#interest');
+if (trim($_POST['trip_company_field'] ?? '') !== '') {
+    error_log(
+        'Thailand trip interest rejected by honeypot.'
+    );
+
+    header('Location: index.php?submitted=1#interest');
     exit;
 }
 
@@ -37,6 +41,11 @@ if (
     || count($weekIds) === 0
     || !in_array($status, $allowedStatuses, true)
 ) {
+    error_log(
+        'Thailand trip interest validation failed: '
+        . 'missing name, status or selected weeks.'
+    );
+
     header('Location: index.php?error=1#interest');
     exit;
 }
@@ -143,6 +152,12 @@ try {
     }
 
     $pdo->commit();
+
+    error_log(
+        'Thailand trip interest saved successfully. '
+        . 'Response ID: '
+        . $responseId
+    );
 
     /*
      * Build a readable list of the selected weeks.
