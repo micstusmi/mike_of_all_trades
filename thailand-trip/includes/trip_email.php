@@ -232,12 +232,18 @@ function sendTripEmail(
 
 function tripOrganiserEmail(): string
 {
-    return (string) tripEmailConfigValue([
+    /*
+     * This function can be called before sendTripEmail(), so make
+     * sure the site's config constants are loaded first.
+     */
+    loadTripEmailDependencies();
+
+    return trim((string) tripEmailConfigValue([
         'TRIP_ORGANISER_EMAIL',
         'TRIP_ADMIN_EMAIL',
         'ADMIN_EMAIL',
         'SMTP_FROM_EMAIL',
         'MAIL_FROM_EMAIL',
         'FROM_EMAIL'
-    ], '');
+    ], ''));
 }
