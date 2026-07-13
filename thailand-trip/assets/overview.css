@@ -1,0 +1,812 @@
+:root {
+    --navy: #102d44;
+    --blue: #174f73;
+    --gold: #f4b942;
+    --cream: #f8f5ee;
+    --background: #f2f5f7;
+    --card: #ffffff;
+    --text: #1e2d38;
+    --muted: #667681;
+    --border: #dce4e8;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    margin: 0;
+    color: var(--text);
+    background: var(--background);
+    font-family:
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+}
+
+.overview-nav {
+    position: sticky;
+    z-index: 100;
+    top: 0;
+    background: rgba(12, 38, 58, 0.96);
+    backdrop-filter: blur(10px);
+}
+
+.overview-nav-inner {
+    min-height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.overview-brand {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    color: white;
+    font-size: 1.05rem;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.overview-hero {
+    min-height: 650px;
+    display: flex;
+    align-items: center;
+    color: white;
+    background:
+        linear-gradient(
+            100deg,
+            rgba(6, 29, 45, 0.94),
+            rgba(14, 65, 91, 0.77)
+        ),
+        radial-gradient(
+            circle at 80% 20%,
+            rgba(244, 185, 66, 0.4),
+            transparent 35%
+        ),
+        var(--navy);
+}
+
+.overview-kicker,
+.section-label {
+    margin-bottom: 12px;
+    color: var(--gold);
+    font-size: 0.78rem;
+    font-weight: 900;
+    letter-spacing: 0.15em;
+}
+
+.overview-hero h1 {
+    max-width: 900px;
+    margin-bottom: 20px;
+    font-size: clamp(2.7rem, 7vw, 5.8rem);
+    font-weight: 850;
+    line-height: 0.98;
+}
+
+.overview-lead {
+    max-width: 800px;
+    color: rgba(255, 255, 255, 0.87);
+    font-size: clamp(1.08rem, 2vw, 1.4rem);
+    line-height: 1.65;
+}
+
+.overview-hero-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 25px;
+    margin: 28px 0;
+    font-weight: 650;
+}
+
+.overview-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.overview-intro,
+.weeks-section,
+.timeline-section,
+.interest-section {
+    padding: 80px 0;
+}
+
+.overview-intro {
+    background: white;
+}
+
+.overview-intro-grid {
+    display: grid;
+    grid-template-columns: 1.4fr 0.8fr;
+    gap: 50px;
+    align-items: center;
+}
+
+.overview-intro h2,
+.weeks-section h2,
+.timeline-section h2,
+.interest-section h2 {
+    margin-bottom: 18px;
+    font-size: clamp(2rem, 4vw, 3.2rem);
+    font-weight: 820;
+}
+
+.overview-intro p,
+.interest-panel > div > p {
+    max-width: 760px;
+    color: var(--muted);
+    font-size: 1.1rem;
+    line-height: 1.75;
+}
+
+.overview-total-card {
+    padding: 30px;
+    border-radius: 22px;
+    color: white;
+    background:
+        linear-gradient(
+            140deg,
+            var(--navy),
+            var(--blue)
+        );
+    box-shadow: 0 24px 60px rgba(16, 45, 68, 0.2);
+}
+
+.overview-total-card span,
+.overview-total-card small {
+    display: block;
+    opacity: 0.78;
+}
+
+.overview-total-card strong {
+    display: block;
+    margin: 8px 0;
+    color: var(--gold);
+    font-size: 2.6rem;
+}
+
+.week-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 22px;
+    margin-top: 35px;
+}
+
+.week-card {
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    background: white;
+    box-shadow: 0 14px 35px rgba(15, 42, 60, 0.08);
+}
+
+.week-card-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+    padding: 16px 20px;
+    color: white;
+    background: var(--navy);
+}
+
+.week-number {
+    font-weight: 850;
+}
+
+.week-dates {
+    opacity: 0.8;
+}
+
+.week-card-body {
+    padding: 25px;
+}
+
+.week-icon {
+    margin-bottom: 12px;
+    font-size: 2.5rem;
+}
+
+.week-card h3 {
+    font-size: 1.45rem;
+    font-weight: 820;
+}
+
+.week-subtitle {
+    min-height: 70px;
+    color: var(--muted);
+    font-weight: 650;
+}
+
+.week-location {
+    margin-bottom: 16px;
+    color: var(--blue);
+    font-weight: 750;
+}
+
+.week-card-body > p {
+    color: var(--muted);
+    line-height: 1.65;
+}
+
+.week-transport {
+    padding: 14px;
+    border-radius: 12px;
+    background: var(--cream);
+    font-size: 0.92rem;
+}
+
+.week-cost-row {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 15px;
+    margin-top: 22px;
+}
+
+.week-cost-row span,
+.week-cost-row small {
+    display: block;
+    color: var(--muted);
+    font-size: 0.78rem;
+}
+
+.week-cost-row strong {
+    display: block;
+    color: var(--navy);
+    font-size: 1.7rem;
+}
+
+.week-interest {
+    padding: 7px 10px;
+    border-radius: 20px;
+    color: #655000;
+    background: #fff1bf;
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
+.cost-details {
+    margin-top: 18px;
+    border-top: 1px solid var(--border);
+    padding-top: 14px;
+}
+
+.cost-details summary {
+    cursor: pointer;
+    color: var(--blue);
+    font-weight: 750;
+}
+
+.cost-details dl {
+    margin: 14px 0 0;
+}
+
+.cost-details dl div {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+    padding: 7px 0;
+    border-bottom: 1px dashed var(--border);
+}
+
+.cost-details dt {
+    font-weight: 550;
+}
+
+.cost-details dd {
+    margin: 0;
+    font-weight: 750;
+}
+
+.timeline-section {
+    background: white;
+}
+
+.overview-timeline {
+    max-width: 900px;
+    margin-top: 40px;
+}
+
+.timeline-entry {
+    display: grid;
+    grid-template-columns: 105px 30px 1fr;
+    gap: 15px;
+}
+
+.timeline-date {
+    padding-top: 4px;
+    color: var(--navy);
+    font-weight: 850;
+}
+
+.timeline-date span {
+    display: block;
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.timeline-marker {
+    position: relative;
+}
+
+.timeline-marker::before {
+    content: "";
+    position: absolute;
+    top: 8px;
+    left: 7px;
+    width: 14px;
+    height: 14px;
+    border: 3px solid var(--gold);
+    border-radius: 50%;
+    background: white;
+}
+
+.timeline-marker::after {
+    content: "";
+    position: absolute;
+    top: 22px;
+    bottom: -8px;
+    left: 13px;
+    width: 2px;
+    background: var(--border);
+}
+
+.timeline-entry:last-child .timeline-marker::after {
+    display: none;
+}
+
+.timeline-content {
+    margin-bottom: 30px;
+    padding: 22px;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: var(--background);
+}
+
+.timeline-type {
+    color: var(--blue);
+    font-size: 0.75rem;
+    font-weight: 850;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.timeline-content h3 {
+    margin: 4px 0 7px;
+    font-size: 1.2rem;
+    font-weight: 800;
+}
+
+.timeline-location {
+    color: var(--muted);
+    font-size: 0.92rem;
+}
+
+.timeline-content p {
+    margin: 12px 0;
+    color: var(--muted);
+}
+
+.timeline-content a {
+    color: var(--blue);
+    font-weight: 750;
+    text-decoration: none;
+}
+
+.interest-section {
+    background:
+        linear-gradient(
+            140deg,
+            #e9f0f4,
+            #f8f5ee
+        );
+}
+
+.interest-panel {
+    max-width: 1000px;
+    margin: auto;
+    padding: clamp(25px, 5vw, 55px);
+    border-radius: 28px;
+    background: white;
+    box-shadow: 0 20px 60px rgba(15, 42, 60, 0.1);
+}
+
+.interest-form {
+    display: grid;
+    gap: 25px;
+    margin-top: 30px;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+}
+
+.interest-form label,
+.interest-form legend {
+    display: block;
+    margin-bottom: 7px;
+    font-weight: 750;
+}
+
+.interest-form input,
+.interest-form select,
+.interest-form textarea {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #cdd7dc;
+    border-radius: 10px;
+    background: white;
+}
+
+.interest-form fieldset {
+    padding: 0;
+    border: 0;
+}
+
+.week-checkboxes {
+    display: grid;
+    gap: 10px;
+}
+
+.week-checkbox {
+    display: grid !important;
+    grid-template-columns: auto 1fr;
+    gap: 12px;
+    align-items: start;
+    margin: 0 !important;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    cursor: pointer;
+}
+
+.week-checkbox input {
+    width: auto;
+    margin-top: 4px;
+}
+
+.week-checkbox strong,
+.week-checkbox small {
+    display: block;
+}
+
+.week-checkbox small {
+    margin-top: 3px;
+    color: var(--muted);
+}
+
+.honeypot {
+    position: absolute !important;
+    left: -10000px !important;
+}
+
+.overview-footer {
+    padding: 35px 0;
+    color: rgba(255, 255, 255, 0.75);
+    background: var(--navy);
+    text-align: center;
+}
+
+.overview-footer a {
+    color: var(--gold);
+}
+
+@media (max-width: 900px) {
+    .week-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .week-subtitle {
+        min-height: auto;
+    }
+
+    .overview-intro-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 650px) {
+    .overview-nav-inner {
+        min-height: 62px;
+    }
+
+    .overview-nav .btn {
+        padding: 7px 10px;
+        font-size: 0.78rem;
+    }
+
+    .overview-hero {
+        min-height: 590px;
+    }
+
+    .overview-intro,
+    .weeks-section,
+    .timeline-section,
+    .interest-section {
+        padding: 55px 0;
+    }
+
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .timeline-entry {
+        grid-template-columns: 75px 24px 1fr;
+        gap: 8px;
+    }
+
+    .timeline-content {
+        padding: 16px;
+    }
+}
+
+
+/* Week feature photographs */
+.week-card-image-wrap {
+    position: relative;
+    height: 235px;
+    overflow: hidden;
+    background: var(--navy);
+}
+
+.week-card-image {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    object-position: center;
+    transition:
+        transform 0.35s ease,
+        filter 0.35s ease;
+}
+
+.week-card:hover .week-card-image {
+    transform: scale(1.035);
+    filter: brightness(1.04);
+}
+
+.week-card-image-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: flex-end;
+    padding: 16px;
+    pointer-events: none;
+    background:
+        linear-gradient(
+            to top,
+            rgba(5, 25, 38, 0.68),
+            transparent 55%
+        );
+}
+
+.week-card-image-overlay span {
+    padding: 6px 11px;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    border-radius: 999px;
+    color: white;
+    background: rgba(8, 34, 51, 0.78);
+    font-size: 0.76rem;
+    font-weight: 850;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    backdrop-filter: blur(5px);
+}
+
+@media (max-width: 650px) {
+    .week-card-image-wrap {
+        height: 210px;
+    }
+}
+
+
+/* Visual teaser homepage hero */
+.overview-hero-teasers {
+    min-height: auto;
+    padding: 55px 0 65px;
+    display: block;
+    background:
+        radial-gradient(
+            circle at 85% 5%,
+            rgba(244, 185, 66, 0.2),
+            transparent 30%
+        ),
+        linear-gradient(
+            135deg,
+            #071f30,
+            #123f59
+        );
+}
+
+.hero-intro {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 30px;
+    margin-bottom: 28px;
+}
+
+.hero-intro h1 {
+    max-width: none;
+    margin: 0 0 8px;
+    font-size: clamp(2rem, 4.5vw, 4rem);
+    line-height: 1.05;
+}
+
+.hero-intro p {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 1.05rem;
+}
+
+.hero-trip-dates {
+    flex: 0 0 auto;
+    padding: 14px 18px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.07);
+    text-align: right;
+}
+
+.hero-trip-dates span,
+.hero-trip-dates small {
+    display: block;
+}
+
+.hero-trip-dates span {
+    font-weight: 800;
+}
+
+.hero-trip-dates small {
+    margin-top: 3px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.hero-week-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+}
+
+.hero-week-card {
+    position: relative;
+    min-height: 430px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 22px;
+    color: white;
+    background-position: center;
+    background-size: cover;
+    text-decoration: none;
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.24);
+    transition:
+        transform 0.25s ease,
+        box-shadow 0.25s ease,
+        border-color 0.25s ease;
+}
+
+.hero-week-card:hover {
+    color: white;
+    transform: translateY(-7px);
+    border-color: rgba(244, 185, 66, 0.8);
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.34);
+}
+
+.hero-week-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.hero-week-number {
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: rgba(5, 25, 38, 0.82);
+    font-size: 0.76rem;
+    font-weight: 900;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    backdrop-filter: blur(5px);
+}
+
+.hero-week-icon {
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: rgba(5, 25, 38, 0.8);
+    font-size: 1.35rem;
+    backdrop-filter: blur(5px);
+}
+
+.hero-week-date {
+    margin-bottom: 6px;
+    color: var(--gold);
+    font-size: 0.86rem;
+    font-weight: 850;
+    letter-spacing: 0.04em;
+}
+
+.hero-week-content h2 {
+    margin: 0 0 9px;
+    font-size: clamp(1.45rem, 2.4vw, 2.15rem);
+    font-weight: 850;
+    line-height: 1.08;
+}
+
+.hero-week-content p {
+    margin: 0 0 16px;
+    color: rgba(255, 255, 255, 0.82);
+    line-height: 1.45;
+}
+
+.hero-week-link {
+    color: var(--gold);
+    font-weight: 850;
+}
+
+.hero-bottom-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 28px;
+}
+
+.week-card {
+    scroll-margin-top: 90px;
+}
+
+#timeline,
+#interest {
+    scroll-margin-top: 80px;
+}
+
+@media (max-width: 950px) {
+    .hero-week-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .hero-week-card {
+        min-height: 360px;
+    }
+
+    .hero-intro {
+        align-items: start;
+        flex-direction: column;
+    }
+
+    .hero-trip-dates {
+        text-align: left;
+    }
+}
+
+@media (max-width: 650px) {
+    .overview-hero-teasers {
+        padding: 35px 0 45px;
+    }
+
+    .hero-week-card {
+        min-height: 330px;
+    }
+
+    .hero-bottom-actions .btn {
+        width: 100%;
+    }
+}

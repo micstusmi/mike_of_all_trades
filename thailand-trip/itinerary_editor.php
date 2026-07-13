@@ -1,0 +1,1223 @@
+<?php
+
+require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/trip_auth.php';
+requireTripLogin();
+
+$tripId = (int) $_SESSION['trip_id'];
+
+function e(?string $value): string
+{
+    return htmlspecialchars(
+        $value ?? '',
+        ENT_QUOTES,
+        'UTF-8'
+    );
+}
+
+function formatMinutes(?int $minutes): string
+{
+    if (!$minutes) {
+        return 'Not calculated';
+    }
+
+    $hours = intdiv($minutes, 60);
+    $remaining = $minutes % 60;
+
+    if ($hours === 0) {
+        return $remaining . ' min';
+    }
+
+    return $hours . ' hr '
+        . ($remaining ? $remaining . ' min' : '');
+}
+
+$weeksStmt = $pdo->prepare("
+    SELECT *
+    FROM trip_weeks
+    WHERE trip_id = ?
+    ORDER BY week_number
+");
+
+$weeksStmt->execute([$tripId]);
+$weeks = $weeksStmt->fetchAll(PDO::FETCH_ASSOC);
+
+$daysStmt = $pdo->prepare("
+    SELECT
+        td.*,
+        tw.week_number,
+        tw.title AS week_title,
+        tw.currency AS week_currency,
+        creator.name AS created_by_name,
+        updater.name AS updated_by_name
+    FROM trip_days td
+    LEFT JOIN trip_weeks tw
+        ON tw.id = td.trip_week_id
+    LEFT JOIN trip_members creator
+        ON creator.id = td.created_by_member_id
+    LEFT JOIN trip_members updater
+        ON updater.id = td.updated_by_member_id
+    WHERE td.trip_id = ?
+    ORDER BY
+        td.trip_date,
+        td.sort_order,
+        td.id
+");
+
+$daysStmt->execute([$tripId]);
+$days = $daysStmt->fetchAll(PDO::FETCH_ASSOC);
+
+$editDay = null;
+$showEditor = isset($_GET['new']);
+
+$editId = filter_input(
+    INPUT_GET,
+    'edit',
+    FILTER_VALIDATE_INT
+);
+
+if ($editId) {
+    $showEditor = true;
+
+    $editStmt = $pdo->prepare("
+        SELECT *
+        FROM trip_days
+        WHERE id = ?
+          AND trip_id = ?
+        LIMIT 1
+    ");
+
+    $editStmt->execute([
+        $editId,
+        $tripId
+    ]);
+
+    $editDay = $editStmt->fetch(PDO::FETCH_ASSOC);
+}
+
+
+$suggestionsStmt = $pdo->prepare("
+    SELECT
+        tds.*,
+        tm.name AS suggested_by_name
+    FROM trip_day_suggestions tds
+    INNER JOIN trip_members tm
+        ON tm.id = tds.suggested_by_member_id
+    WHERE tds.trip_id = ?
+    ORDER BY
+        tds.trip_day_id,
+        FIELD(
+            tds.category,
+            'accommodation',
+            'transport',
+            'restaurant',
+            'activity',
+            'other'
+        ),
+        tds.created_at
+");
+
+$suggestionsStmt->execute([$tripId]);
+
+$suggestionsByDay = [];
+
+foreach (
+    $suggestionsStmt->fetchAll(PDO::FETCH_ASSOC)
+    as $suggestion
+) {
+    $suggestionsByDay[
+        (int) $suggestion['trip_day_id']
+    ][] = $suggestion;
+}
+
+function suggestionCategoryLabel(
+    string $category
+): string {
+    return match ($category) {
+        'accommodation' => '🏨 Accommodation',
+        'transport' => '🏍️ Transport or hire',
+        'restaurant' => '🍜 Restaurant',
+        'activity' => '📸 Activity or sightseeing',
+        default => '💡 Other idea'
+    };
+}
+
+$message = $_SESSION['itinerary_message'] ?? '';
+$error = $_SESSION['itinerary_error'] ?? '';
+
+unset(
+    $_SESSION['itinerary_message'],
+    $_SESSION['itinerary_error']
+);
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
+
+    <meta name="robots" content="noindex, nofollow">
+
+    <title>Collaborative Itinerary Editor</title>
+
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+
+    <link rel="stylesheet" href="assets/planner.css">
+
+    <style>
+        .editor-layout {
+            display: grid;
+            grid-template-columns: 420px 1fr;
+            gap: 22px;
+            align-items: start;
+        }
+
+        .editor-form-card {
+            position: sticky;
+            top: 20px;
+        }
+
+        .day-editor-card {
+            margin-bottom: 14px;
+            padding: 20px;
+            border: 1px solid #dce4e8;
+            border-radius: 17px;
+            background: white;
+        }
+
+        .day-editor-heading {
+            display: flex;
+            align-items: start;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .day-editor-heading h3 {
+            margin: 4px 0;
+            font-weight: 800;
+        }
+
+        .day-route {
+            margin: 13px 0;
+            padding: 12px;
+            border-radius: 10px;
+            background: #edf3f6;
+            font-weight: 700;
+        }
+
+        .day-stats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 13px;
+        }
+
+        .day-stat {
+            padding: 7px 10px;
+            border-radius: 999px;
+            background: #f4f6f8;
+            color: #536470;
+            font-size: 0.82rem;
+            font-weight: 700;
+        }
+
+        .day-meta {
+            color: #71808a;
+            font-size: 0.79rem;
+        }
+
+        .editor-form-card label,
+        .editor-form-card legend {
+            display: block;
+            margin-bottom: 13px;
+            font-weight: 700;
+        }
+
+        .editor-form-card input,
+        .editor-form-card select,
+        .editor-form-card textarea {
+            width: 100%;
+            margin-top: 6px;
+            padding: 11px;
+            border: 1px solid #cbd6dc;
+            border-radius: 9px;
+        }
+
+        .form-two-columns {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .route-result {
+            display: none;
+            margin: 12px 0;
+            padding: 13px;
+            border-radius: 10px;
+            background: #edf7ef;
+        }
+
+        .route-result.error {
+            color: #842029;
+            background: #f8d7da;
+        }
+
+        @media (max-width: 950px) {
+            .editor-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .editor-form-card {
+                position: static;
+            }
+        }
+
+        @media (max-width: 550px) {
+            .form-two-columns {
+                grid-template-columns: 1fr;
+            }
+
+            .day-editor-heading {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<?php require __DIR__ . '/includes/private_nav.php'; ?>
+
+
+
+<header class="planner-header sticky-itinerary-heading">
+    <div class="container">
+        <span>GROUP EDITING</span>
+        <h1>Day-by-day itinerary</h1>
+        <p>
+            Add routes, activities, locations, distances and travel times.
+        </p>
+    </div>
+</header>
+
+<main class="container py-4">
+
+    <?php if ($message): ?>
+        <div class="alert alert-success">
+            <?= e($message) ?>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($error): ?>
+        <div class="alert alert-danger">
+            <?= e($error) ?>
+        </div>
+    <?php endif; ?>
+
+    <div class="<?= $showEditor
+        ? 'editor-layout'
+        : 'editor-layout editor-layout-list-only'
+    ?>">
+
+        <?php if ($showEditor): ?>
+
+        <section class="planner-form-card editor-form-card">
+
+            <span class="section-label">
+                <?= $editDay ? 'EDIT DAY' : 'ADD DAY' ?>
+            </span>
+
+            <h2>
+                <?= $editDay
+                    ? e($editDay['title'])
+                    : 'New itinerary day'
+                ?>
+            </h2>
+
+            <form
+                action="actions/save_itinerary_day.php"
+                method="post"
+                id="dayForm"
+            >
+
+                <input
+                    type="hidden"
+                    name="day_id"
+                    value="<?= (int) ($editDay['id'] ?? 0) ?>"
+                >
+
+                <label>
+                    Week
+                    <select name="trip_week_id">
+                        <option value="">
+                            No week assigned
+                        </option>
+
+                        <?php foreach ($weeks as $week): ?>
+                            <option
+                                value="<?= (int) $week['id'] ?>"
+                                <?= (int) ($editDay['trip_week_id'] ?? 0)
+                                    === (int) $week['id']
+                                    ? 'selected'
+                                    : ''
+                                ?>
+                            >
+                                Week <?= (int) $week['week_number'] ?>:
+                                <?= e($week['title']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
+
+                <div class="form-two-columns">
+
+                    <label>
+                        Date
+                        <input
+                            type="date"
+                            name="trip_date"
+                            value="<?= e(
+                                $editDay['trip_date']
+                                ?? '2027-02-10'
+                            ) ?>"
+                            required
+                        >
+                    </label>
+
+                    <label>
+                        Travel mode
+                        <?php
+                        $selectedMode =
+                            $editDay['travel_mode']
+                            ?? 'DRIVE';
+                        ?>
+
+                        <select
+                            name="travel_mode"
+                            id="travelMode"
+                        >
+                            <option
+                                value="TWO_WHEELER"
+                                <?= $selectedMode === 'TWO_WHEELER'
+                                    ? 'selected'
+                                    : ''
+                                ?>
+                            >
+                                Motorcycle
+                            </option>
+
+                            <option
+                                value="DRIVE"
+                                <?= $selectedMode === 'DRIVE'
+                                    ? 'selected'
+                                    : ''
+                                ?>
+                            >
+                                Car
+                            </option>
+
+                            <option
+                                value="TRANSIT"
+                                <?= $selectedMode === 'TRANSIT'
+                                    ? 'selected'
+                                    : ''
+                                ?>
+                            >
+                                Public transport
+                            </option>
+
+                            <option
+                                value="WALK"
+                                <?= $selectedMode === 'WALK'
+                                    ? 'selected'
+                                    : ''
+                                ?>
+                            >
+                                Walking
+                            </option>
+                        </select>
+                    </label>
+
+                </div>
+
+                <label>
+                    Day title
+                    <input
+                        type="text"
+                        name="title"
+                        maxlength="200"
+                        value="<?= e($editDay['title'] ?? '') ?>"
+                        placeholder="Chiang Mai to Nan"
+                        required
+                    >
+                </label>
+
+                <label>
+                    Starting location
+                    <input
+                        type="text"
+                        name="origin"
+                        id="origin"
+                        maxlength="200"
+                        value="<?= e($editDay['origin'] ?? '') ?>"
+                        placeholder="Chiang Mai, Thailand"
+                    >
+                </label>
+
+                <label>
+                    Destination
+                    <input
+                        type="text"
+                        name="destination"
+                        id="destination"
+                        maxlength="200"
+                        value="<?= e($editDay['destination'] ?? '') ?>"
+                        placeholder="Nan, Thailand"
+                    >
+                </label>
+
+                <div class="form-two-columns">
+
+                    <label>
+                        Distance in kilometres
+                        <input
+                            type="number"
+                            name="distance_km"
+                            id="distanceKm"
+                            min="0"
+                            step="0.1"
+                            value="<?= e(
+                                isset($editDay['distance_km'])
+                                    ? (string) $editDay['distance_km']
+                                    : ''
+                            ) ?>"
+                        >
+                    </label>
+
+                    <label>
+                        Travel time in minutes
+                        <input
+                            type="number"
+                            name="drive_minutes"
+                            id="driveMinutes"
+                            min="0"
+                            step="1"
+                            value="<?= e(
+                                isset($editDay['drive_minutes'])
+                                    ? (string) $editDay['drive_minutes']
+                                    : ''
+                            ) ?>"
+                        >
+                    </label>
+
+                </div>
+
+                <button
+                    type="button"
+                    class="btn btn-outline-primary"
+                    id="calculateRoute"
+                >
+                    Calculate Google route
+                </button>
+
+                <div class="route-result" id="routeResult"></div>
+
+                <label>
+                    Google Maps route link
+                    <input
+                        type="url"
+                        name="map_url"
+                        id="mapUrl"
+                        value="<?= e($editDay['map_url'] ?? '') ?>"
+                    >
+                </label>
+
+                <label>
+                    Day summary and activities
+                    <textarea
+                        name="summary"
+                        rows="6"
+                        maxlength="5000"
+                        placeholder="Stops, activities, accommodation and notes..."
+                    ><?= e($editDay['summary'] ?? '') ?></textarea>
+                </label>
+
+                <label>
+                    Estimated cost per person
+                    <input
+                        type="number"
+                        name="estimated_cost_per_person"
+                        min="0"
+                        step="0.01"
+                        value="<?= e(
+                            isset($editDay['estimated_cost_per_person'])
+                                ? (string)
+                                    $editDay['estimated_cost_per_person']
+                                : ''
+                        ) ?>"
+                    >
+                </label>
+
+                <button class="btn btn-primary" type="submit">
+                    <?= $editDay
+                        ? 'Save changes'
+                        : 'Add itinerary day'
+                    ?>
+                </button>
+
+                <?php if ($editDay): ?>
+                    <a
+                        href="itinerary_editor.php"
+                        class="btn btn-outline-secondary"
+                    >
+                        Cancel editing
+                    </a>
+                <?php endif; ?>
+
+            </form>
+
+        </section>
+
+        <?php endif; ?>
+
+        <section>
+
+            <div class="itinerary-list-toolbar">
+
+                <div>
+                    <span class="section-label">
+                        CURRENT ITINERARY
+                    </span>
+
+                    <h2 class="mb-0">All trip days</h2>
+                </div>
+
+                <div class="d-flex flex-wrap gap-2">
+
+                    <a
+                        class="btn btn-primary"
+                        href="itinerary_editor.php?new=1"
+                    >
+                        Add itinerary day
+                    </a>
+
+                    <?php if (
+                        ($_SESSION['trip_role'] ?? '')
+                        === 'admin'
+                    ): ?>
+
+                        <a
+                            class="btn btn-warning"
+                            href="itinerary_reviews.php"
+                        >
+                            Review proposed changes
+                        </a>
+
+                    <?php endif; ?>
+
+                </div>
+
+            </div>
+
+
+            <?php if (!$days): ?>
+                <div class="alert alert-info">
+                    No itinerary days have been added yet.
+                </div>
+            <?php endif; ?>
+
+            <?php foreach ($days as $day): ?>
+
+                <article
+                    class="day-editor-card"
+                    id="day-<?= (int) $day['id'] ?>"
+                >
+
+                    <div class="day-editor-heading">
+
+                        <div>
+                            <span class="section-label">
+                                <?= $day['week_number']
+                                    ? 'WEEK '
+                                        . (int) $day['week_number']
+                                    : 'UNASSIGNED'
+                                ?>
+                            </span>
+
+                            <h3><?= e($day['title']) ?></h3>
+
+                            <div class="text-muted">
+                                <?= date(
+                                    'l, j F Y',
+                                    strtotime($day['trip_date'])
+                                ) ?>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <a
+                                class="btn btn-sm btn-outline-primary"
+                                href="itinerary_editor.php?edit=<?=
+                                    (int) $day['id']
+                                ?>"
+                            >
+                                Edit
+                            </a>
+
+                            <?php if (
+                                ($_SESSION['trip_role'] ?? '')
+                                === 'admin'
+                            ): ?>
+                                <form
+                                    action="actions/delete_itinerary_day.php"
+                                    method="post"
+                                    onsubmit="return confirm(
+                                        'Delete this itinerary day?'
+                                    );"
+                                >
+                                    <input
+                                        type="hidden"
+                                        name="day_id"
+                                        value="<?= (int) $day['id'] ?>"
+                                    >
+
+                                    <button
+                                        class="btn btn-sm btn-outline-danger"
+                                        type="submit"
+                                    >
+                                        Delete
+                                    </button>
+                                </form>
+                            <?php endif; ?>
+                        </div>
+
+                    </div>
+
+                    <?php if (
+                        $day['origin']
+                        || $day['destination']
+                    ): ?>
+                        <div class="day-route">
+                            📍 <?= e($day['origin']) ?>
+
+                            <?php if (
+                                $day['origin']
+                                && $day['destination']
+                            ): ?>
+                                →
+                            <?php endif; ?>
+
+                            <?= e($day['destination']) ?>
+                        </div>
+                    <?php endif; ?>
+
+                    <div class="day-stats">
+
+                        <span class="day-stat">
+                            <?=
+                                $day['travel_mode'] === 'TWO_WHEELER'
+                                    ? '🏍️ Motorcycle'
+                                    : (
+                                        $day['travel_mode'] === 'DRIVE'
+                                            ? '🚗 Car'
+                                            : '🧭 '
+                                                . e($day['travel_mode'])
+                                    )
+                            ?>
+                        </span>
+
+                        <?php if ($day['distance_km']): ?>
+                            <span class="day-stat">
+                                🛣️ <?= number_format(
+                                    (float) $day['distance_km'],
+                                    1
+                                ) ?> km
+                            </span>
+                        <?php endif; ?>
+
+                        <?php if ($day['drive_minutes']): ?>
+                            <span class="day-stat">
+                                ⏱️ <?= e(formatMinutes(
+                                    (int) $day['drive_minutes']
+                                )) ?>
+                            </span>
+                        <?php endif; ?>
+
+                        <?php if (
+                            $day['estimated_cost_per_person']
+                        ): ?>
+                            <span class="day-stat">
+                                💰
+                                <?php if (
+                                    ($day['week_currency'] ?? 'AUD')
+                                    === 'AUD'
+                                ): ?>
+                                    A$
+                                <?php else: ?>
+                                    <?= e(
+                                        $day['week_currency'] ?? 'THB'
+                                    ) ?>
+                                <?php endif; ?>
+
+                                <?= number_format(
+                                    (float)
+                                    $day['estimated_cost_per_person'],
+                                    0
+                                ) ?>
+
+                                / person
+                            </span>
+                        <?php endif; ?>
+
+                    </div>
+
+                    <?php if ($day['summary']): ?>
+                        <p><?= nl2br(e($day['summary'])) ?></p>
+                    <?php endif; ?>
+
+                    <?php if ($day['map_url']): ?>
+                        <a
+                            href="<?= e($day['map_url']) ?>"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="btn btn-sm btn-outline-secondary"
+                        >
+                            Open Google Maps
+                        </a>
+                    <?php endif; ?>
+
+
+                    <?php
+                    $daySuggestions =
+                        $suggestionsByDay[
+                            (int) $day['id']
+                        ]
+                        ?? [];
+                    ?>
+
+                    <section class="day-suggestions">
+
+                        <div class="day-suggestions-heading">
+                            <div>
+                                <strong>Suggestions</strong>
+
+                                <span>
+                                    Accommodation, transport, restaurants
+                                    and ideas for this day
+                                </span>
+                            </div>
+
+                            <span class="suggestion-count">
+                                <?= count($daySuggestions) ?>
+                            </span>
+                        </div>
+
+                        <?php if (!$daySuggestions): ?>
+                            <p class="no-suggestions">
+                                No suggestions have been added yet.
+                            </p>
+                        <?php endif; ?>
+
+                        <div class="suggestion-list">
+
+                            <?php foreach (
+                                $daySuggestions as $suggestion
+                            ): ?>
+
+                                <article class="suggestion-card">
+
+                                    <div class="suggestion-card-top">
+
+                                        <span class="suggestion-category">
+                                            <?= e(
+                                                suggestionCategoryLabel(
+                                                    $suggestion['category']
+                                                )
+                                            ) ?>
+                                        </span>
+
+                                        <?php if (
+                                            ($_SESSION['trip_role'] ?? '')
+                                            === 'admin'
+                                        ): ?>
+
+                                            <form
+                                                action="actions/delete_day_suggestion.php"
+                                                method="post"
+                                                onsubmit="return confirm(
+                                                    'Remove this suggestion?'
+                                                );"
+                                            >
+                                                <input
+                                                    type="hidden"
+                                                    name="suggestion_id"
+                                                    value="<?=
+                                                        (int)
+                                                        $suggestion['id']
+                                                    ?>"
+                                                >
+
+                                                <input
+                                                    type="hidden"
+                                                    name="trip_day_id"
+                                                    value="<?= (int) $day['id'] ?>"
+                                                >
+
+                                                <button
+                                                    class="suggestion-delete"
+                                                    type="submit"
+                                                    title="Remove suggestion"
+                                                >
+                                                    ×
+                                                </button>
+                                            </form>
+
+                                        <?php endif; ?>
+
+                                    </div>
+
+                                    <h4>
+                                        <?= e($suggestion['title']) ?>
+                                    </h4>
+
+                                    <?php if ($suggestion['provider']): ?>
+                                        <div class="suggestion-provider">
+                                            <?= e($suggestion['provider']) ?>
+                                        </div>
+                                    <?php endif; ?>
+
+                                    <?php if (
+                                        $suggestion['approximate_price']
+                                        !== null
+                                    ): ?>
+                                        <div class="suggestion-price">
+                                            <?php if (
+                                                $suggestion['currency']
+                                                === 'AUD'
+                                            ): ?>
+                                                A$
+                                            <?php else: ?>
+                                                ฿
+                                            <?php endif; ?>
+
+                                            <?= number_format(
+                                                (float)
+                                                $suggestion[
+                                                    'approximate_price'
+                                                ],
+                                                2
+                                            ) ?>
+                                        </div>
+                                    <?php endif; ?>
+
+                                    <?php if ($suggestion['notes']): ?>
+                                        <p>
+                                            <?= nl2br(
+                                                e($suggestion['notes'])
+                                            ) ?>
+                                        </p>
+                                    <?php endif; ?>
+
+                                    <div class="suggestion-links">
+
+                                        <?php if (
+                                            $suggestion['website_url']
+                                        ): ?>
+                                            <a
+                                                href="<?=
+                                                    e(
+                                                        $suggestion[
+                                                            'website_url'
+                                                        ]
+                                                    )
+                                                ?>"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                            >
+                                                Website
+                                            </a>
+                                        <?php endif; ?>
+
+                                        <?php if (
+                                            $suggestion['map_url']
+                                        ): ?>
+                                            <a
+                                                href="<?=
+                                                    e(
+                                                        $suggestion[
+                                                            'map_url'
+                                                        ]
+                                                    )
+                                                ?>"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                            >
+                                                Map
+                                            </a>
+                                        <?php endif; ?>
+
+                                    </div>
+
+                                    <small>
+                                        Suggested by
+                                        <?= e(
+                                            $suggestion[
+                                                'suggested_by_name'
+                                            ]
+                                        ) ?>
+
+                                        ·
+
+                                        <?= date(
+                                            'j M Y',
+                                            strtotime(
+                                                $suggestion['created_at']
+                                            )
+                                        ) ?>
+                                    </small>
+
+                                </article>
+
+                            <?php endforeach; ?>
+
+                        </div>
+
+                        <details class="add-suggestion-panel">
+
+                            <summary>
+                                + Add a suggestion
+                            </summary>
+
+                            <form
+                                action="actions/add_day_suggestion.php"
+                                method="post"
+                                class="suggestion-form"
+                            >
+
+                                <input
+                                    type="hidden"
+                                    name="trip_day_id"
+                                    value="<?= (int) $day['id'] ?>"
+                                >
+
+                                <div class="suggestion-form-grid">
+
+                                    <label>
+                                        Type
+                                        <select name="category">
+                                            <option value="accommodation">
+                                                Accommodation
+                                            </option>
+
+                                            <option value="transport">
+                                                Motorcycle, car or transport
+                                            </option>
+
+                                            <option value="restaurant">
+                                                Restaurant
+                                            </option>
+
+                                            <option value="activity">
+                                                Sightseeing or activity
+                                            </option>
+
+                                            <option value="other">
+                                                Other idea
+                                            </option>
+                                        </select>
+                                    </label>
+
+                                    <label>
+                                        Suggestion title
+                                        <input
+                                            type="text"
+                                            name="title"
+                                            maxlength="200"
+                                            required
+                                        >
+                                    </label>
+
+                                    <label>
+                                        Company or provider
+                                        <input
+                                            type="text"
+                                            name="provider"
+                                            maxlength="200"
+                                        >
+                                    </label>
+
+                                    <label>
+                                        Approximate price
+                                        <input
+                                            type="number"
+                                            name="approximate_price"
+                                            min="0"
+                                            step="0.01"
+                                        >
+                                    </label>
+
+                                    <label>
+                                        Currency
+                                        <select name="currency">
+                                            <option value="THB">
+                                                Thai baht
+                                            </option>
+
+                                            <option value="AUD">
+                                                Australian dollars
+                                            </option>
+                                        </select>
+                                    </label>
+
+                                    <label>
+                                        Website
+                                        <input
+                                            type="url"
+                                            name="website_url"
+                                            placeholder="https://..."
+                                        >
+                                    </label>
+
+                                    <label>
+                                        Google Maps link
+                                        <input
+                                            type="url"
+                                            name="map_url"
+                                            placeholder="https://..."
+                                        >
+                                    </label>
+
+                                </div>
+
+                                <label>
+                                    Notes
+                                    <textarea
+                                        name="notes"
+                                        rows="3"
+                                        maxlength="2000"
+                                    ></textarea>
+                                </label>
+
+                                <button
+                                    class="btn btn-primary"
+                                    type="submit"
+                                >
+                                    Add suggestion
+                                </button>
+
+                            </form>
+
+                        </details>
+
+                    </section>
+
+                    <div class="day-meta mt-3">
+                        <?php if ($day['created_by_name']): ?>
+                            Created by <?= e($day['created_by_name']) ?>
+                        <?php endif; ?>
+
+                        <?php if ($day['updated_by_name']): ?>
+                            · Last changed by
+                            <?= e($day['updated_by_name']) ?>
+                        <?php endif; ?>
+                    </div>
+
+                </article>
+
+            <?php endforeach; ?>
+
+        </section>
+
+    </div>
+
+</main>
+
+<script>
+const calculateButton = document.getElementById('calculateRoute');
+const routeResult = document.getElementById('routeResult');
+
+function buildMapsUrl(origin, destination, travelMode) {
+    const mapsMode = travelMode === 'TWO_WHEELER'
+        ? 'driving'
+        : travelMode.toLowerCase();
+
+    return 'https://www.google.com/maps/dir/?api=1'
+        + '&origin=' + encodeURIComponent(origin)
+        + '&destination=' + encodeURIComponent(destination)
+        + '&travelmode=' + encodeURIComponent(mapsMode);
+}
+
+calculateButton.addEventListener('click', async () => {
+    const origin = document.getElementById('origin').value.trim();
+    const destination =
+        document.getElementById('destination').value.trim();
+
+    const travelMode =
+        document.getElementById('travelMode').value;
+
+    if (!origin || !destination) {
+        routeResult.style.display = 'block';
+        routeResult.classList.add('error');
+        routeResult.textContent =
+            'Enter both a starting location and destination.';
+        return;
+    }
+
+    document.getElementById('mapUrl').value =
+        buildMapsUrl(origin, destination, travelMode);
+
+    routeResult.style.display = 'block';
+    routeResult.classList.remove('error');
+    routeResult.textContent = 'Calculating route...';
+
+    try {
+        const response = await fetch('actions/calculate_route.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type':
+                    'application/x-www-form-urlencoded'
+            },
+            body: new URLSearchParams({
+                origin,
+                destination,
+                travel_mode: travelMode
+            })
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+            routeResult.classList.add('error');
+            routeResult.textContent = data.message;
+            return;
+        }
+
+        document.getElementById('distanceKm').value =
+            data.distance_km;
+
+        document.getElementById('driveMinutes').value =
+            data.duration_minutes;
+
+        routeResult.classList.remove('error');
+        routeResult.textContent =
+            data.distance_km
+            + ' km · '
+            + data.duration_text;
+
+    } catch (error) {
+        routeResult.classList.add('error');
+        routeResult.textContent =
+            'The route calculator could not be reached.';
+    }
+});
+</script>
+
+</body>
+</html>

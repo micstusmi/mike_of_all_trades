@@ -24,3 +24,10 @@ quote_rate_limits/
 
 # Temporary saved files
 *.save
+
+# Painting AI uploads
+painting_ai_uploads/
+
+# Thailand trip private uploads
+/thailand-trip/storage/documents/*
+!/thailand-trip/storage/documents/.htaccess

@@ -1,0 +1,365 @@
+:root {
+    --trip-blue: #173f5f;
+    --trip-blue-dark: #102d44;
+    --trip-gold: #f2b134;
+    --trip-background: #f4f6f8;
+    --trip-card: #ffffff;
+    --trip-border: #dfe5ea;
+    --trip-text: #1f2933;
+    --trip-muted: #65737e;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    color: var(--trip-text);
+    background: var(--trip-background);
+    font-family:
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+}
+
+.trip-login-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    background:
+        linear-gradient(
+            rgba(9, 31, 48, 0.72),
+            rgba(9, 31, 48, 0.82)
+        ),
+        url("../images/thailand-mountains.jpg") center / cover;
+}
+
+.trip-login-card {
+    width: min(100%, 460px);
+    margin: 40px auto;
+    padding: 34px;
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.97);
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.3);
+}
+
+.trip-login-card h1 {
+    font-size: 1.8rem;
+    font-weight: 750;
+}
+
+.trip-icon {
+    margin-bottom: 10px;
+    font-size: 3rem;
+}
+
+.trip-navbar {
+    background: var(--trip-blue-dark);
+}
+
+.trip-member-name {
+    display: inline-block;
+}
+
+.trip-hero,
+.trip-day-hero {
+    padding: 52px 0;
+    color: white;
+    background:
+        linear-gradient(
+            120deg,
+            var(--trip-blue-dark),
+            var(--trip-blue)
+        );
+}
+
+.trip-hero h1,
+.trip-day-hero h1 {
+    max-width: 850px;
+    margin: 0 0 8px;
+    font-size: clamp(2rem, 5vw, 4rem);
+    font-weight: 800;
+}
+
+.trip-eyebrow,
+.trip-section-label {
+    margin-bottom: 7px;
+    color: var(--trip-gold);
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+}
+
+.trip-destination {
+    margin-bottom: 8px;
+    font-size: 1.25rem;
+    opacity: 0.9;
+}
+
+.trip-date-range {
+    font-size: 1.05rem;
+    opacity: 0.82;
+}
+
+.trip-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+}
+
+.trip-stat-card {
+    min-height: 120px;
+    padding: 22px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border: 1px solid var(--trip-border);
+    border-radius: 18px;
+    background: var(--trip-card);
+    box-shadow: 0 5px 20px rgba(22, 42, 58, 0.06);
+}
+
+.trip-stat-label {
+    margin-bottom: 5px;
+    color: var(--trip-muted);
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.trip-stat-card strong {
+    font-size: 1.45rem;
+}
+
+.trip-stat-card small {
+    margin-top: 2px;
+    color: var(--trip-muted);
+}
+
+.trip-timeline {
+    display: grid;
+    gap: 18px;
+}
+
+.trip-day-card {
+    display: grid;
+    grid-template-columns: 95px 1fr;
+    overflow: hidden;
+    border: 1px solid var(--trip-border);
+    border-radius: 20px;
+    background: var(--trip-card);
+    box-shadow: 0 5px 20px rgba(22, 42, 58, 0.05);
+}
+
+.trip-day-number {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    background: var(--trip-blue);
+}
+
+.trip-day-number span {
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+}
+
+.trip-day-number strong {
+    font-size: 2.2rem;
+}
+
+.trip-day-content {
+    padding: 24px;
+}
+
+.trip-day-heading {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.trip-day-heading h3 {
+    margin: 3px 0 0;
+    font-size: 1.45rem;
+    font-weight: 750;
+}
+
+.trip-day-date {
+    color: var(--trip-muted);
+    font-size: 0.88rem;
+    font-weight: 650;
+}
+
+.trip-route {
+    margin-top: 15px;
+    font-weight: 650;
+}
+
+.trip-route-arrow {
+    margin: 0 8px;
+    color: var(--trip-gold);
+}
+
+.trip-day-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 20px;
+    margin-top: 15px;
+    color: var(--trip-muted);
+    font-size: 0.92rem;
+}
+
+.trip-day-summary {
+    margin: 16px 0 0;
+    color: var(--trip-muted);
+}
+
+.trip-info-panel {
+    padding: 25px;
+    border: 1px solid var(--trip-border);
+    border-radius: 18px;
+    background: white;
+}
+
+.trip-info-panel h2 {
+    margin-top: 0;
+}
+
+.trip-item-list {
+    position: relative;
+    display: grid;
+    gap: 15px;
+}
+
+.trip-item-card {
+    display: grid;
+    grid-template-columns: 90px 54px 1fr;
+    padding: 20px;
+    border: 1px solid var(--trip-border);
+    border-radius: 18px;
+    background: white;
+}
+
+.trip-item-time {
+    padding-top: 8px;
+    color: var(--trip-blue);
+    font-weight: 750;
+}
+
+.trip-item-icon {
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: #edf4f8;
+    font-size: 1.3rem;
+}
+
+.trip-item-title-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+}
+
+.trip-item-title-row h3 {
+    margin: 4px 0 7px;
+    font-size: 1.15rem;
+}
+
+.trip-item-location {
+    color: var(--trip-muted);
+}
+
+.trip-cost-badge {
+    height: fit-content;
+    padding: 5px 10px;
+    border-radius: 20px;
+    color: #765200;
+    background: #fff2c7;
+    font-size: 0.82rem;
+    font-weight: 750;
+    white-space: nowrap;
+}
+
+.trip-item-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.trip-item-links a {
+    font-weight: 700;
+    text-decoration: none;
+}
+
+@media (max-width: 850px) {
+    .trip-summary-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 600px) {
+    .trip-member-name {
+        display: none;
+    }
+
+    .trip-hero,
+    .trip-day-hero {
+        padding: 35px 0;
+    }
+
+    .trip-summary-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    .trip-stat-card {
+        min-height: 105px;
+        padding: 16px;
+    }
+
+    .trip-stat-card strong {
+        font-size: 1.12rem;
+    }
+
+    .trip-day-card {
+        grid-template-columns: 58px 1fr;
+    }
+
+    .trip-day-number strong {
+        font-size: 1.7rem;
+    }
+
+    .trip-day-content {
+        padding: 17px;
+    }
+
+    .trip-day-heading {
+        display: block;
+    }
+
+    .trip-day-heading .btn {
+        width: 100%;
+        margin-top: 15px;
+    }
+
+    .trip-item-card {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .trip-item-time {
+        padding-top: 0;
+    }
+
+    .trip-item-title-row {
+        align-items: flex-start;
+    }
+}

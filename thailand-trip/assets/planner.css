@@ -1,0 +1,941 @@
+:root {
+    --navy: #102d44;
+    --blue: #19577d;
+    --gold: #f4b942;
+    --background: #f3f6f8;
+    --card: #ffffff;
+    --border: #dce4e8;
+    --muted: #667681;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    color: #1d2b35;
+    background: var(--background);
+    font-family:
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+}
+
+.planner-nav {
+    color: white;
+    background: var(--navy);
+}
+
+.planner-nav-inner {
+    min-height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+}
+
+.planner-nav a {
+    color: white;
+    text-decoration: none;
+}
+
+.planner-header {
+    padding: 55px 0;
+    color: white;
+    background:
+        linear-gradient(
+            135deg,
+            #092439,
+            var(--blue)
+        );
+}
+
+.planner-header span,
+.section-label {
+    color: var(--gold);
+    font-size: 0.76rem;
+    font-weight: 850;
+    letter-spacing: 0.12em;
+}
+
+.planner-header h1 {
+    margin: 8px 0;
+    font-size: clamp(2rem, 5vw, 4rem);
+    font-weight: 850;
+}
+
+.planner-header p {
+    margin: 0;
+    opacity: 0.8;
+}
+
+.planner-section,
+.planner-form-card {
+    margin-bottom: 25px;
+    padding: 25px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: white;
+}
+
+.section-heading {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.planner-section h2,
+.planner-form-card h2 {
+    margin: 5px 0 20px;
+    font-weight: 800;
+}
+
+.settlement-grid {
+    display: grid;
+    grid-template-columns: repeat(
+        auto-fit,
+        minmax(220px, 1fr)
+    );
+    gap: 12px;
+    margin-bottom: 25px;
+}
+
+.settlement-card {
+    padding: 18px;
+    display: grid;
+    gap: 4px;
+    border-radius: 14px;
+    color: white;
+    background: var(--navy);
+}
+
+.settlement-card span {
+    opacity: 0.65;
+}
+
+.settlement-card b {
+    color: var(--gold);
+    font-size: 1.45rem;
+}
+
+.balanced-card {
+    margin-bottom: 20px;
+    padding: 18px;
+    border-radius: 12px;
+    background: #e5f6e9;
+}
+
+.balance-table-wrap {
+    overflow-x: auto;
+}
+
+.positive {
+    color: #16713a;
+    font-weight: 750;
+}
+
+.negative {
+    color: #af3029;
+    font-weight: 750;
+}
+
+.booking-grid {
+    display: grid;
+    grid-template-columns: repeat(
+        auto-fit,
+        minmax(280px, 1fr)
+    );
+    gap: 16px;
+}
+
+.booking-card {
+    padding: 20px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: #fbfcfd;
+}
+
+.booking-card-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    color: var(--blue);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+}
+
+.booking-card h3 {
+    margin: 12px 0;
+    font-size: 1.25rem;
+    font-weight: 800;
+}
+
+.booking-card p {
+    color: var(--muted);
+}
+
+.booking-costs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 7px;
+    margin: 18px 0;
+}
+
+.booking-costs div {
+    padding: 10px;
+    border-radius: 10px;
+    background: white;
+}
+
+.booking-costs span,
+.booking-costs strong {
+    display: block;
+}
+
+.booking-costs span {
+    color: var(--muted);
+    font-size: 0.7rem;
+}
+
+.booking-costs strong {
+    margin-top: 3px;
+    font-size: 0.9rem;
+}
+
+.planner-columns {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+}
+
+.planner-form-card form {
+    display: grid;
+    gap: 16px;
+}
+
+.planner-form-card label,
+.planner-form-card legend {
+    font-weight: 700;
+}
+
+.planner-form-card input,
+.planner-form-card select,
+.planner-form-card textarea {
+    width: 100%;
+    margin-top: 6px;
+    padding: 11px;
+    border: 1px solid #cbd6dc;
+    border-radius: 9px;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.planner-form-card fieldset {
+    display: grid;
+    gap: 7px;
+    padding: 0;
+    border: 0;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.checkbox-label input {
+    width: auto;
+    margin: 0;
+}
+
+.history-list {
+    display: grid;
+    gap: 10px;
+}
+
+.history-list article {
+    padding: 14px;
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+}
+
+.history-list span {
+    display: block;
+    margin-top: 3px;
+    color: var(--muted);
+    font-size: 0.84rem;
+}
+
+@media (max-width: 800px) {
+    .planner-columns {
+        grid-template-columns: 1fr;
+    }
+
+    .booking-costs {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 550px) {
+    .planner-nav strong {
+        display: none;
+    }
+
+    .planner-section,
+    .planner-form-card {
+        padding: 18px;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Sticky itinerary navigation and heading */
+.sticky-trip-nav {
+    position: sticky;
+    z-index: 1100;
+    top: 0;
+}
+
+.sticky-itinerary-heading {
+    position: sticky;
+    z-index: 1000;
+    top: 64px;
+    padding: 18px 0;
+    box-shadow: 0 5px 20px rgba(8, 35, 52, 0.14);
+}
+
+.sticky-itinerary-heading h1 {
+    margin: 3px 0;
+    font-size: clamp(1.6rem, 3vw, 2.5rem);
+}
+
+.sticky-itinerary-heading p {
+    display: none;
+}
+
+.compact-planner-header {
+    padding: 28px 0;
+}
+
+.editor-layout-list-only {
+    grid-template-columns: 1fr !important;
+}
+
+.itinerary-list-toolbar {
+    position: sticky;
+    z-index: 900;
+    top: 166px;
+    margin: -4px 0 18px;
+    padding: 14px 0;
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 20px;
+    background: #f3f6f8;
+}
+
+@media (max-width: 700px) {
+    .sticky-itinerary-heading {
+        top: 64px;
+    }
+
+    .itinerary-list-toolbar {
+        top: 151px;
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .itinerary-list-toolbar .btn {
+        width: 100%;
+    }
+}
+
+/* =========================================================
+   Shared private navigation
+   ========================================================= */
+
+.private-trip-nav {
+    position: sticky;
+    z-index: 2000;
+    top: 0;
+    color: white;
+    background: rgba(9, 38, 57, 0.98);
+    box-shadow: 0 5px 20px rgba(4, 25, 38, 0.16);
+    backdrop-filter: blur(12px);
+}
+
+.private-trip-nav-inner {
+    min-height: 72px;
+    display: flex;
+    align-items: center;
+    gap: 22px;
+}
+
+.private-trip-brand {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    flex: 0 0 auto;
+    color: white;
+    text-decoration: none;
+}
+
+.private-trip-brand > span:first-child {
+    font-size: 1.6rem;
+}
+
+.private-trip-brand strong,
+.private-trip-brand small {
+    display: block;
+}
+
+.private-trip-brand small {
+    color: rgba(255, 255, 255, 0.63);
+    font-size: 0.68rem;
+}
+
+.private-nav-links {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    flex: 1;
+}
+
+.private-nav-links a {
+    position: relative;
+    padding: 9px 10px;
+    border-radius: 8px;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.84rem;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.private-nav-links a:hover,
+.private-nav-links .private-nav-active {
+    color: white;
+    background: rgba(255, 255, 255, 0.11);
+}
+
+.private-nav-badge {
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    display: inline-grid;
+    place-items: center;
+    margin-left: 3px;
+    border-radius: 999px;
+    color: #322200;
+    background: #f4b942;
+    font-size: 0.7rem;
+    font-weight: 900;
+}
+
+.private-nav-account {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 0 0 auto;
+}
+
+.private-nav-account > span {
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 0.82rem;
+}
+
+.private-nav-logout {
+    padding: 8px 11px;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 8px;
+    color: white;
+    font-size: 0.82rem;
+    font-weight: 750;
+    text-decoration: none;
+}
+
+.private-nav-toggle {
+    display: none;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    border-radius: 8px;
+    padding: 7px 10px;
+    color: white;
+    background: transparent;
+    font-weight: 750;
+}
+
+/* Existing sticky itinerary headings now sit below shared nav. */
+.sticky-trip-nav {
+    display: none;
+}
+
+.sticky-itinerary-heading {
+    top: 72px;
+}
+
+.itinerary-list-toolbar {
+    top: 174px;
+}
+
+/* =========================================================
+   Attendance overview
+   ========================================================= */
+
+.traveller-attendance-grid {
+    display: grid;
+    grid-template-columns: repeat(
+        auto-fit,
+        minmax(235px, 1fr)
+    );
+    gap: 14px;
+}
+
+.traveller-attendance-card {
+    padding: 17px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: #fbfcfd;
+}
+
+.traveller-attendance-heading {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    margin-bottom: 14px;
+}
+
+.traveller-avatar {
+    width: 43px;
+    height: 43px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    color: white;
+    background: var(--navy);
+    font-size: 1.05rem;
+    font-weight: 900;
+}
+
+.traveller-attendance-heading strong,
+.traveller-attendance-heading span {
+    display: block;
+}
+
+.traveller-attendance-heading span {
+    color: var(--muted);
+    font-size: 0.78rem;
+    text-transform: capitalize;
+}
+
+.traveller-week-list {
+    display: grid;
+    gap: 7px;
+}
+
+.traveller-week-list div {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 10px;
+    border-radius: 9px;
+    background: white;
+}
+
+.traveller-week-list span {
+    font-weight: 750;
+}
+
+.traveller-week-list small {
+    color: var(--muted);
+    text-transform: capitalize;
+}
+
+/* =========================================================
+   Administrator history controls
+   ========================================================= */
+
+.history-amount-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.history-amount-actions form {
+    margin: 0;
+}
+
+@media (max-width: 1100px) {
+    .private-trip-nav-inner {
+        flex-wrap: wrap;
+        gap: 10px;
+        padding-top: 10px;
+        padding-bottom: 10px;
+    }
+
+    .private-nav-toggle {
+        display: block;
+        margin-left: auto;
+    }
+
+    .private-nav-links {
+        width: 100%;
+        display: none;
+        order: 4;
+        flex-direction: column;
+        align-items: stretch;
+        padding-top: 7px;
+        border-top: 1px solid rgba(255, 255, 255, 0.13);
+    }
+
+    .private-nav-links.private-nav-open {
+        display: flex;
+    }
+
+    .private-nav-links a {
+        padding: 11px;
+    }
+
+    .private-nav-account {
+        margin-left: 0;
+    }
+
+    .sticky-itinerary-heading {
+        top: 72px;
+    }
+
+    .itinerary-list-toolbar {
+        position: static;
+    }
+}
+
+@media (max-width: 600px) {
+    .private-nav-account > span {
+        display: none;
+    }
+
+    .private-trip-brand small {
+        display: none;
+    }
+
+    .private-trip-nav-inner {
+        min-height: 62px;
+    }
+
+    .history-list article {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .history-amount-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+}
+
+/* =========================================================
+   Simple day-by-day suggestions
+   ========================================================= */
+
+.day-editor-card {
+    scroll-margin-top: 190px;
+}
+
+.day-suggestions {
+    margin-top: 20px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+}
+
+.day-suggestions-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+    margin-bottom: 12px;
+}
+
+.day-suggestions-heading strong,
+.day-suggestions-heading span {
+    display: block;
+}
+
+.day-suggestions-heading > div > span {
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: 0.8rem;
+}
+
+.suggestion-count {
+    min-width: 30px;
+    height: 30px;
+    display: grid !important;
+    place-items: center;
+    border-radius: 50%;
+    color: white;
+    background: var(--navy);
+    font-size: 0.8rem;
+    font-weight: 850;
+}
+
+.no-suggestions {
+    padding: 11px;
+    border-radius: 9px;
+    color: var(--muted);
+    background: #f4f6f8;
+    font-size: 0.85rem;
+}
+
+.suggestion-list {
+    display: grid;
+    grid-template-columns: repeat(
+        auto-fit,
+        minmax(230px, 1fr)
+    );
+    gap: 11px;
+}
+
+.suggestion-card {
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: #fbfcfd;
+}
+
+.suggestion-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.suggestion-category {
+    color: var(--blue);
+    font-size: 0.75rem;
+    font-weight: 850;
+}
+
+.suggestion-card h4 {
+    margin: 8px 0 3px;
+    font-size: 1rem;
+    font-weight: 800;
+}
+
+.suggestion-provider {
+    color: var(--muted);
+    font-size: 0.84rem;
+}
+
+.suggestion-price {
+    margin-top: 8px;
+    color: var(--navy);
+    font-size: 1.12rem;
+    font-weight: 850;
+}
+
+.suggestion-card p {
+    margin: 9px 0;
+    color: var(--muted);
+    font-size: 0.86rem;
+}
+
+.suggestion-card small {
+    display: block;
+    margin-top: 10px;
+    color: var(--muted);
+    font-size: 0.72rem;
+}
+
+.suggestion-links {
+    display: flex;
+    gap: 12px;
+}
+
+.suggestion-links a {
+    color: var(--blue);
+    font-size: 0.8rem;
+    font-weight: 750;
+    text-decoration: none;
+}
+
+.suggestion-delete {
+    width: 26px;
+    height: 26px;
+    border: 0;
+    border-radius: 50%;
+    color: #9f2e27;
+    background: #fbe3e1;
+    font-size: 1.05rem;
+    line-height: 1;
+}
+
+.add-suggestion-panel {
+    margin-top: 13px;
+}
+
+.add-suggestion-panel summary {
+    cursor: pointer;
+    color: var(--blue);
+    font-weight: 800;
+}
+
+.suggestion-form {
+    margin-top: 13px;
+    padding: 15px;
+    border-radius: 12px;
+    background: #f3f6f8;
+}
+
+.suggestion-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 11px;
+}
+
+.suggestion-form label {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.suggestion-form input,
+.suggestion-form select,
+.suggestion-form textarea {
+    width: 100%;
+    margin-top: 5px;
+    padding: 9px;
+    border: 1px solid #cbd6dc;
+    border-radius: 8px;
+    background: white;
+}
+
+@media (max-width: 650px) {
+    .suggestion-form-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* =========================================================
+   Trip readiness
+   ========================================================= */
+
+.readiness-section {
+    scroll-margin-top: 90px;
+}
+
+.readiness-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.readiness-score {
+    text-align: right;
+}
+
+.readiness-score strong,
+.readiness-score span {
+    display: block;
+}
+
+.readiness-score strong {
+    color: var(--navy);
+    font-size: 2rem;
+}
+
+.readiness-score span {
+    color: var(--muted);
+    font-size: 0.75rem;
+}
+
+.readiness-progress {
+    height: 13px;
+    overflow: hidden;
+    margin: 15px 0 20px;
+    border-radius: 999px;
+    background: #e3eaee;
+}
+
+.readiness-progress span {
+    height: 100%;
+    display: block;
+    border-radius: inherit;
+    background:
+        linear-gradient(
+            90deg,
+            var(--gold),
+            var(--blue)
+        );
+}
+
+.readiness-grid {
+    display: grid;
+    grid-template-columns: repeat(
+        auto-fit,
+        minmax(240px, 1fr)
+    );
+    gap: 12px;
+}
+
+.readiness-card {
+    padding: 15px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: #fbfcfd;
+}
+
+.readiness-category {
+    color: var(--blue);
+    font-size: 0.7rem;
+    font-weight: 850;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.readiness-card h3 {
+    margin: 6px 0 3px;
+    font-size: 0.95rem;
+    font-weight: 800;
+}
+
+.readiness-card small {
+    color: var(--muted);
+}
+
+.readiness-card details {
+    margin-top: 10px;
+}
+
+.readiness-card summary {
+    cursor: pointer;
+    color: var(--blue);
+    font-size: 0.78rem;
+    font-weight: 750;
+}
+
+.readiness-card form {
+    display: grid;
+    gap: 7px;
+    margin-top: 8px;
+}
+
+.readiness-card select,
+.readiness-card input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #cbd6dc;
+    border-radius: 7px;
+}
