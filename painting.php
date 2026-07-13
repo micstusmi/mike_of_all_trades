@@ -656,7 +656,7 @@ textarea{
     <div class="choice-card" onclick="startQuote('quick', true)"><h2>⚡ Rough Estimate</h2><p><strong>30–60 seconds</strong><br>Budget estimate for early planning.</p><button type="button">Start Quick Estimate</button></div>
     <div class="choice-card" onclick="startQuote('detailed', true)"><h2>📋 Standard Estimate</h2><p><strong>2–3 minutes</strong><br>Recommended for most homeowners.</p><button type="button">Start Detailed Estimate</button></div>
     <div class="choice-card" onclick="startQuote('precise', true)"><h2>⭐ Precise Estimate</h2><p><strong>4–5 minutes</strong><br>Highest estimating accuracy.</p><button type="button">Start Professional Estimate</button></div>
-    <div class="choice-card coming-soon-card"><span class="coming-soon-badge">COMING SOON</span><h2>🤖 AI Assisted</h2><p><strong>Upload photos or plans</strong><br>Let AI help interpret the job details.</p><button type="button" disabled>Coming Soon</button></div>
+    <div class="choice-card" onclick="startPaintingAI()"><span class="coming-soon-badge">BETA</span><h2>🤖 AI Assisted</h2><p><strong>Upload photos or plans</strong><br>Send photos, plans and job notes for AI-assisted review.</p><button type="button">Start AI Assisted Quote</button></div>
   </div>
 
   <div id="quoteArea" class="quote-area"></div>
@@ -1019,5 +1019,67 @@ function setWidth(id,width){ const el=document.getElementById(id); if(el) el.sty
 function cssEscape(str){ return String(str).replace(/[^a-zA-Z0-9_-]/g,'\\$&'); }
 function escapeAttr(str){ return escapeHtml(str).replace(/`/g,'&#96;'); }
 function escapeHtml(str){ return String(str).replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch])); }
+
+function startPaintingAI(){
+  const area = document.getElementById('quoteArea');
+  area.style.display = 'block';
+  area.innerHTML = `
+    <div class="card">
+      <h2>🤖 AI Assisted Painting Quote</h2>
+      <p>Upload floor plans, room photos, exterior photos or written notes. Mike will review the AI-assisted request before preparing the final quote.</p>
+
+      <form id="paintingAiForm" enctype="multipart/form-data">
+        <input name="name" placeholder="Your name" required>
+        <input name="phone" placeholder="Phone number" required>
+        <input name="email" type="email" placeholder="Email address" required>
+        <input name="address" placeholder="Job address or suburb">
+
+        <textarea name="description" placeholder="Describe the painting job. Example: whole interior, walls only, excluding bathrooms and laundry, customer supplies paint." required></textarea>
+
+        <label><strong>Upload plans/photos</strong></label>
+        <input name="uploads[]" type="file" multiple accept=".jpg,.jpeg,.png,.webp,.pdf,image/*,application/pdf">
+
+        <button type="submit" class="success-btn">Send AI Assisted Quote Request</button>
+      </form>
+
+      <div id="paintingAiResult"></div>
+    </div>
+  `;
+
+  document.getElementById('paintingAiForm').addEventListener('submit', submitPaintingAI);
+  area.scrollIntoView({behavior:'smooth'});
+}
+
+function submitPaintingAI(e){
+  e.preventDefault();
+
+  const form = e.target;
+  const result = document.getElementById('paintingAiResult');
+  const fd = new FormData(form);
+
+  result.innerHTML = `<div class="ready-box"><h3>Uploading...</h3><p>Please wait while your plans/photos are uploaded.</p></div>`;
+
+  fetch('painting_ai.php', {
+    method: 'POST',
+    body: fd
+  })
+  .then(r => r.json())
+  .then(data => {
+    if(!data.success){ throw new Error(data.message || 'Upload failed.'); }
+
+    result.innerHTML = `
+      <div class="ready-box">
+        <h3>AI Assisted Quote Request Received</h3>
+        <p>Your photos/plans and job details have been received.</p>
+        <p><strong>Reference:</strong> ${escapeHtml(data.reference)}</p>
+        <p>Mike will review the request and prepare the next step. If an emailed quote is generated, please allow up to 60 seconds and check Junk/Spam if it does not arrive.</p>
+      </div>
+    `;
+  })
+  .catch(err => {
+    result.innerHTML = `<div class="ready-box" style="border-color:#e0b4b4;background:#fff0f0"><h3>Upload Failed</h3><p>${escapeHtml(err.message)}</p></div>`;
+  });
+}
+
 </script>
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
