@@ -2,9 +2,14 @@
 
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/trip_auth.php';
+require_once __DIR__ . '/includes/exchange_rate.php';
 requireTripLogin();
 
 $tripId = (int) $_SESSION['trip_id'];
+
+$exchangeRateData = getAudToThbRate();
+$audToThbRate = (float) $exchangeRateData['rate'];
+$exchangeRateDate = $exchangeRateData['date'];
 
 function e(?string $value): string
 {
@@ -549,23 +554,159 @@ unset(
                     ><?= e($editDay['summary'] ?? '') ?></textarea>
                 </label>
 
-                <label>
-                    Estimated cost per person
+                <?php
+                $storedCost = isset(
+                    $editDay['estimated_cost_per_person']
+                )
+                    ? (float)
+                        $editDay['estimated_cost_per_person']
+                    : 0.0;
+
+                $storedCurrency =
+                    $editDay['cost_currency']
+                    ?? 'AUD';
+
+                $initialAud = '';
+                $initialThb = '';
+
+                if ($storedCost > 0) {
+                    if ($storedCurrency === 'THB') {
+                        $initialThb = number_format(
+                            $storedCost,
+                            2,
+                            '.',
+                            ''
+                        );
+
+                        $initialAud = number_format(
+                            $storedCost / $audToThbRate,
+                            2,
+                            '.',
+                            ''
+                        );
+                    } else {
+                        $initialAud = number_format(
+                            $storedCost,
+                            2,
+                            '.',
+                            ''
+                        );
+
+                        $initialThb = number_format(
+                            $storedCost * $audToThbRate,
+                            2,
+                            '.',
+                            ''
+                        );
+                    }
+                }
+                ?>
+
+                <div class="dual-currency-editor">
+
+                    <div class="dual-currency-heading">
+                        <div>
+                            <strong>
+                                Estimated cost per person
+                            </strong>
+
+                            <span>
+                                Enter either currency and the other
+                                value updates automatically.
+                            </span>
+                        </div>
+
+                        <button
+                            type="button"
+                            class="btn btn-sm btn-outline-secondary"
+                            id="refreshExchangeRate"
+                        >
+                            Refresh rate
+                        </button>
+                    </div>
+
+                    <div class="dual-currency-fields">
+
+                        <label>
+                            Australian dollars
+                            <div class="currency-input-wrap">
+                                <span>A$</span>
+
+                                <input
+                                    type="number"
+                                    id="costAud"
+                                    min="0"
+                                    step="0.01"
+                                    inputmode="decimal"
+                                    value="<?= e($initialAud) ?>"
+                                    placeholder="100.00"
+                                >
+                            </div>
+                        </label>
+
+                        <div class="currency-swap-symbol">
+                            ⇄
+                        </div>
+
+                        <label>
+                            Thai baht
+                            <div class="currency-input-wrap">
+                                <span>฿</span>
+
+                                <input
+                                    type="number"
+                                    id="costThb"
+                                    min="0"
+                                    step="0.01"
+                                    inputmode="decimal"
+                                    value="<?= e($initialThb) ?>"
+                                    placeholder="2250.00"
+                                >
+                            </div>
+                        </label>
+
+                    </div>
+
                     <input
-                        type="number"
+                        type="hidden"
                         name="estimated_cost_per_person"
-                        min="0"
-                        step="0.01"
+                        id="storedCostAmount"
                         value="<?= e(
-                            isset($editDay['estimated_cost_per_person'])
-                                ? (string)
-                                    $editDay['estimated_cost_per_person']
+                            $storedCost > 0
+                                ? (string) $storedCost
                                 : ''
                         ) ?>"
                     >
-                </label>
 
-                <button class="btn btn-primary" type="submit">
+                    <input
+                        type="hidden"
+                        name="cost_currency"
+                        id="storedCostCurrency"
+                        value="<?= e($storedCurrency) ?>"
+                    >
+
+                    <div class="exchange-rate-status">
+                        Latest daily rate:
+                        A$1 = ฿<span id="exchangeRateValue"><?=
+                            number_format(
+                                $audToThbRate,
+                                4
+                            )
+                        ?></span>
+
+                        <span id="exchangeRateDate">
+                            · <?= e($exchangeRateDate) ?>
+                        </span>
+
+                        <span
+                            id="exchangeRateMessage"
+                            aria-live="polite"
+                        ></span>
+                    </div>
+
+                </div>
+
+<button class="btn btn-primary" type="submit">
                     <?= $editDay
                         ? 'Save changes'
                         : 'Add itinerary day'
@@ -753,27 +894,46 @@ unset(
                         <?php if (
                             $day['estimated_cost_per_person']
                         ): ?>
-                            <span class="day-stat">
-                                💰
-                                <?php if (
-                                    ($day['week_currency'] ?? 'AUD')
-                                    === 'AUD'
-                                ): ?>
-                                    A$
-                                <?php else: ?>
-                                    <?= e(
-                                        $day['week_currency'] ?? 'THB'
-                                    ) ?>
-                                <?php endif; ?>
 
-                                <?= number_format(
-                                    (float)
-                                    $day['estimated_cost_per_person'],
+                            <?php
+                            $dayCost =
+                                (float)
+                                $day[
+                                    'estimated_cost_per_person'
+                                ];
+
+                            $dayCurrency =
+                                $day['cost_currency']
+                                ?? 'AUD';
+
+                            if ($dayCurrency === 'THB') {
+                                $dayCostThb = $dayCost;
+                                $dayCostAud =
+                                    $dayCost / $audToThbRate;
+                            } else {
+                                $dayCostAud = $dayCost;
+                                $dayCostThb =
+                                    $dayCost * $audToThbRate;
+                            }
+                            ?>
+
+                            <span class="day-stat dual-cost-stat">
+                                💰
+                                A$<?= number_format(
+                                    $dayCostAud,
+                                    0
+                                ) ?>
+
+                                <span>≈</span>
+
+                                ฿<?= number_format(
+                                    $dayCostThb,
                                     0
                                 ) ?>
 
                                 / person
                             </span>
+
                         <?php endif; ?>
 
                     </div>
@@ -1142,6 +1302,165 @@ unset(
 <script>
 const calculateButton = document.getElementById('calculateRoute');
 const routeResult = document.getElementById('routeResult');
+
+const costAudInput = document.getElementById('costAud');
+const costThbInput = document.getElementById('costThb');
+const storedCostAmount =
+    document.getElementById('storedCostAmount');
+const storedCostCurrency =
+    document.getElementById('storedCostCurrency');
+const refreshExchangeRateButton =
+    document.getElementById('refreshExchangeRate');
+const exchangeRateValue =
+    document.getElementById('exchangeRateValue');
+const exchangeRateDate =
+    document.getElementById('exchangeRateDate');
+const exchangeRateMessage =
+    document.getElementById('exchangeRateMessage');
+
+let audToThbRate = <?= json_encode($audToThbRate) ?>;
+let costSourceCurrency =
+    storedCostCurrency?.value || 'AUD';
+
+function validMoney(value) {
+    const number = Number.parseFloat(value);
+
+    return Number.isFinite(number) && number >= 0
+        ? number
+        : null;
+}
+
+function setStoredCost(sourceCurrency, amount) {
+    costSourceCurrency = sourceCurrency;
+
+    if (!storedCostAmount || !storedCostCurrency) {
+        return;
+    }
+
+    storedCostCurrency.value = sourceCurrency;
+
+    storedCostAmount.value =
+        amount === null
+            ? ''
+            : amount.toFixed(2);
+}
+
+function updateFromAud() {
+    const aud = validMoney(costAudInput.value);
+
+    if (aud === null) {
+        costThbInput.value = '';
+        setStoredCost('AUD', null);
+        return;
+    }
+
+    costThbInput.value =
+        (aud * audToThbRate).toFixed(2);
+
+    setStoredCost('AUD', aud);
+}
+
+function updateFromThb() {
+    const thb = validMoney(costThbInput.value);
+
+    if (thb === null) {
+        costAudInput.value = '';
+        setStoredCost('THB', null);
+        return;
+    }
+
+    costAudInput.value =
+        (thb / audToThbRate).toFixed(2);
+
+    setStoredCost('THB', thb);
+}
+
+if (costAudInput && costThbInput) {
+    costAudInput.addEventListener('input', updateFromAud);
+    costThbInput.addEventListener('input', updateFromThb);
+}
+
+async function refreshExchangeRate() {
+    if (!refreshExchangeRateButton) {
+        return;
+    }
+
+    refreshExchangeRateButton.disabled = true;
+
+    if (exchangeRateMessage) {
+        exchangeRateMessage.textContent =
+            ' · Updating...';
+    }
+
+    try {
+        const response = await fetch(
+            'actions/get_exchange_rate.php',
+            {
+                headers: {
+                    Accept: 'application/json'
+                },
+                cache: 'no-store'
+            }
+        );
+
+        const data = await response.json();
+
+        if (
+            !response.ok
+            || !data.success
+            || !Number.isFinite(Number(data.rate))
+        ) {
+            throw new Error(
+                data.message
+                || 'Invalid exchange-rate response.'
+            );
+        }
+
+        audToThbRate = Number(data.rate);
+
+        exchangeRateValue.textContent =
+            audToThbRate.toFixed(4);
+
+        exchangeRateDate.textContent =
+            ' · ' + data.date;
+
+        if (costSourceCurrency === 'THB') {
+            updateFromThb();
+        } else {
+            updateFromAud();
+        }
+
+        if (exchangeRateMessage) {
+            exchangeRateMessage.textContent =
+                data.is_live
+                    ? ' · Updated'
+                    : ' · Cached rate';
+        }
+
+    } catch (error) {
+        if (exchangeRateMessage) {
+            exchangeRateMessage.textContent =
+                ' · Could not update; previous rate retained';
+        }
+    } finally {
+        refreshExchangeRateButton.disabled = false;
+    }
+}
+
+refreshExchangeRateButton?.addEventListener(
+    'click',
+    refreshExchangeRate
+);
+
+document
+    .getElementById('dayForm')
+    ?.addEventListener('submit', () => {
+        if (costSourceCurrency === 'THB') {
+            updateFromThb();
+        } else {
+            updateFromAud();
+        }
+    });
 
 function buildMapsUrl(origin, destination, travelMode) {
     const mapsMode = travelMode === 'TWO_WHEELER'

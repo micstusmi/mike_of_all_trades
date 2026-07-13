@@ -939,3 +939,95 @@ body {
     border: 1px solid #cbd6dc;
     border-radius: 7px;
 }
+
+/* =========================================================
+   AUD / THB dual-currency editor
+   ========================================================= */
+
+.dual-currency-editor {
+    margin: 18px 0;
+    padding: 17px;
+    border: 1px solid #d8e1e6;
+    border-radius: 13px;
+    background: #f7fafb;
+}
+
+.dual-currency-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+}
+
+.dual-currency-heading strong,
+.dual-currency-heading span {
+    display: block;
+}
+
+.dual-currency-heading span {
+    margin-top: 3px;
+    color: #667681;
+    font-size: 0.78rem;
+}
+
+.dual-currency-fields {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: end;
+    gap: 12px;
+}
+
+.currency-input-wrap {
+    position: relative;
+}
+
+.currency-input-wrap > span {
+    position: absolute;
+    z-index: 2;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #536470;
+    font-weight: 800;
+}
+
+.currency-input-wrap input {
+    padding-left: 37px !important;
+    background: white;
+}
+
+.currency-swap-symbol {
+    padding-bottom: 13px;
+    color: #587080;
+    font-size: 1.35rem;
+    font-weight: 800;
+}
+
+.exchange-rate-status {
+    margin-top: 11px;
+    color: #657681;
+    font-size: 0.76rem;
+}
+
+.dual-cost-stat span {
+    padding: 0 3px;
+    color: #8a969e;
+}
+
+@media (max-width: 650px) {
+    .dual-currency-heading {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .dual-currency-fields {
+        grid-template-columns: 1fr;
+    }
+
+    .currency-swap-symbol {
+        padding: 0;
+        text-align: center;
+        transform: rotate(90deg);
+    }
+}
