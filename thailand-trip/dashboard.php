@@ -114,29 +114,14 @@ function formatDrivingTime(?int $minutes): string
     >
 
     <link rel="stylesheet" href="assets/trip.css">
+    <link rel="stylesheet" href="assets/planner.css">
 </head>
 
 <body class="trip-dashboard">
 
-<nav class="navbar navbar-expand-lg navbar-dark trip-navbar">
-    <div class="container">
 
-        <a class="navbar-brand" href="dashboard.php">
-            🏍️ Thailand Trip
-        </a>
+<?php require __DIR__ . '/includes/private_nav.php'; ?>
 
-        <div class="ms-auto d-flex align-items-center gap-3">
-            <span class="text-white trip-member-name">
-                <?= htmlspecialchars($_SESSION['trip_member_name']) ?>
-            </span>
-
-            <a class="btn btn-outline-light btn-sm" href="logout.php">
-                Log out
-            </a>
-        </div>
-
-    </div>
-</nav>
 
 <header class="trip-hero">
     <div class="container">
