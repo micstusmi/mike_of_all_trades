@@ -2,8 +2,19 @@
 
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/trip_auth.php';
+require_once __DIR__ . '/includes/exchange_rate.php';
 
 requireTripLogin();
+
+$exchangeRateData = getAudToThbRate();
+$audToThbRate = (float) ($exchangeRateData['rate'] ?? 22.50);
+
+if ($audToThbRate <= 0) {
+    $audToThbRate = 22.50;
+}
+
+$exchangeRateDate =
+    $exchangeRateData['date'] ?? date('Y-m-d');
 
 $tripId = (int) $_SESSION['trip_id'];
 
@@ -38,12 +49,31 @@ $stmt->execute([$tripId]);
 $days = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $totalDistance = 0;
-$totalEstimatedCost = 0;
+$totalEstimatedCostAud = 0.0;
+$totalEstimatedCostThb = 0.0;
 
 foreach ($days as $day) {
     $totalDistance += (float) ($day['distance_km'] ?? 0);
-    $totalEstimatedCost +=
+
+    $dayCost =
         (float) ($day['estimated_cost_per_person'] ?? 0);
+
+    $dayCurrency =
+        $day['cost_currency'] ?? 'AUD';
+
+    if ($dayCost <= 0) {
+        continue;
+    }
+
+    if ($dayCurrency === 'THB') {
+        $totalEstimatedCostThb += $dayCost;
+        $totalEstimatedCostAud +=
+            $dayCost / $audToThbRate;
+    } else {
+        $totalEstimatedCostAud += $dayCost;
+        $totalEstimatedCostThb +=
+            $dayCost * $audToThbRate;
+    }
 }
 
 function formatDrivingTime(?int $minutes): string
@@ -161,10 +191,26 @@ function formatDrivingTime(?int $minutes): string
             </span>
 
             <strong>
-                ฿<?= number_format($totalEstimatedCost, 0) ?>
+                A$<?= number_format(
+                    $totalEstimatedCostAud,
+                    0
+                ) ?>
             </strong>
 
-            <small>per person</small>
+            <small>
+                ≈ ฿<?= number_format(
+                    $totalEstimatedCostThb,
+                    0
+                ) ?>
+                per person
+            </small>
+
+            <small class="d-block mt-1">
+                Rate: A$1 = ฿<?= number_format(
+                    $audToThbRate,
+                    2
+                ) ?>
+            </small>
         </div>
 
         <div class="trip-stat-card">
@@ -294,13 +340,39 @@ function formatDrivingTime(?int $minutes): string
                                 <?php if (
                                     $day['estimated_cost_per_person']
                                 ): ?>
+
+                                    <?php
+                                    $dayCost =
+                                        (float) $day[
+                                            'estimated_cost_per_person'
+                                        ];
+
+                                    $dayCurrency =
+                                        $day['cost_currency']
+                                        ?? 'AUD';
+
+                                    if ($dayCurrency === 'THB') {
+                                        $dayCostThb = $dayCost;
+                                        $dayCostAud =
+                                            $dayCost / $audToThbRate;
+                                    } else {
+                                        $dayCostAud = $dayCost;
+                                        $dayCostThb =
+                                            $dayCost * $audToThbRate;
+                                    }
+                                    ?>
+
                                     <span>
-                                        💰 ฿<?= number_format(
-                                            (float)
-                                            $day['estimated_cost_per_person'],
+                                        💰 A$<?= number_format(
+                                            $dayCostAud,
+                                            0
+                                        ) ?>
+                                        ≈ ฿<?= number_format(
+                                            $dayCostThb,
                                             0
                                         ) ?>
                                     </span>
+
                                 <?php endif; ?>
 
                             </div>
