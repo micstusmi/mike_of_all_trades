@@ -268,47 +268,287 @@ try {
         )
     ) {
         $adminSubject =
-            'Thailand trip interest: '
-            . $name;
+            'Thailand 2027 - '
+            . $name
+            . ' is '
+            . $statusLabel;
+
+        $submittedAt = date(
+            'j F Y, g:i a'
+        );
+
+        $attendeesUrl =
+            'https://www.mikeofalltrades.com.au'
+            . '/thailand-trip/attendees.php';
+
+        $plannerUrl =
+            'https://www.mikeofalltrades.com.au'
+            . '/thailand-trip/planner.php';
 
         $adminHtml = '
-            <h2>New Thailand 2027 response</h2>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
+</head>
 
-            <p>
-                <strong>Name:</strong>
-                ' . $safeName . '
-            </p>
+<body style="
+    margin:0;
+    padding:0;
+    background:#eef3f6;
+    font-family:Arial,Helvetica,sans-serif;
+    color:#20313d;
+">
 
-            <p>
-                <strong>Status:</strong>
-                ' . $safeStatus . '
-            </p>
+<table
+    role="presentation"
+    width="100%"
+    cellspacing="0"
+    cellpadding="0"
+    style="background:#eef3f6;padding:24px 12px;"
+>
+<tr>
+<td align="center">
 
-            <p>
-                <strong>Mobile:</strong>
-                ' . $safePhone . '
-            </p>
+<table
+    role="presentation"
+    width="100%"
+    cellspacing="0"
+    cellpadding="0"
+    style="
+        max-width:620px;
+        background:#ffffff;
+        border-radius:16px;
+        overflow:hidden;
+        box-shadow:0 8px 24px rgba(20,55,75,.12);
+    "
+>
+    <tr>
+        <td style="
+            padding:26px;
+            background:#103b54;
+            color:#ffffff;
+        ">
+            <div style="
+                color:#ffc21a;
+                font-size:12px;
+                font-weight:bold;
+                letter-spacing:1.4px;
+                text-transform:uppercase;
+            ">
+                Thailand 2027
+            </div>
 
-            <p>
-                <strong>Email:</strong>
-                ' . $safeEmail . '
-            </p>
+            <h1 style="
+                margin:8px 0 0;
+                font-size:28px;
+                line-height:1.2;
+            ">
+                New expression of interest
+            </h1>
+        </td>
+    </tr>
 
-            <p><strong>Selected weeks:</strong></p>
+    <tr>
+        <td style="padding:26px;">
 
-            <ul>
+            <table
+                role="presentation"
+                width="100%"
+                cellspacing="0"
+                cellpadding="0"
+            >
+                <tr>
+                    <td style="
+                        padding:0 0 16px;
+                        color:#6a7a84;
+                        font-size:12px;
+                        font-weight:bold;
+                        text-transform:uppercase;
+                    ">
+                        Traveller
+                    </td>
+                </tr>
+
+                <tr>
+                    <td style="
+                        padding:0 0 22px;
+                        font-size:24px;
+                        font-weight:bold;
+                    ">
+                        ' . $safeName . '
+                    </td>
+                </tr>
+            </table>
+
+            <table
+                role="presentation"
+                width="100%"
+                cellspacing="0"
+                cellpadding="0"
+                style="
+                    border-collapse:collapse;
+                    background:#f6f9fa;
+                    border-radius:12px;
+                "
+            >
+                <tr>
+                    <td style="
+                        padding:14px;
+                        border-bottom:1px solid #dfe7eb;
+                        font-weight:bold;
+                        width:150px;
+                    ">
+                        Status
+                    </td>
+                    <td style="
+                        padding:14px;
+                        border-bottom:1px solid #dfe7eb;
+                    ">
+                        ' . $safeStatus . '
+                    </td>
+                </tr>
+
+                <tr>
+                    <td style="
+                        padding:14px;
+                        border-bottom:1px solid #dfe7eb;
+                        font-weight:bold;
+                    ">
+                        Mobile
+                    </td>
+                    <td style="
+                        padding:14px;
+                        border-bottom:1px solid #dfe7eb;
+                    ">
+                        ' . $safePhone . '
+                    </td>
+                </tr>
+
+                <tr>
+                    <td style="
+                        padding:14px;
+                        border-bottom:1px solid #dfe7eb;
+                        font-weight:bold;
+                    ">
+                        Email
+                    </td>
+                    <td style="
+                        padding:14px;
+                        border-bottom:1px solid #dfe7eb;
+                        word-break:break-word;
+                    ">
+                        ' . $safeEmail . '
+                    </td>
+                </tr>
+
+                <tr>
+                    <td style="
+                        padding:14px;
+                        font-weight:bold;
+                    ">
+                        Submitted
+                    </td>
+                    <td style="padding:14px;">
+                        ' . htmlspecialchars(
+                            $submittedAt,
+                            ENT_QUOTES,
+                            'UTF-8'
+                        ) . '
+                    </td>
+                </tr>
+            </table>
+
+            <h2 style="
+                margin:26px 0 10px;
+                font-size:18px;
+            ">
+                Selected weeks
+            </h2>
+
+            <ul style="
+                margin:0;
+                padding:16px 16px 16px 36px;
+                background:#f6f9fa;
+                border-radius:12px;
+                line-height:1.7;
+            ">
                 ' . $weekHtml . '
             </ul>
 
-            <p>
-                <strong>Notes:</strong><br>
-                ' . nl2br($safeNotes) . '
-            </p>
+            <h2 style="
+                margin:26px 0 10px;
+                font-size:18px;
+            ">
+                Questions or notes
+            </h2>
 
-            <p>
-                Open the private Attendees page to manage
-                this response.
-            </p>
+            <div style="
+                padding:16px;
+                background:#f6f9fa;
+                border-radius:12px;
+                line-height:1.6;
+            ">
+                ' . nl2br($safeNotes) . '
+            </div>
+
+            <table
+                role="presentation"
+                cellspacing="0"
+                cellpadding="0"
+                style="margin-top:26px;"
+            >
+                <tr>
+                    <td style="padding-right:10px;">
+                        <a
+                            href="' . $attendeesUrl . '"
+                            style="
+                                display:inline-block;
+                                padding:13px 18px;
+                                border-radius:8px;
+                                background:#ffc21a;
+                                color:#132f40;
+                                font-weight:bold;
+                                text-decoration:none;
+                            "
+                        >
+                            View attendees
+                        </a>
+                    </td>
+
+                    <td>
+                        <a
+                            href="' . $plannerUrl . '"
+                            style="
+                                display:inline-block;
+                                padding:12px 18px;
+                                border:1px solid #174d69;
+                                border-radius:8px;
+                                color:#174d69;
+                                font-weight:bold;
+                                text-decoration:none;
+                            "
+                        >
+                            Open planner
+                        </a>
+                    </td>
+                </tr>
+            </table>
+
+        </td>
+    </tr>
+</table>
+
+</td>
+</tr>
+</table>
+
+</body>
+</html>
         ';
 
         $adminPlain =
