@@ -20,18 +20,8 @@ if ($isLocal) {
 }
 
 define(
-    'GOOGLE_AVAILABILITY_CALENDAR_IDS',
-    [
-        /*
-         * Dedicated Mike – Availability calendar.
-         */
-        'a7a4ea0156c0f0919ddf9ed1e57006fc0d4658173a2ea7605b51304aa53c2cdb@group.calendar.google.com',
-
-        /*
-         * Main Mike of All Trades calendar.
-         */
-        'advancedgroupptyltd@gmail.com'
-    ]
+    'GOOGLE_AVAILABILITY_CALENDAR_ID',
+    'a7a4ea0156c0f0919ddf9ed1e57006fc0d4658173a2ea7605b51304aa53c2cdb@group.calendar.google.com'
 );
 
 define(
