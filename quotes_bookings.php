@@ -3,6 +3,7 @@ include 'includes/header.php';
 require_once 'includes/db.php';
 
 $isLoggedIn = !empty($_SESSION['user_id']);
+$customerDiscount = 0.0;
 
 $customerPricing = [
     'pricing_mode' => 'standard',
