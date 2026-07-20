@@ -25,6 +25,11 @@ define(
 );
 
 define(
+    'GOOGLE_MAIN_CALENDAR_ID',
+    'advancedgroupptyltd@gmail.com'
+);
+
+define(
     'GOOGLE_CALENDAR_TIMEZONE',
     'Australia/Melbourne'
 );
