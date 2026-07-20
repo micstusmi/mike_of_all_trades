@@ -680,6 +680,100 @@ try {
 
     $pdo->commit();
 
+    $googleEventIds = [];
+
+try {
+    /*
+     * Create one Google event for every actual work block.
+     * Travel-buffer rows are not copied separately because the website
+     * already applies travel-buffer rules around the work event.
+     */
+    foreach ($bookingIds as $bookingId) {
+        $googleBookingStmt = $pdo->prepare("
+            SELECT
+                id,
+                title,
+                notes,
+                start_datetime,
+                end_datetime
+            FROM calendar_events
+            WHERE id = ?
+              AND is_buffer = 0
+            LIMIT 1
+        ");
+
+        $googleBookingStmt->execute([
+            $bookingId
+        ]);
+
+        $googleBooking = $googleBookingStmt->fetch(
+            PDO::FETCH_ASSOC
+        );
+
+        if (!$googleBooking) {
+            continue;
+        }
+
+        $googleStart = new DateTimeImmutable(
+            $googleBooking['start_datetime'],
+            new DateTimeZone(GOOGLE_CALENDAR_TIMEZONE)
+        );
+
+        $googleEnd = new DateTimeImmutable(
+            $googleBooking['end_datetime'],
+            new DateTimeZone(GOOGLE_CALENDAR_TIMEZONE)
+        );
+
+        $googleSummary =
+            'Customer booking – ' .
+            $user['name'];
+
+        $googleDescription =
+            "Website booking\n\n" .
+            "Customer: " . $user['name'] . "\n" .
+            "Phone: " . ($user['phone'] ?? '') . "\n" .
+            "Email: " . $user['email'] . "\n" .
+            "Service: " . $service . "\n" .
+            "Booking group: " . $bookingGroupId . "\n\n" .
+            "Notes:\n" . $description;
+
+        $googleEventId = createGoogleBookingEvent(
+            $googleSummary,
+            $googleDescription,
+            $googleStart,
+            $googleEnd,
+            $user['address'] ?? null
+        );
+
+        $saveGoogleIdStmt = $pdo->prepare("
+            UPDATE calendar_events
+            SET google_calendar_event_id = ?
+            WHERE id = ?
+        ");
+
+        $saveGoogleIdStmt->execute([
+            $googleEventId,
+            $bookingId
+        ]);
+
+        $googleEventIds[] = $googleEventId;
+    }
+} catch (Throwable $googleException) {
+    /*
+     * Do not erase a valid customer booking just because Google had a
+     * temporary outage. Log it clearly for manual correction.
+     */
+    error_log(
+        'Google Calendar booking creation failed for booking group ' .
+        $bookingGroupId .
+        ': ' .
+        $googleException->getMessage()
+    );
+
+        throw $googleException;
+
+}
+
     $bookingScheduleText = implode(
         "\n",
         $bookingLines
@@ -769,11 +863,12 @@ Booking Group ID: {$bookingGroupId}";
     }
 
     echo json_encode([
-        'success' => true,
-        'booking_id' => $parentId,
-        'booking_group_id' => $bookingGroupId,
-        'estimate_id' => $estimateId
-    ], JSON_UNESCAPED_SLASHES);
+    'success' => true,
+    'booking_id' => $parentId,
+    'booking_group_id' => $bookingGroupId,
+    'estimate_id' => $estimateId,
+    'google_event_ids' => $googleEventIds
+], JSON_UNESCAPED_SLASHES);
 
 } catch (Throwable $exception) {
     if (
