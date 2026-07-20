@@ -31,3 +31,8 @@ painting_ai_uploads/
 # Thailand trip private uploads
 /thailand-trip/storage/documents/*
 !/thailand-trip/storage/documents/.htaccess
+
+# Google Calendar private credentials
+/private/
+google-calendar-service-account.json
+*service-account*.json

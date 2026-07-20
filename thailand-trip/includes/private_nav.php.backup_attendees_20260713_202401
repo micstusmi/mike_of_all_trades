@@ -1,10 +1,5 @@
 <?php
 
-$currentPage = basename(
-    $_SERVER['PHP_SELF'] ?? ''
-);
-
-
 if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
 }
@@ -163,17 +158,6 @@ if (!function_exists('privateNavActive')) {
                     ?>"
                     href="members.php"
                 >
-
-                <a
-                    href="attendees.php"
-                    class="private-nav-link<?= privateNavActive(
-                        'attendees.php',
-                        $currentPage
-                    ) ?>"
-                >
-                    Attendees
-                </a>
-
                     Travellers
                 </a>
 

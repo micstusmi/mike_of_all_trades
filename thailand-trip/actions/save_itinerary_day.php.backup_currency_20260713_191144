@@ -28,22 +28,6 @@ $summary = trim($_POST['summary'] ?? '');
 $estimatedCost =
     trim($_POST['estimated_cost_per_person'] ?? '');
 
-$costCurrency =
-    $_POST['cost_currency'] ?? 'AUD';
-
-$allowedCostCurrencies = [
-    'AUD',
-    'THB'
-];
-
-if (!in_array(
-    $costCurrency,
-    $allowedCostCurrencies,
-    true
-)) {
-    $costCurrency = 'AUD';
-}
-
 $allowedModes = [
     'DRIVE',
     'TWO_WHEELER',
@@ -114,9 +98,7 @@ $proposedData = [
     'estimated_cost_per_person' =>
         $estimatedCost !== ''
             ? max(0, (float) $estimatedCost)
-            : null,
-
-    'cost_currency' => $costCurrency
+            : null
 ];
 
 $originalData = null;
@@ -180,7 +162,6 @@ if ($isAdmin) {
                 summary = :summary,
                 map_url = :map_url,
                 estimated_cost_per_person = :estimated_cost,
-                cost_currency = :cost_currency,
                 updated_by_member_id = :member_id
             WHERE id = :day_id
               AND trip_id = :trip_id
@@ -199,10 +180,6 @@ if ($isAdmin) {
             'map_url' => $proposedData['map_url'],
             'estimated_cost' =>
                 $proposedData['estimated_cost_per_person'],
-
-            'cost_currency' =>
-                $proposedData['cost_currency'],
-
             'member_id' => $memberId,
             'day_id' => $dayId,
             'trip_id' => $tripId
@@ -239,7 +216,6 @@ if ($isAdmin) {
                 summary,
                 map_url,
                 estimated_cost_per_person,
-                cost_currency,
                 sort_order,
                 created_by_member_id,
                 updated_by_member_id
@@ -256,7 +232,6 @@ if ($isAdmin) {
                 :summary,
                 :map_url,
                 :estimated_cost,
-                :cost_currency,
                 :sort_order,
                 :member_id,
                 :member_id
@@ -277,10 +252,6 @@ if ($isAdmin) {
             'map_url' => $proposedData['map_url'],
             'estimated_cost' =>
                 $proposedData['estimated_cost_per_person'],
-
-            'cost_currency' =>
-                $proposedData['cost_currency'],
-
             'sort_order' => $sortOrder,
             'member_id' => $memberId
         ]);
