@@ -3,13 +3,29 @@ require '../includes/auth_user.php';
 require '../includes/db.php';
 include '../includes/header.php';
 
-$stmt = $pdo->prepare("
-    SELECT COUNT(*)
-    FROM ai_conversations
-    WHERE user_id = ?
-");
-$stmt->execute([$_SESSION['user_id']]);
-$savedChatCount = (int) $stmt->fetchColumn();
+$savedChatCount = 0;
+
+try {
+    $stmt = $pdo->prepare("
+        SELECT COUNT(*)
+        FROM ai_conversations
+        WHERE user_id = ?
+    ");
+
+    $stmt->execute([
+        $_SESSION['user_id']
+    ]);
+
+    $savedChatCount = (int)$stmt->fetchColumn();
+
+} catch (PDOException $exception) {
+    error_log(
+        'Could not load saved AI chat count: ' .
+        $exception->getMessage()
+    );
+
+    $savedChatCount = 0;
+}
 ?>
 
 <style>

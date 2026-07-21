@@ -11,7 +11,7 @@ $events = [];
 
 try {
     /*
-     * Existing website calendar events.
+     * Load website/database calendar events.
      */
     $stmt = $pdo->query("
         SELECT *
@@ -24,28 +24,57 @@ try {
 
         $events[] = [
             'id' => (string)$row['id'],
-            'title' => $row['title'],
+
+            'title' => $isBuffer
+                ? '🚗 travel'
+                : $row['title'],
+
             'start' => str_replace(
                 ' ',
                 'T',
                 $row['start_datetime']
             ),
+
             'end' => str_replace(
                 ' ',
                 'T',
                 $row['end_datetime']
             ),
-            'backgroundColor' => $row['color'],
-            'borderColor' => $row['color'],
+
+            'backgroundColor' => $isBuffer
+                ? '#d9d9d9'
+                : $row['color'],
+
+            'borderColor' => $isBuffer
+                ? '#cccccc'
+                : $row['color'],
+
+            'textColor' => $isBuffer
+                ? '#333333'
+                : '#ffffff',
+
+            /*
+             * Keep both class names for compatibility with
+             * the older admin calendar styling and the newer
+             * travel-buffer styling.
+             */
             'classNames' => $isBuffer
-                ? ['buffer-event']
+                ? [
+                    'buffer-event',
+                    'travel-buffer-event'
+                ]
                 : [],
+
             'editable' => !$isBuffer,
+            'startEditable' => !$isBuffer,
+            'durationEditable' => !$isBuffer,
+            'overlap' => false,
+
             'extendedProps' => [
                 'source' => 'database',
                 'notes' => $row['notes'],
                 'event_type' => $row['event_type'],
-                'is_buffer' => (int)$row['is_buffer'],
+                'is_buffer' => $isBuffer,
                 'parent_event_id' => $row['parent_event_id'],
                 'buffer_minutes' => (int)$row['buffer_minutes']
             ]
@@ -53,8 +82,8 @@ try {
     }
 
     /*
-     * FullCalendar normally supplies the visible date range as
-     * ?start=...&end=...
+     * FullCalendar normally supplies the currently visible
+     * date range as ?start=...&end=...
      */
     $timezone = new DateTimeZone(
         GOOGLE_CALENDAR_TIMEZONE
@@ -69,8 +98,8 @@ try {
         : $rangeStart->modify('+90 days');
 
     /*
-     * Google Calendar events are displayed as private,
-     * non-editable availability blocks.
+     * Load Google Calendar events as private, non-editable
+     * unavailable blocks.
      */
     $googleEvents = getGoogleFullCalendarEvents(
         $rangeStart->format(DateTimeInterface::RFC3339),
@@ -85,13 +114,14 @@ try {
         $googleEvent['editable'] = false;
         $googleEvent['startEditable'] = false;
         $googleEvent['durationEditable'] = false;
+        $googleEvent['overlap'] = false;
 
         $events[] = $googleEvent;
     }
 } catch (Throwable $exception) {
     /*
-     * Do not break the whole admin calendar if Google has
-     * a temporary problem. Database events still remain visible.
+     * If Google Calendar temporarily fails, keep returning
+     * the database events so the admin calendar still works.
      */
     error_log(
         'Admin calendar event loading failed: ' .
@@ -139,10 +169,18 @@ function overlapsGoogleCalendar(
             continue;
         }
 
-        $eventStart = new DateTimeImmutable($eventStartValue);
-        $eventEnd = new DateTimeImmutable($eventEndValue);
+        $eventStart = new DateTimeImmutable(
+            $eventStartValue
+        );
 
-        if ($start < $eventEnd && $end > $eventStart) {
+        $eventEnd = new DateTimeImmutable(
+            $eventEndValue
+        );
+
+        if (
+            $start < $eventEnd &&
+            $end > $eventStart
+        ) {
             return true;
         }
     }
