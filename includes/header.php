@@ -14,8 +14,15 @@ $baseUrl = $isLocalhost ? '/mike_of_all_trades/' : '/';
     <title>Mike Of All Trades | Instant Quotes</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+
+<link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
+<!-- Main Mike Of All Trades stylesheet -->
+<link rel="stylesheet"
+      href="<?= $baseUrl ?>css/style.css?v=20260816">
+
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
 
     <style>
         :root { --mike-orange:#f39200; --mike-navy:#1a252f; --mike-cyan:#0dcaf0; }
@@ -255,5 +262,541 @@ $baseUrl = $isLocalhost ? '/mike_of_all_trades/' : '/';
         </div>
     </div>
 </header>
+
+<!-- =========================================================
+     MIKE OF ALL TRADES - FLOATING AI CONCIERGE
+     ========================================================= -->
+
+<div id="mot-ai-concierge">
+
+    <!-- Permanent floating Ask AI button -->
+    <button
+        id="mot-ai-button"
+        type="button"
+        aria-label="Open AI assistant"
+        aria-expanded="false"
+        title="Need help?"
+    >
+        <span class="mot-ai-icon">✦</span>
+        <span class="mot-ai-button-text">Ask AI</span>
+    </button>
+
+
+    <!-- Popup menu -->
+    <div id="mot-ai-popup" class="mot-ai-hidden">
+
+        <button
+            id="mot-ai-close"
+            type="button"
+            aria-label="Close assistant"
+        >
+            ×
+        </button>
+
+
+        <div class="mot-ai-popup-header">
+
+            <div class="mot-ai-avatar">✦</div>
+
+            <div>
+                <strong>Need a hand?</strong>
+
+                <div class="mot-ai-online">
+                    <span></span>
+                    AI assistant
+                </div>
+            </div>
+
+        </div>
+
+
+        <p class="mot-ai-message">
+            I can help you find what you're looking for,
+            answer questions, get a quote or check when
+            Mike is available.
+        </p>
+
+
+        <div class="mot-ai-options">
+
+            <a
+                href="#"
+                id="mot-ai-help"
+                class="mot-ai-option mot-ai-primary"
+            >
+                <span class="mot-option-icon">💬</span>
+
+                <span>
+                    <strong>Ask AI</strong>
+                    <small>Questions, services &amp; website help</small>
+                </span>
+
+                <span class="mot-arrow">›</span>
+            </a>
+
+
+            <a
+                href="#"
+                id="mot-ai-quote"
+                class="mot-ai-option"
+            >
+                <span class="mot-option-icon">📝</span>
+
+                <span>
+                    <strong>Get a Quote</strong>
+                    <small>Let AI help work out your job</small>
+                </span>
+
+                <span class="mot-arrow">›</span>
+            </a>
+
+
+            <a
+                href="#"
+                id="mot-ai-availability"
+                class="mot-ai-option"
+            >
+                <span class="mot-option-icon">📅</span>
+
+                <span>
+                    <strong>Check Availability</strong>
+                    <small>See when Mike is available</small>
+                </span>
+
+                <span class="mot-arrow">›</span>
+            </a>
+
+
+            <a
+                href="#"
+                id="mot-ai-book"
+                class="mot-ai-option"
+            >
+                <span class="mot-option-icon">✓</span>
+
+                <span>
+                    <strong>Make a Booking</strong>
+                    <small>Choose a suitable day and time</small>
+                </span>
+
+                <span class="mot-arrow">›</span>
+            </a>
+
+        </div>
+
+
+        <button
+            id="mot-ai-not-now"
+            type="button"
+        >
+            No thanks, I'll look around
+        </button>
+
+    </div>
+
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    /*
+     * =====================================================
+     * MIKE OF ALL TRADES - FLOATING AI CONCIERGE
+     * =====================================================
+     */
+
+    const BASE_URL = <?= json_encode($baseUrl) ?>;
+
+    /*
+     * Existing website destinations.
+     *
+     * Using BASE_URL means these work BOTH:
+     *
+     * localhost:
+     * /mike_of_all_trades/...
+     *
+     * live website:
+     * /...
+     */
+
+    const AI_PAGE           = BASE_URL + 'ai_helper.php';
+    const QUOTE_PAGE        = BASE_URL + 'quotes_bookings.php';
+    const AVAILABILITY_PAGE = BASE_URL + 'quotes_bookings.php';
+    const BOOKING_PAGE      = BASE_URL + 'quotes_bookings.php';
+
+
+    /*
+     * Delay before automatically offering assistance.
+     *
+     * 20000 = 20 seconds
+     * 15000 = 15 seconds
+     */
+
+    const POPUP_DELAY = 10000;
+
+
+    /*
+     * Elements
+     */
+
+    const popup        = document.getElementById('mot-ai-popup');
+    const button       = document.getElementById('mot-ai-button');
+    const closeButton  = document.getElementById('mot-ai-close');
+    const notNowButton = document.getElementById('mot-ai-not-now');
+
+    const helpButton         = document.getElementById('mot-ai-help');
+    const quoteButton        = document.getElementById('mot-ai-quote');
+    const availabilityButton = document.getElementById('mot-ai-availability');
+    const bookingButton      = document.getElementById('mot-ai-book');
+
+
+    /*
+     * Safety check.
+     *
+     * If for some reason this header is loaded somewhere
+     * without the concierge HTML, don't throw JS errors.
+     */
+
+    if (
+        !popup ||
+        !button ||
+        !closeButton ||
+        !notNowButton
+    ) {
+        return;
+    }
+
+
+    let popupOpen = false;
+    let closeTimer = null;
+
+
+    /*
+     * =====================================================
+     * HELPER: BUILD URL SAFELY
+     * =====================================================
+     *
+     * This avoids problems such as:
+     *
+     * ai_helper.php?new=1?source=...
+     *
+     * and handles query parameters properly.
+     */
+
+    function buildUrl(page, params = {}) {
+
+        const url = new URL(page, window.location.origin);
+
+        Object.entries(params).forEach(function ([key, value]) {
+
+            if (
+                value !== null &&
+                value !== undefined &&
+                value !== ''
+            ) {
+                url.searchParams.set(key, value);
+            }
+
+        });
+
+        return url.pathname + url.search;
+    }
+
+
+    /*
+     * =====================================================
+     * OPEN POPUP
+     * =====================================================
+     */
+
+    function openPopup() {
+
+        if (closeTimer) {
+            clearTimeout(closeTimer);
+            closeTimer = null;
+        }
+
+        popup.classList.remove('mot-ai-hidden');
+
+        /*
+         * Force browser to render the visible element before
+         * adding the animation class.
+         */
+
+        requestAnimationFrame(function () {
+
+            requestAnimationFrame(function () {
+                popup.classList.add('mot-ai-visible');
+            });
+
+        });
+
+        popupOpen = true;
+
+        button.setAttribute('aria-expanded', 'true');
+    }
+
+
+    /*
+     * =====================================================
+     * CLOSE POPUP
+     * =====================================================
+     */
+
+    function closePopup() {
+
+        popup.classList.remove('mot-ai-visible');
+
+        button.setAttribute('aria-expanded', 'false');
+
+        popupOpen = false;
+
+        closeTimer = setTimeout(function () {
+
+            popup.classList.add('mot-ai-hidden');
+
+            closeTimer = null;
+
+        }, 250);
+    }
+
+
+    /*
+     * =====================================================
+     * PERMANENT ASK AI BUTTON
+     * =====================================================
+     */
+
+    button.setAttribute('aria-expanded', 'false');
+
+    button.addEventListener('click', function () {
+
+        if (popupOpen) {
+
+            closePopup();
+
+        } else {
+
+            openPopup();
+
+            /*
+             * If they manually opened it before the automatic
+             * timer fired, don't pop it at them again.
+             */
+
+            sessionStorage.setItem('motAiPopupShown', '1');
+        }
+
+    });
+
+
+    /*
+     * =====================================================
+     * X BUTTON
+     * =====================================================
+     */
+
+    closeButton.addEventListener('click', function () {
+
+        closePopup();
+
+        /*
+         * Don't automatically pop up again during this visit.
+         */
+
+        sessionStorage.setItem('motAiPopupDismissed', '1');
+
+    });
+
+
+    /*
+     * =====================================================
+     * NO THANKS
+     * =====================================================
+     */
+
+    notNowButton.addEventListener('click', function () {
+
+        closePopup();
+
+        sessionStorage.setItem('motAiPopupDismissed', '1');
+
+    });
+
+
+    /*
+     * =====================================================
+     * ASK AI
+     * =====================================================
+     */
+
+    if (helpButton) {
+
+        helpButton.addEventListener('click', function (event) {
+
+            event.preventDefault();
+
+            window.location.href = buildUrl(
+                AI_PAGE,
+                {
+                    new: '1',
+                    source: 'floating-assistant',
+                    intent: 'help'
+                }
+            );
+
+        });
+
+    }
+
+
+    /*
+     * =====================================================
+     * GET A QUOTE
+     * =====================================================
+     */
+
+    if (quoteButton) {
+
+        quoteButton.addEventListener('click', function (event) {
+
+            event.preventDefault();
+
+            window.location.href = buildUrl(
+                QUOTE_PAGE,
+                {
+                    source: 'floating-assistant',
+                    intent: 'quote'
+                }
+            );
+
+        });
+
+    }
+
+
+    /*
+     * =====================================================
+     * CHECK AVAILABILITY
+     * =====================================================
+     */
+
+    if (availabilityButton) {
+
+        availabilityButton.addEventListener('click', function (event) {
+
+            event.preventDefault();
+
+            window.location.href = buildUrl(
+                AVAILABILITY_PAGE,
+                {
+                    source: 'floating-assistant',
+                    intent: 'availability',
+                    step: '2'
+                }
+            );
+
+        });
+
+    }
+
+
+    /*
+     * =====================================================
+     * MAKE A BOOKING
+     * =====================================================
+     */
+
+    if (bookingButton) {
+
+        bookingButton.addEventListener('click', function (event) {
+
+            event.preventDefault();
+
+            window.location.href = buildUrl(
+                BOOKING_PAGE,
+                {
+                    source: 'floating-assistant',
+                    intent: 'booking'
+                }
+            );
+
+        });
+
+    }
+
+
+    /*
+     * =====================================================
+     * AUTOMATIC 20 SECOND INVITATION
+     * =====================================================
+     *
+     * sessionStorage means it appears once during this
+     * browser-tab session rather than repeatedly appearing
+     * as the customer moves between pages.
+     */
+
+    const dismissed =
+        sessionStorage.getItem('motAiPopupDismissed') === '1';
+
+    const alreadyShown =
+        sessionStorage.getItem('motAiPopupShown') === '1';
+
+
+    if (!dismissed && !alreadyShown) {
+
+        setTimeout(function () {
+
+            /*
+             * They might have manually opened or dismissed
+             * it during the 20 seconds.
+             */
+
+            const nowDismissed =
+                sessionStorage.getItem('motAiPopupDismissed') === '1';
+
+            const nowShown =
+                sessionStorage.getItem('motAiPopupShown') === '1';
+
+
+            if (
+                !popupOpen &&
+                !nowDismissed &&
+                !nowShown
+            ) {
+
+                openPopup();
+
+                sessionStorage.setItem(
+                    'motAiPopupShown',
+                    '1'
+                );
+
+            }
+
+        }, POPUP_DELAY);
+
+    }
+
+
+    /*
+     * =====================================================
+     * ESC KEY CLOSES POPUP
+     * =====================================================
+     */
+
+    document.addEventListener('keydown', function (event) {
+
+        if (
+            event.key === 'Escape' &&
+            popupOpen
+        ) {
+            closePopup();
+        }
+
+    });
+
+});
+</script>
 
 <?php include __DIR__ . '/sidebar.php'; ?>

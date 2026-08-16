@@ -120,3 +120,454 @@ body {
     opacity:0.9;
     transform:translateY(-1px);
 }
+
+/* =========================================================
+   MIKE OF ALL TRADES - FLOATING AI CONCIERGE
+   ========================================================= */
+
+#mot-ai-concierge,
+#mot-ai-concierge * {
+    box-sizing: border-box;
+}
+
+#mot-ai-concierge {
+    position: fixed !important;
+    right: 22px !important;
+    bottom: 22px !important;
+    z-index: 999999 !important;
+
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+                 Roboto, Helvetica, Arial, sans-serif;
+
+    font-size: 14px;
+}
+
+
+/* =========================================================
+   FLOATING ASK AI BUTTON
+   ========================================================= */
+
+#mot-ai-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+
+    margin-left: auto;
+
+    border: none;
+    border-radius: 50px;
+
+    padding: 11px 17px;
+
+    background: #1a252f;
+    color: #ffffff;
+
+    font-size: 15px;
+    font-weight: 700;
+
+    cursor: pointer;
+
+    box-shadow:
+        0 8px 25px rgba(0, 0, 0, 0.22),
+        0 2px 6px rgba(0, 0, 0, 0.15);
+
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease,
+        background 0.2s ease;
+}
+
+#mot-ai-button:hover {
+    background: #f39200;
+
+    transform: translateY(-2px);
+
+    box-shadow:
+        0 12px 30px rgba(0, 0, 0, 0.28),
+        0 3px 8px rgba(0, 0, 0, 0.18);
+}
+
+#mot-ai-button:focus-visible {
+    outline: 3px solid rgba(243, 146, 0, 0.35);
+    outline-offset: 3px;
+}
+
+.mot-ai-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 27px;
+    height: 27px;
+
+    flex: 0 0 27px;
+
+    border-radius: 50%;
+
+    background: #ffffff;
+    color: #1a252f;
+
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.mot-ai-button-text {
+    white-space: nowrap;
+}
+
+
+/* =========================================================
+   POPUP PANEL
+   ========================================================= */
+
+#mot-ai-popup {
+    position: absolute;
+
+    right: 0;
+    bottom: 66px;
+
+    width: 360px;
+    max-width: calc(100vw - 30px);
+
+    background: #ffffff;
+
+    border: 1px solid rgba(0, 0, 0, 0.07);
+    border-radius: 18px;
+
+    padding: 20px;
+
+    box-shadow:
+        0 22px 65px rgba(0, 0, 0, 0.24),
+        0 4px 15px rgba(0, 0, 0, 0.10);
+
+    transform-origin: bottom right;
+
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+
+    transition:
+        opacity 0.25s ease,
+        transform 0.25s ease;
+}
+
+#mot-ai-popup.mot-ai-hidden {
+    display: none !important;
+}
+
+#mot-ai-popup.mot-ai-visible {
+    display: block;
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+
+
+/* =========================================================
+   CLOSE BUTTON
+   ========================================================= */
+
+#mot-ai-close {
+    position: absolute;
+
+    top: 10px;
+    right: 12px;
+
+    width: 32px;
+    height: 32px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 0;
+
+    border: none;
+    border-radius: 50%;
+
+    background: transparent;
+    color: #777;
+
+    font-size: 25px;
+    line-height: 1;
+
+    cursor: pointer;
+}
+
+#mot-ai-close:hover {
+    background: #f3f4f6;
+    color: #111827;
+}
+
+
+/* =========================================================
+   POPUP HEADER
+   ========================================================= */
+
+.mot-ai-popup-header {
+    display: flex;
+    align-items: center;
+
+    gap: 11px;
+
+    padding-right: 35px;
+}
+
+.mot-ai-avatar {
+    width: 44px;
+    height: 44px;
+
+    flex: 0 0 44px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 50%;
+
+    background: #1a252f;
+    color: #ffffff;
+
+    font-size: 21px;
+}
+
+.mot-ai-popup-header strong {
+    display: block;
+
+    margin: 0;
+
+    color: #111827;
+
+    font-size: 18px;
+    font-weight: 750;
+    line-height: 1.25;
+}
+
+.mot-ai-online {
+    margin-top: 3px;
+
+    color: #6b7280;
+
+    font-size: 12px;
+}
+
+.mot-ai-online span {
+    display: inline-block;
+
+    width: 7px;
+    height: 7px;
+
+    margin-right: 4px;
+
+    border-radius: 50%;
+
+    background: #22c55e;
+}
+
+
+/* =========================================================
+   INTRO MESSAGE
+   ========================================================= */
+
+.mot-ai-message {
+    margin: 15px 0;
+
+    color: #4b5563;
+
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+
+/* =========================================================
+   MENU OPTIONS
+   ========================================================= */
+
+.mot-ai-options {
+    display: flex !important;
+    flex-direction: column !important;
+
+    gap: 8px;
+}
+
+.mot-ai-option {
+    display: flex !important;
+    align-items: center !important;
+
+    width: 100%;
+
+    gap: 11px;
+
+    padding: 11px 12px;
+
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+
+    background: #ffffff;
+
+    text-align: left;
+    text-decoration: none !important;
+
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
+        transform 0.15s ease;
+}
+
+.mot-ai-option:hover {
+    background: #f8f9fa;
+
+    border-color: #f39200;
+
+    transform: translateX(2px);
+}
+
+.mot-ai-option > span:nth-child(2) {
+    flex: 1;
+
+    min-width: 0;
+}
+
+.mot-ai-option strong {
+    display: block;
+
+    margin: 0;
+
+    color: #111827;
+
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.25;
+}
+
+.mot-ai-option small {
+    display: block;
+
+    margin-top: 2px;
+
+    color: #6b7280;
+
+    font-size: 11px;
+    line-height: 1.35;
+}
+
+.mot-option-icon {
+    width: 25px;
+
+    flex: 0 0 25px;
+
+    text-align: center;
+
+    font-size: 19px;
+}
+
+.mot-arrow {
+    flex: 0 0 auto;
+
+    color: #9ca3af;
+
+    font-size: 24px;
+    line-height: 1;
+}
+
+
+/* Main AI choice */
+
+.mot-ai-primary {
+    background: #fff7eb;
+
+    border-color: rgba(243, 146, 0, 0.32);
+}
+
+.mot-ai-primary:hover {
+    background: #fff2dc;
+}
+
+
+/* =========================================================
+   NO THANKS BUTTON
+   ========================================================= */
+
+#mot-ai-not-now {
+    display: block;
+
+    width: 100%;
+
+    margin-top: 13px;
+    padding: 5px;
+
+    border: none;
+
+    background: transparent;
+    color: #9ca3af;
+
+    font-size: 12px;
+
+    cursor: pointer;
+}
+
+#mot-ai-not-now:hover {
+    color: #4b5563;
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 600px) {
+
+    #mot-ai-concierge {
+        right: 12px !important;
+        bottom: 12px !important;
+    }
+
+    #mot-ai-popup {
+        position: fixed;
+
+        left: 12px;
+        right: 12px;
+        bottom: 72px;
+
+        width: auto;
+        max-width: none;
+
+        max-height: calc(100vh - 100px);
+
+        overflow-y: auto;
+
+        border-radius: 18px;
+    }
+
+    #mot-ai-button {
+        padding: 10px 14px;
+    }
+
+    .mot-ai-button-text {
+        font-size: 14px;
+    }
+
+    .mot-ai-message {
+        font-size: 13px;
+    }
+
+}
+
+
+/* =========================================================
+   VERY SMALL PHONES
+   ========================================================= */
+
+@media (max-width: 380px) {
+
+    #mot-ai-popup {
+        left: 8px;
+        right: 8px;
+
+        padding: 16px;
+    }
+
+    .mot-ai-option {
+        padding: 9px 10px;
+    }
+
+}

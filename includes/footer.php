@@ -24,9 +24,29 @@
                 </div>
                 
                 <div class="fs-4">
-                    <a href="#" class="text-secondary hover-info me-3 transition-all"><i class="bi bi-instagram"></i></a>
-                    <a href="#" class="text-secondary hover-info me-3 transition-all"><i class="bi bi-linkedin"></i></a>
-                    <a href="mailto:mike@mikeofalltrades.com.au" class="text-secondary hover-info transition-all"><i class="bi bi-envelope"></i></a>
+                    <div class="fs-4">
+
+    <!-- Instagram -->
+    <a href="https://www.instagram.com/mikeofall_trades_/"
+       target="_blank"
+       rel="noopener noreferrer"
+       class="text-secondary hover-info me-3 transition-all"
+       aria-label="Mike of All Trades on Instagram"
+       title="Instagram">
+        <i class="bi bi-instagram"></i>
+    </a>
+
+    <!-- Facebook -->
+    <a href="https://www.facebook.com/mikeofalltradesmelbourne"
+       target="_blank"
+       rel="noopener noreferrer"
+       class="text-secondary hover-info me-3 transition-all"
+       aria-label="Mike of All Trades on Facebook"
+       title="Facebook">
+        <i class="bi bi-facebook"></i>
+    </a>
+
+</div>
                 </div>
             </div>
         </div>

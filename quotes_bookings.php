@@ -173,15 +173,20 @@ if (!empty($_SESSION['user_id'])) {
 
 <div id="step2" class="booking-step d-none">
 <div class="card bg-secondary text-light p-4 rounded-4 shadow-lg border-0" style="background:#2c3e50!important;">
-<h3 class="text-info mb-3">Select Start Time</h3>
-<h5 class="text-info mb-5">* See availability in calendar below</h5>
+<h3 id="availabilityHeading" class="text-info mb-3">
+    Select Start Time
+</h3>
+
+<h5 id="availabilitySubheading" class="text-info mb-5">
+    * See availability in calendar below
+</h5>
 <p class="text-light small">
     Grey blocks are unavailable. Choose a date and start time below, or select a time directly on the calendar.
 </p>
 
 <div class="bg-dark p-3 rounded-3 border border-secondary mb-3">
     <label class="fw-bold text-light mb-2 d-block">
-        Choose a date and start time
+        Choose a date / time if you are wanting to make a booking or go back if you are wanting to get a quote.
     </label>
 
     <div class="row g-2">
@@ -620,28 +625,120 @@ document.addEventListener('DOMContentLoaded', function(){
         setTimeout(restoreQuoteProgress, 300);
     }
 
-if(params.get('step') === 'availability'){
+/*
+ * =====================================================
+ * DIRECT AVAILABILITY VIEW
+ * =====================================================
+ *
+ * Used by the floating AI concierge when the visitor
+ * clicks "Check Availability".
+ *
+ * Accepts:
+ *
+ * ?intent=availability
+ * ?step=2
+ * ?step=availability
+ *
+ * This lets people inspect Mike's calendar without
+ * first completing the quote / booking options.
+ */
+
+const availabilityShortcut =
+    params.get('intent') === 'availability' ||
+    params.get('step') === '2' ||
+    params.get('step') === 'availability';
+
+
+if(availabilityShortcut){
+
+    /*
+     * Hide the AI introduction because the visitor
+     * specifically asked to see availability.
+     */
+    const aiHelperWrapper =
+        document.getElementById('aiHelperWrapper');
+
+    if(aiHelperWrapper){
+        aiHelperWrapper.style.display = 'none';
+    }
+
+const availabilityHeading =
+    document.getElementById('availabilityHeading');
+
+const availabilitySubheading =
+    document.getElementById('availabilitySubheading');
+
+
+if(availabilityHeading){
+    availabilityHeading.innerText =
+        'Mike\'s Availability';
+}
+
+if(availabilitySubheading){
+    availabilitySubheading.innerText =
+        'Grey areas are unavailable. Open times may be available for booking.';
+}
+
+    /*
+     * Go directly to availability.
+     */
+    goToStep(2);
+
+
+    /*
+     * Give FullCalendar a moment to initialise,
+     * then choose the requested view and move the
+     * calendar into the visitor's viewport.
+     */
     setTimeout(function(){
-        goToStep(2);
 
-        setTimeout(function(){
-            if(calendar){
-                const view = params.get('view');
+        if(!calendar){
+            return;
+        }
 
-                if(view === 'day'){
-                    calendar.changeView('timeGridDay');
-                }
 
-                if(view === 'week'){
-                    calendar.changeView('timeGridWeek');
-                }
+        const view = params.get('view');
 
-                if(view === 'month'){
-                    calendar.changeView('dayGridMonth');
-                }
-            }
-        }, 300);
-    }, 300);
+
+        if(view === 'day'){
+            calendar.changeView('timeGridDay');
+        }
+        else if(view === 'month'){
+            calendar.changeView('dayGridMonth');
+        }
+        else{
+            /*
+             * Week view is the most useful default
+             * for checking general availability.
+             */
+            calendar.changeView('timeGridWeek');
+        }
+
+
+        /*
+         * Make sure FullCalendar recalculates its size
+         * after Step 2 became visible.
+         */
+        calendar.updateSize();
+
+
+        /*
+         * Scroll directly to the calendar.
+         */
+        const calendarElement =
+            document.getElementById('calendar');
+
+        if(calendarElement){
+
+            calendarElement.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+
+        }
+
+    }, 400);
+
 }
 
 if(params.get('ai_booking') === '1'){
