@@ -65,7 +65,68 @@
 
                 <hr class="my-5 opacity-10">
 
-                <section class="mb-5">
+<!-- =====================================================
+     LOCATION / GOOGLE MAPS
+     ===================================================== -->
+
+<section class="mb-5">
+
+    <div class="row align-items-center g-4">
+
+        <div class="col-lg-4">
+
+            <span class="badge bg-info text-dark px-3 py-2 mb-3">
+                Melbourne, Victoria
+            </span>
+
+            <h2 class="text-navy fw-bold mb-3">
+                Based in South East Melbourne
+            </h2>
+
+            <p class="text-muted">
+                Mike regularly bases himself out of either the Pakenham or Oakleigh East suburbs...depending on the day. Mike primarily dedicates the majority of his professional
+                services throughout the South East Melbourne suburbs and it's surrounding
+                areas, however, Mike is more than happy to work across all of Gxreater Melbourne depending on
+                the project.
+            </p>
+
+            <p class="text-muted small mb-0">
+                Use the map to view Mike Of All Trades on Google Maps.
+            </p>
+
+        </div>
+
+
+        <div class="col-lg-8">
+
+            <div class="mot-google-map shadow-sm">
+
+                <iframe
+                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d201241.75828880095!2d145.15256761264402!3d-37.991071767255995!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0xf9304bc7d8d575d%3A0xa494d9bfc3cc934!2sMike%20of%20All%20Trades!5e0!3m2!1sen!2sau!4v1786954588544!5m2!1sen!2sau"
+                    width="100%"
+                    height="420"
+                    style="border:0;"
+                    allowfullscreen
+                    loading="lazy"
+                    referrerpolicy="strict-origin-when-cross-origin"
+                    title="Mike Of All Trades on Google Maps">
+                </iframe>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<hr class="my-5 opacity-10">
+
+
+<!-- CLIENT REVIEWS -->
+
+<section class="mb-5">
                     <div class="row align-items-center mb-4">
                         <div class="col-md-6 text-center text-md-start">
                             <h2 class="text-navy fw-bold mb-0">Client Reviews</h2>
@@ -132,10 +193,42 @@
 </main>
 
 <style>
-    .text-navy { color: var(--mike-navy); }
-    .highlight { color: var(--mike-orange); }
-    .italic { font-style: italic; }
-    .hero-card .btn-outline-light:hover { background-color: #fff; color: var(--mike-navy); }
+    .text-navy {
+        color: var(--mike-navy);
+    }
+
+    .highlight {
+        color: var(--mike-orange);
+    }
+
+    .italic {
+        font-style: italic;
+    }
+
+    .hero-card .btn-outline-light:hover {
+        background-color: #fff;
+        color: var(--mike-navy);
+    }
+
+    .mot-google-map {
+        width: 100%;
+        overflow: hidden;
+        border-radius: 18px;
+        background: #fff;
+    }
+
+    .mot-google-map iframe {
+        display: block;
+        width: 100%;
+        height: 420px;
+        border: 0;
+    }
+
+    @media (max-width: 767px) {
+        .mot-google-map iframe {
+            height: 330px;
+        }
+    }
 </style>
 
 <?php include 'includes/footer.php'; ?>
