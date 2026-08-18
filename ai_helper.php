@@ -159,6 +159,99 @@ if (session_status() === PHP_SESSION_NONE) {
             color:white;
         }
 
+
+
+        .attachmentTools{
+            margin:10px 0 12px;
+        }
+
+        .attachmentButton{
+            display:inline-flex;
+            align-items:center;
+            gap:7px;
+            background:#2d2d2d;
+            color:#fff;
+            border:1px solid #444;
+            padding:10px 14px;
+            border-radius:999px;
+            cursor:pointer;
+            font-weight:bold;
+        }
+
+        .attachmentButton:hover{
+            background:#3a3a3a;
+        }
+
+        .attachmentHelp{
+            color:#aaa;
+            font-size:12px;
+            margin:7px 0 0;
+            line-height:1.4;
+        }
+
+        #attachmentPreview{
+            display:flex;
+            flex-wrap:wrap;
+            gap:10px;
+            margin:10px 0 4px;
+        }
+
+        .attachmentPreviewItem{
+            position:relative;
+            width:86px;
+            background:#181818;
+            border:1px solid #3a3a3a;
+            border-radius:10px;
+            padding:5px;
+        }
+
+        .attachmentPreviewItem img{
+            width:100%;
+            height:72px;
+            object-fit:cover;
+            display:block;
+            border-radius:7px;
+        }
+
+        .pdfAttachmentIcon{
+            width:100%;
+            height:72px;
+            border-radius:7px;
+            background:#343a40;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:14px;
+            font-weight:700;
+            color:#fff;
+        }
+
+        .attachmentPreviewName{
+            margin-top:5px;
+            color:#ccc;
+            font-size:10px;
+            white-space:nowrap;
+            overflow:hidden;
+            text-overflow:ellipsis;
+        }
+
+        .removeAttachment{
+            position:absolute;
+            top:-7px;
+            right:-7px;
+            width:24px;
+            height:24px;
+            min-width:24px;
+            padding:0;
+            margin:0;
+            border-radius:50%;
+            background:#b02a37;
+            color:#fff;
+            border:2px solid #1f1f1f;
+            font-size:16px;
+            line-height:20px;
+        }
+
         .chatInputBar{
             position:sticky;
             bottom:0;
@@ -173,24 +266,47 @@ if (session_status() === PHP_SESSION_NONE) {
         }
 
         #contextualActions{
-            margin-top:18px;
+            margin-top:16px;
             display:flex;
             flex-wrap:wrap;
-            gap:8px;
+            align-items:center;
+            gap:7px;
         }
 
         #contextualActions button{
-            background:#198754;
-            color:white;
-            border:none;
-            padding:11px 14px;
+            margin:0;
             border-radius:999px;
-            font-size:14px;
-            font-weight:bold;
+            font-size:12px;
+            font-weight:600;
+            padding:8px 11px;
+            transition:0.18s ease;
         }
 
-        #contextualActions button:hover{
-            opacity:0.92;
+        /* Main next-step action only */
+        #contextualActions .action-primary{
+            background:#198754;
+            color:#fff;
+            border:1px solid #198754;
+            padding:10px 14px;
+            font-size:13px;
+            font-weight:700;
+        }
+
+        #contextualActions .action-primary:hover{
+            filter:brightness(1.08);
+        }
+
+        /* Secondary actions stay available without dominating the chat */
+        #contextualActions .action-secondary{
+            background:transparent;
+            color:#aaa;
+            border:1px solid #3b3b3b;
+        }
+
+        #contextualActions .action-secondary:hover{
+            background:#2a2a2a;
+            color:#fff;
+            border-color:#555;
         }
 
         /* =========================================================
@@ -417,6 +533,16 @@ if (session_status() === PHP_SESSION_NONE) {
                 margin-right:0;
             }
 
+            #contextualActions{
+                gap:6px;
+            }
+
+            #contextualActions .action-primary,
+            #contextualActions .action-secondary{
+                font-size:12px;
+                padding:8px 10px;
+            }
+
             input,
             textarea{
                 font-size:16px;
@@ -491,11 +617,11 @@ if (session_status() === PHP_SESSION_NONE) {
 <div class="card">
 
     <h2 class="assistant-heading">
-        Tell us what you need done
+        Briefly - tell us what you need done, if we have follow up questions, Mike's assistant will ask.
     </h2>
 
     <p class="hint assistant-subheading">
-        Type your job below, or continue replying to Mike's assistant here.
+        Type your job below (or use voice to text on mobile), and then continue replying to Mike's assistant below.
     </p>
 
     <p class="assistant-explainer">
@@ -583,13 +709,32 @@ if (session_status() === PHP_SESSION_NONE) {
 
     </div>
 
-    <form id="aiForm" class="chatInputBar">
+    <form id="aiForm" class="chatInputBar" enctype="multipart/form-data">
 
         <textarea
             id="messageInput"
             placeholder="For example: I have some rotten timber on the front of my house that needs repairing..."
-            required
         ></textarea>
+
+        <div class="attachmentTools">
+            <label class="attachmentButton" for="jobAttachments">
+                📎 Add photos / PDF plans
+            </label>
+
+            <input
+                id="jobAttachments"
+                type="file"
+                accept="image/jpeg,image/png,image/webp,application/pdf,.pdf"
+                multiple
+                hidden
+            >
+
+            <p class="attachmentHelp">
+                Add up to 10 photos or PDF plans/documents (10 MB each). If size is hard to judge from a photo, Mike's assistant may ask for dimensions.
+            </p>
+
+            <div id="attachmentPreview"></div>
+        </div>
 
         <button
             class="primary"
@@ -619,6 +764,102 @@ if (session_status() === PHP_SESSION_NONE) {
 
     let isSavingConversation = false;
 
+    let selectedAttachments = [];
+
+    const attachmentInput =
+        document.getElementById('jobAttachments');
+
+    attachmentInput.addEventListener('change', function(){
+
+        const incomingFiles = Array.from(this.files || []);
+
+        incomingFiles.forEach(file => {
+
+            if(selectedAttachments.length >= 10){
+                return;
+            }
+
+            const allowedTypes = [
+                'image/jpeg',
+                'image/png',
+                'image/webp',
+                'application/pdf'
+            ];
+
+            if(!allowedTypes.includes(file.type)){
+                return;
+            }
+
+            if(file.size > 10 * 1024 * 1024){
+                return;
+            }
+
+            const alreadySelected =
+                selectedAttachments.some(existing =>
+                    existing.name === file.name &&
+                    existing.size === file.size &&
+                    existing.lastModified === file.lastModified
+                );
+
+            if(!alreadySelected){
+                selectedAttachments.push(file);
+            }
+        });
+
+        this.value = '';
+
+        renderAttachmentPreview();
+    });
+
+
+    function renderAttachmentPreview(){
+
+        const box =
+            document.getElementById('attachmentPreview');
+
+        box.innerHTML = '';
+
+        selectedAttachments.forEach((file, index) => {
+
+            const item = document.createElement('div');
+            item.className = 'attachmentPreviewItem';
+
+            let visual;
+
+            if(file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')){
+                visual = document.createElement('div');
+                visual.className = 'pdfAttachmentIcon';
+                visual.textContent = 'PDF';
+            }else{
+                visual = document.createElement('img');
+                visual.alt = 'Selected job photo';
+
+                const objectUrl = URL.createObjectURL(file);
+                visual.src = objectUrl;
+                visual.onload = () => URL.revokeObjectURL(objectUrl);
+            }
+
+            const name = document.createElement('div');
+            name.className = 'attachmentPreviewName';
+            name.textContent = file.name;
+
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.className = 'removeAttachment';
+            remove.setAttribute('aria-label', 'Remove attachment');
+            remove.textContent = '×';
+            remove.onclick = function(){
+                selectedAttachments.splice(index, 1);
+                renderAttachmentPreview();
+            };
+
+            item.appendChild(visual);
+            item.appendChild(name);
+            item.appendChild(remove);
+            box.appendChild(item);
+        });
+    }
+
 
     document
         .getElementById('aiForm')
@@ -629,7 +870,10 @@ if (session_status() === PHP_SESSION_NONE) {
             const message =
                 document.getElementById('messageInput').value.trim();
 
-            if(!message){
+            const attachmentsForThisMessage =
+                [...selectedAttachments];
+
+            if(!message && attachmentsForThisMessage.length === 0){
                 return;
             }
 
@@ -650,21 +894,45 @@ if (session_status() === PHP_SESSION_NONE) {
 
             await sendMessageToAI(
                 message,
-                'Customer'
+                'Customer',
+                attachmentsForThisMessage
             );
 
             document.getElementById('messageInput').value = '';
+
+            selectedAttachments = [];
+            renderAttachmentPreview();
 
             document.getElementById('messageInput').placeholder =
                 'Continue typing or responding to this chat...';
         });
 
 
-    async function sendMessageToAI(message, roleLabel){
+    async function sendMessageToAI(message, roleLabel, attachments = []){
+
+        const photoCount = attachments.filter(file => file.type !== 'application/pdf').length;
+        const pdfCount = attachments.filter(file => file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')).length;
+
+        const attachmentParts = [];
+
+        if(photoCount){
+            attachmentParts.push('📷 ' + photoCount + (photoCount === 1 ? ' photo attached' : ' photos attached'));
+        }
+
+        if(pdfCount){
+            attachmentParts.push('📄 ' + pdfCount + (pdfCount === 1 ? ' PDF attached' : ' PDFs attached'));
+        }
+
+        const attachmentSummary = attachmentParts.join(' · ');
+
+        const historyMessage =
+            [message, attachmentSummary]
+                .filter(Boolean)
+                .join('\n');
 
         chatHistory.push({
             role: roleLabel,
-            message: message
+            message: historyMessage
         });
 
         const thinkingId =
@@ -719,6 +987,10 @@ if (session_status() === PHP_SESSION_NONE) {
             'history',
             formatChatHistory()
         );
+
+        attachments.forEach(file => {
+            fd.append('attachments[]', file, file.name);
+        });
 
         let data;
 
@@ -1381,6 +1653,7 @@ if (session_status() === PHP_SESSION_NONE) {
             box.innerHTML += `
                 <button
                     type="button"
+                    class="action-primary"
                     onclick="goQuote()"
                 >
                     Review quote form
@@ -1388,9 +1661,10 @@ if (session_status() === PHP_SESSION_NONE) {
 
                 <button
                     type="button"
+                    class="action-secondary"
                     onclick="goBooking()"
                 >
-                    Book Mike in with these chat details
+                    Book instead
                 </button>
             `;
         }
@@ -1401,9 +1675,10 @@ if (session_status() === PHP_SESSION_NONE) {
             box.innerHTML += `
                 <button
                     type="button"
+                    class="action-primary"
                     onclick="goBooking()"
                 >
-                    Book Mike in with these chat details
+                    Book Mike in
                 </button>
             `;
         }
@@ -1414,9 +1689,10 @@ if (session_status() === PHP_SESSION_NONE) {
             box.innerHTML += `
                 <button
                     type="button"
+                    class="action-primary"
                     onclick="goAvailability()"
                 >
-                    Open Mike's availability calendar
+                    Open availability calendar
                 </button>
             `;
         }
@@ -1425,20 +1701,23 @@ if (session_status() === PHP_SESSION_NONE) {
         box.innerHTML += `
             <button
                 type="button"
+                class="action-secondary"
                 onclick="saveChatForLater()"
             >
-                Save this chat for later
+                Save this chat
             </button>
 
             <button
                 type="button"
+                class="action-secondary"
                 onclick="showContactMikeBox()"
             >
-                Send this chat to Mike
+                Send to Mike
             </button>
 
             <button
                 type="button"
+                class="action-secondary"
                 onclick="disableAiHelper()"
             >
                 Continue without AI
