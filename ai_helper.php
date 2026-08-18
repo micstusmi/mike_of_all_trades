@@ -115,6 +115,8 @@ if (session_status() === PHP_SESSION_NONE) {
             padding:12px 14px;
             border-radius:16px;
             line-height:1.35;
+            scroll-margin-top:110px;
+            scroll-margin-bottom:220px;
         }
 
         .chat-customer{
@@ -1077,6 +1079,10 @@ if (session_status() === PHP_SESSION_NONE) {
 
             e.preventDefault();
 
+            // A fresh customer submission means they want to follow
+            // the live conversation again.
+            chatAutoScrollEnabled = true;
+
             const message =
                 document.getElementById('messageInput').value.trim();
 
@@ -1953,6 +1959,123 @@ if (session_status() === PHP_SESSION_NONE) {
     }
 
 
+    /*
+     * =========================================================
+     * SMART CHAT AUTO-SCROLL
+     * =========================================================
+     *
+     * Keep the newest AI/customer message visible without blindly
+     * forcing the whole page to the absolute bottom. This is important
+     * because the message input is sticky and can otherwise cover the
+     * latest AI response, especially on mobile.
+     */
+
+    let chatAutoScrollEnabled = true;
+    let chatAutoScrollTimer = null;
+
+    function getChatScrollOffset(){
+        const topbar = document.querySelector('.ai-topbar');
+        const topbarHeight = topbar ? topbar.getBoundingClientRect().height : 0;
+
+        return topbarHeight + 18;
+    }
+
+    function scrollChatBubbleIntoView(bubble, behavior = 'smooth'){
+        if(!bubble){
+            return;
+        }
+
+        const rect = bubble.getBoundingClientRect();
+        const topOffset = getChatScrollOffset();
+        const viewportHeight =
+            window.innerHeight || document.documentElement.clientHeight;
+
+        /*
+         * Aim to show the START of the newest response. This is better
+         * than scrolling to the page bottom when an AI answer is taller
+         * than the available viewport.
+         */
+        const targetTop =
+            window.scrollY +
+            rect.top -
+            topOffset;
+
+        window.scrollTo({
+            top: Math.max(0, targetTop),
+            behavior
+        });
+    }
+
+    function scrollToLatestChatMessage(behavior = 'smooth'){
+        if(!chatAutoScrollEnabled){
+            return;
+        }
+
+        const box = document.getElementById('chatHistoryBox');
+
+        if(!box){
+            return;
+        }
+
+        const bubbles = box.querySelectorAll('.chat-bubble');
+
+        if(!bubbles.length){
+            return;
+        }
+
+        const latest = bubbles[bubbles.length - 1];
+
+        /*
+         * Wait until the browser has laid out the newly rendered text,
+         * buttons and attachment areas before calculating the position.
+         */
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                scrollChatBubbleIntoView(latest, behavior);
+            });
+        });
+
+        clearTimeout(chatAutoScrollTimer);
+
+        /*
+         * A second gentle correction catches layout changes caused by
+         * fonts, wrapping, contextual buttons, images, or mobile browser
+         * chrome resizing after the first render.
+         */
+        chatAutoScrollTimer = setTimeout(() => {
+            if(chatAutoScrollEnabled){
+                scrollChatBubbleIntoView(latest, 'smooth');
+            }
+        }, 180);
+    }
+
+    /*
+     * If the customer deliberately scrolls well above the latest chat,
+     * stop dragging them back down. Auto-scroll is re-enabled when they
+     * return near the current conversation or submit another message.
+     */
+    let lastKnownScrollY = window.scrollY;
+
+    window.addEventListener('scroll', function(){
+        const currentY = window.scrollY;
+        const movingUp = currentY < lastKnownScrollY;
+
+        if(movingUp){
+            const box = document.getElementById('chatHistoryBox');
+
+            if(box){
+                const rect = box.getBoundingClientRect();
+
+                if(rect.bottom > window.innerHeight + 180){
+                    chatAutoScrollEnabled = false;
+                }
+            }
+        }
+
+        lastKnownScrollY = currentY;
+    }, { passive:true });
+
+
     function renderChatHistory(){
 
         const box =
@@ -2004,6 +2127,8 @@ if (session_status() === PHP_SESSION_NONE) {
 
             box.appendChild(div);
         });
+
+        scrollToLatestChatMessage();
     }
 
 
