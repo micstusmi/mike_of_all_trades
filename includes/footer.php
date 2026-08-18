@@ -277,6 +277,10 @@
                             </div>
                         </div>
 
+                        <div id="footerRequestStatus"
+                             class="small mb-3"
+                             style="display:none;"></div>
+
                         <div class="d-grid">
                             <button type="submit"
                                     class="btn btn-info text-white fw-bold py-3 rounded-pill shadow-sm"
@@ -407,6 +411,25 @@ function showFooterChoices() {
     formPanel.style.display = 'none';
     choices.style.display = 'block';
     clearFooterAttachments();
+
+    footerRequestSubmitting = false;
+    footerRequestSucceeded = false;
+
+    const button =
+        document.getElementById('footerSubmitButton');
+
+    const status =
+        document.getElementById('footerRequestStatus');
+
+    if(button){
+        button.disabled = false;
+        button.innerText = 'SEND REQUEST';
+    }
+
+    if(status){
+        status.style.display = 'none';
+        status.innerText = '';
+    }
 }
 
 
@@ -519,29 +542,139 @@ document.addEventListener('change', function (event) {
     renderFooterAttachmentPreview();
 });
 
-document.addEventListener('submit', function (event) {
+let footerRequestSubmitting = false;
+let footerRequestSucceeded = false;
+
+document.addEventListener('submit', async function (event) {
     if (event.target.id !== 'footerContactForm') {
         return;
     }
 
-    const enquiryType = document.getElementById('footerEnquiryType')?.value || '';
+    event.preventDefault();
 
-    if (enquiryType !== 'quote' || footerSelectedAttachments.length === 0) {
+    if(footerRequestSubmitting || footerRequestSucceeded){
         return;
     }
 
-    // The browser's FileList cannot be assigned directly, so use DataTransfer.
-    const input = document.getElementById('footerAttachments');
+    const form = event.target;
+    const enquiryType =
+        document.getElementById('footerEnquiryType')?.value || '';
 
-    if (input && typeof DataTransfer !== 'undefined') {
-        const dt = new DataTransfer();
+    const button =
+        document.getElementById('footerSubmitButton');
 
-        footerSelectedAttachments.forEach(file => {
-            dt.items.add(file);
-        });
+    const status =
+        document.getElementById('footerRequestStatus');
 
-        input.files = dt.files;
+    footerRequestSubmitting = true;
+
+    if(button){
+        button.disabled = true;
+        button.innerText =
+            enquiryType === 'quote'
+                ? 'SENDING QUOTE REQUEST...'
+                : 'SENDING MESSAGE...';
     }
+
+    if(status){
+        status.style.display = 'block';
+        status.className = 'small mb-3 text-secondary';
+        status.innerText =
+            enquiryType === 'quote'
+                ? 'Sending your request and supplied files to Mike...'
+                : 'Sending your message to Mike...';
+    }
+
+    try{
+        const fd = new FormData(form);
+
+        /*
+         * The hidden file input is deliberately rebuilt from our
+         * preview array so removed files are not accidentally sent.
+         */
+        fd.delete('attachments[]');
+
+        if(enquiryType === 'quote'){
+            footerSelectedAttachments.forEach(file => {
+                fd.append(
+                    'attachments[]',
+                    file,
+                    file.name
+                );
+            });
+        }
+
+        const response = await fetch(
+            form.action,
+            {
+                method:'POST',
+                body:fd
+            }
+        );
+
+        const text = await response.text();
+
+        let result;
+
+        try{
+            result = JSON.parse(text);
+        }catch(err){
+            throw new Error(
+                text.substring(0, 500) ||
+                'Invalid server response.'
+            );
+        }
+
+        if(!result.success){
+            throw new Error(
+                result.message ||
+                'The request could not be sent.'
+            );
+        }
+
+        footerRequestSucceeded = true;
+
+        if(button){
+            button.disabled = true;
+            button.innerText =
+                result.duplicate_prevented
+                    ? '✓ ALREADY SENT'
+                    : '✓ SENT SUCCESSFULLY';
+        }
+
+        if(status){
+            status.className = 'small mb-3 text-success fw-bold';
+            status.innerText =
+                result.duplicate_prevented
+                    ? 'This exact request had already been sent, so a duplicate was prevented.'
+                    : result.message;
+        }
+
+        clearFooterAttachments();
+
+    }catch(err){
+        footerRequestSubmitting = false;
+
+        if(button){
+            button.disabled = false;
+            button.innerText =
+                enquiryType === 'quote'
+                    ? 'TRY SENDING QUOTE REQUEST AGAIN'
+                    : 'TRY SENDING MESSAGE AGAIN';
+        }
+
+        if(status){
+            status.style.display = 'block';
+            status.className = 'small mb-3 text-danger fw-bold';
+            status.innerText =
+                err.message ||
+                'The request could not be sent.';
+        }
+
+        return;
+    }
+
+    footerRequestSubmitting = false;
 });
 
 

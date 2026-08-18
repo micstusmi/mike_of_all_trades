@@ -53,7 +53,7 @@ function getZohoAccessToken() {
 
 /**
  * ---------------------------------------------------------
- * GENERIC ZOHO REQUEST
+ * GENERIC ZOHO JSON REQUEST
  * ---------------------------------------------------------
  */
 function zohoRequest($method, $url, $payload = null) {
@@ -115,6 +115,212 @@ function zohoRequest($method, $url, $payload = null) {
 
 /**
  * ---------------------------------------------------------
+ * GENERIC ZOHO MULTIPART REQUEST WITH ATTACHMENTS
+ * ---------------------------------------------------------
+ *
+ * Used by:
+ * - Email an estimate with customer-supplied source files
+ * - Email a Zoho contact (manual quote request) with attachments
+ *
+ * Files remain in PHP's temporary upload area only for the duration
+ * of the request. This function does not copy them into permanent
+ * web-server storage.
+ */
+function zohoMultipartRequest(
+    $url,
+    array $payload,
+    array $files = [],
+    string $fileFieldName = 'attachments'
+) {
+    $token = getZohoAccessToken();
+
+    if (!$token) {
+        return [
+            'code' => 500,
+            'raw'  => 'Failed to generate Zoho access token',
+            'json' => null
+        ];
+    }
+
+    $boundary =
+        '--------------------------'
+        . bin2hex(random_bytes(12));
+
+    $eol = "\r\n";
+    $body = '';
+
+    /*
+     * Zoho's multipart APIs accept the structured request data
+     * in a JSONString field alongside binary attachment parts.
+     */
+    $body .= '--' . $boundary . $eol;
+    $body .= 'Content-Disposition: form-data; name="JSONString"' . $eol;
+    $body .= 'Content-Type: application/json; charset=UTF-8' . $eol . $eol;
+    $body .= json_encode($payload, JSON_UNESCAPED_SLASHES) . $eol;
+
+    foreach ($files as $file) {
+        $tmpPath = $file['tmp_name'] ?? '';
+        $filename = basename((string)($file['name'] ?? 'attachment'));
+        $mime = (string)($file['mime'] ?? 'application/octet-stream');
+
+        if (!$tmpPath || !is_file($tmpPath)) {
+            continue;
+        }
+
+        $bytes = file_get_contents($tmpPath);
+
+        if ($bytes === false) {
+            continue;
+        }
+
+        $safeFilename =
+            str_replace(
+                ['"', "\r", "\n"],
+                ['_', '', ''],
+                $filename
+            );
+
+        $body .= '--' . $boundary . $eol;
+        $body .=
+            'Content-Disposition: form-data; name="'
+            . $fileFieldName
+            . '"; filename="'
+            . $safeFilename
+            . '"'
+            . $eol;
+
+        $body .=
+            'Content-Type: '
+            . $mime
+            . $eol;
+
+        $body .=
+            'Content-Transfer-Encoding: binary'
+            . $eol
+            . $eol;
+
+        $body .= $bytes . $eol;
+    }
+
+    $body .= '--' . $boundary . '--' . $eol;
+
+    $headers = [
+        "Authorization: Zoho-oauthtoken {$token}",
+        "X-com-zoho-invoice-organizationid: " . ZOHO_ORG_ID,
+        "Content-Type: multipart/form-data; boundary={$boundary}",
+        "Content-Length: " . strlen($body)
+    ];
+
+    $ch = curl_init($url);
+
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_HTTPHEADER => $headers,
+        CURLOPT_POSTFIELDS => $body,
+        CURLOPT_TIMEOUT => 90,
+        CURLOPT_SSL_VERIFYPEER => true
+    ]);
+
+    $result = curl_exec($ch);
+
+    if (curl_errno($ch)) {
+        $error = curl_error($ch);
+        curl_close($ch);
+
+        return [
+            'code' => 500,
+            'raw' => $error,
+            'json' => null
+        ];
+    }
+
+    $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    return [
+        'code' => $http,
+        'raw' => $result,
+        'json' => json_decode($result, true)
+    ];
+}
+
+/**
+ * ---------------------------------------------------------
+ * ESTIMATE EMAIL MULTIPART WRAPPER
+ * ---------------------------------------------------------
+ */
+function zohoEstimateEmailMultipartRequest(
+    $estimate_id,
+    array $payload,
+    array $files = []
+) {
+    $url =
+        "https://www.zohoapis.com.au/invoice/v3/estimates/"
+        . rawurlencode((string)$estimate_id)
+        . "/email?organization_id="
+        . rawurlencode((string)ZOHO_ORG_ID);
+
+    return zohoMultipartRequest(
+        $url,
+        $payload,
+        $files,
+        'attachments'
+    );
+}
+
+/**
+ * ---------------------------------------------------------
+ * EMAIL A ZOHO CONTACT WITH OPTIONAL ATTACHMENTS
+ * ---------------------------------------------------------
+ *
+ * This is ideal for the footer's "Ask Mike for a quote" request:
+ * no formal price/estimate has been created yet, but Zoho Invoice
+ * can still send Mike the customer's request and original files.
+ */
+function sendZohoContactEmailWithAttachments(
+    $contact_id,
+    array $toMailIds,
+    string $subject,
+    string $bodyText,
+    array $attachments = []
+) {
+    $url =
+        "https://www.zohoapis.com.au/invoice/v3/contacts/"
+        . rawurlencode((string)$contact_id)
+        . "/email?organization_id="
+        . rawurlencode((string)ZOHO_ORG_ID);
+
+    $payload = [
+        "to_mail_ids" => array_values($toMailIds),
+        "subject" => $subject,
+        "body" => nl2br(
+            htmlspecialchars(
+                $bodyText,
+                ENT_QUOTES | ENT_SUBSTITUTE,
+                'UTF-8'
+            )
+        )
+    ];
+
+    if (empty($attachments)) {
+        return zohoRequest(
+            "POST",
+            $url,
+            $payload
+        );
+    }
+
+    return zohoMultipartRequest(
+        $url,
+        $payload,
+        $attachments,
+        'attachments'
+    );
+}
+
+/**
+ * ---------------------------------------------------------
  * FIND CUSTOMER BY EMAIL
  * PREVENT DUPLICATES
  * ---------------------------------------------------------
@@ -137,14 +343,12 @@ function findZohoCustomerByEmail($email) {
  */
 function getOrCreateZohoCustomer($name, $email, $phone, $address) {
 
-    // Try existing first
     $existing = findZohoCustomerByEmail($email);
 
     if ($existing) {
         return $existing;
     }
 
-    // Create new customer
     $url = "https://www.zohoapis.com.au/invoice/v3/contacts"
          . "?organization_id=" . ZOHO_ORG_ID;
 
@@ -196,14 +400,14 @@ function createZohoEstimate($customer_id, $name, $service_description, $total) {
 
         "line_items" => [
             [
-    "name"           => "Project Works",
-    "description"    => $service_description,
-    "rate"           => (float)$total,
-    "quantity"       => 1,
-    "tax_id"         => "",
-    "tax_name"       => "",
-    "tax_percentage" => 0
-]
+                "name"           => "Project Works",
+                "description"    => $service_description,
+                "rate"           => (float)$total,
+                "quantity"       => 1,
+                "tax_id"         => "",
+                "tax_name"       => "",
+                "tax_percentage" => 0
+            ]
         ],
 
         "notes" =>
@@ -213,7 +417,10 @@ function createZohoEstimate($customer_id, $name, $service_description, $total) {
           . "Quote valid for 30 days.",
 
         "terms" =>
-            "Acceptance of this quotation constitutes approval to proceed with the described works."
+            "This quotation is based on the scope, information, photographs, plans and documents supplied at the time of quotation. "
+          . "Only works expressly described in this quotation are included. "
+          . "Changes to the scope, supplied information, site conditions, plans or specifications may result in additional charges or require a revised quotation. "
+          . "Acceptance of this quotation confirms acceptance of Mike Of All Trades' Terms & Conditions available at www.mikeofalltrades.com.au/terms."
     ];
 
     return zohoRequest("POST", $url, $payload);
@@ -236,10 +443,51 @@ function sendZohoEstimate($estimate_id, $email) {
             $email
         ],
 
+        "cc_mail_ids" => [
+            "mike@mikeofalltrades.com.au"
+        ],
+
         "send_from_org_email_id" => true
     ];
 
     return zohoRequest("POST", $url, $payload);
+}
+
+/**
+ * ---------------------------------------------------------
+ * SEND ESTIMATE EMAIL WITH ORIGINAL CUSTOMER FILES
+ * ---------------------------------------------------------
+ */
+function sendZohoEstimateWithAttachments(
+    $estimate_id,
+    $email,
+    array $attachments
+) {
+    if (empty($attachments)) {
+        return sendZohoEstimate(
+            $estimate_id,
+            $email
+        );
+    }
+
+    $payload = [
+
+        "to_mail_ids" => [
+            $email
+        ],
+
+        "cc_mail_ids" => [
+            "mike@mikeofalltrades.com.au"
+        ],
+
+        "send_from_org_email_id" => true
+    ];
+
+    return zohoEstimateEmailMultipartRequest(
+        $estimate_id,
+        $payload,
+        $attachments
+    );
 }
 
 /**

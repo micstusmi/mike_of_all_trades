@@ -753,16 +753,226 @@ if (session_status() === PHP_SESSION_NONE) {
     if(pageParams.get('new') === '1'){
         localStorage.removeItem('aiConversationToken');
         localStorage.removeItem('aiJobIntake');
+        localStorage.removeItem('aiQuoteAttachmentKey');
     }
 
     let aiConversationToken =
         localStorage.getItem('aiConversationToken') || '';
+
+    /*
+     * Original quote files are retained in the CUSTOMER'S BROWSER only
+     * until the formal Zoho quote is successfully emailed.
+     *
+     * They are not intentionally stored permanently on the web server.
+     */
+    let aiQuoteAttachmentKey =
+        localStorage.getItem('aiQuoteAttachmentKey') || '';
+
+    if(!aiQuoteAttachmentKey){
+        aiQuoteAttachmentKey =
+            'mot_quote_' +
+            Date.now() +
+            '_' +
+            Math.random().toString(36).slice(2, 12);
+
+        localStorage.setItem(
+            'aiQuoteAttachmentKey',
+            aiQuoteAttachmentKey
+        );
+    }
 
     let chatHistory = [];
 
     let lastAiData = {};
 
     let isSavingConversation = false;
+
+    /*
+     * =========================================================
+     * ORIGINAL QUOTE ATTACHMENT STORAGE (INDEXEDDB)
+     * =========================================================
+     *
+     * The AI receives temporary upload copies through ai_intake.php,
+     * but the ORIGINAL browser File objects are also retained locally
+     * so they can later travel with the formal Zoho estimate email.
+     *
+     * Maximum retained files per quote conversation: 10.
+     */
+
+    const AI_QUOTE_DB_NAME = 'MikeOfAllTradesQuoteFiles';
+    const AI_QUOTE_DB_VERSION = 1;
+    const AI_QUOTE_STORE = 'quoteFiles';
+    const AI_QUOTE_MAX_RETAINED_FILES = 10;
+    const AI_QUOTE_FILE_TTL_MS = 14 * 24 * 60 * 60 * 1000;
+
+    function openAiQuoteDb(){
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(
+                AI_QUOTE_DB_NAME,
+                AI_QUOTE_DB_VERSION
+            );
+
+            request.onupgradeneeded = function(event){
+                const db = event.target.result;
+
+                if(!db.objectStoreNames.contains(AI_QUOTE_STORE)){
+                    const store = db.createObjectStore(
+                        AI_QUOTE_STORE,
+                        { keyPath: 'id' }
+                    );
+
+                    store.createIndex(
+                        'attachmentKey',
+                        'attachmentKey',
+                        { unique:false }
+                    );
+
+                    store.createIndex(
+                        'createdAt',
+                        'createdAt',
+                        { unique:false }
+                    );
+                }
+            };
+
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    async function getStoredAiQuoteAttachments(){
+        const db = await openAiQuoteDb();
+
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(
+                AI_QUOTE_STORE,
+                'readonly'
+            );
+
+            const store = tx.objectStore(AI_QUOTE_STORE);
+            const index = store.index('attachmentKey');
+            const request = index.getAll(aiQuoteAttachmentKey);
+
+            request.onsuccess = () => {
+                resolve(request.result || []);
+            };
+
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    async function retainAiQuoteAttachments(files){
+        if(!files || files.length === 0){
+            return;
+        }
+
+        const existing = await getStoredAiQuoteAttachments();
+
+        const existingIds = new Set(
+            existing.map(item => item.id)
+        );
+
+        const uniqueNew = [];
+
+        files.forEach(file => {
+            const id =
+                aiQuoteAttachmentKey +
+                '::' +
+                file.name +
+                '::' +
+                file.size +
+                '::' +
+                file.lastModified;
+
+            if(!existingIds.has(id)){
+                existingIds.add(id);
+
+                uniqueNew.push({
+                    id,
+                    attachmentKey: aiQuoteAttachmentKey,
+                    name: file.name,
+                    type: file.type,
+                    size: file.size,
+                    lastModified: file.lastModified,
+                    createdAt: Date.now(),
+                    file: file
+                });
+            }
+        });
+
+        if(existing.length + uniqueNew.length > AI_QUOTE_MAX_RETAINED_FILES){
+            throw new Error(
+                'A quote can retain a maximum of 10 unique photos/PDFs. ' +
+                'Please remove some files before continuing.'
+            );
+        }
+
+        if(uniqueNew.length === 0){
+            return;
+        }
+
+        const db = await openAiQuoteDb();
+
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction(
+                AI_QUOTE_STORE,
+                'readwrite'
+            );
+
+            const store = tx.objectStore(AI_QUOTE_STORE);
+
+            uniqueNew.forEach(item => {
+                store.put(item);
+            });
+
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+            tx.onabort = () => reject(tx.error);
+        });
+    }
+
+    async function cleanupExpiredAiQuoteAttachments(){
+        try{
+            const db = await openAiQuoteDb();
+            const cutoff = Date.now() - AI_QUOTE_FILE_TTL_MS;
+
+            await new Promise((resolve, reject) => {
+                const tx = db.transaction(
+                    AI_QUOTE_STORE,
+                    'readwrite'
+                );
+
+                const store = tx.objectStore(AI_QUOTE_STORE);
+                const request = store.openCursor();
+
+                request.onsuccess = function(event){
+                    const cursor = event.target.result;
+
+                    if(!cursor){
+                        return;
+                    }
+
+                    const value = cursor.value || {};
+
+                    if((value.createdAt || 0) < cutoff){
+                        cursor.delete();
+                    }
+
+                    cursor.continue();
+                };
+
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        }catch(err){
+            console.log(
+                'Could not clean old AI quote attachments:',
+                err
+            );
+        }
+    }
+
+    cleanupExpiredAiQuoteAttachments();
 
     let selectedAttachments = [];
 
@@ -890,6 +1100,18 @@ if (session_status() === PHP_SESSION_NONE) {
                 fbq('trackCustom', 'AIQuoteStarted');
 
                 window.motAiStartedTracked = true;
+            }
+
+            try{
+                await retainAiQuoteAttachments(
+                    attachmentsForThisMessage
+                );
+            }catch(err){
+                alert(
+                    err.message ||
+                    'These files could not be retained for the formal quote.'
+                );
+                return;
             }
 
             await sendMessageToAI(
@@ -1185,6 +1407,11 @@ if (session_status() === PHP_SESSION_NONE) {
         params.set(
             'token',
             aiConversationToken
+        );
+
+        params.set(
+            'attachment_key',
+            aiQuoteAttachmentKey
         );
 
 

@@ -49,152 +49,93 @@ function normaliseFiles(array $fileBag): array
     return $files;
 }
 
-function rotateManualJpegFromExif($image, string $tmpPath)
+function validateManualZohoAttachments(array $files): array
 {
-    if (!function_exists('exif_read_data')) {
-        return $image;
+    $files = array_values(array_filter(
+        $files,
+        fn($file) =>
+            ($file['error'] ?? UPLOAD_ERR_NO_FILE)
+            !== UPLOAD_ERR_NO_FILE
+    ));
+
+    if (count($files) > MANUAL_MAX_ATTACHMENTS) {
+        throw new RuntimeException(
+            'Please upload no more than 10 attachments.'
+        );
     }
 
-    $exif = @exif_read_data($tmpPath);
-    $orientation = (int)($exif['Orientation'] ?? 1);
+    $validated = [];
+    $totalBytes = 0;
 
-    if ($orientation === 3) {
-        return imagerotate($image, 180, 0);
-    }
+    foreach ($files as $file) {
 
-    if ($orientation === 6) {
-        return imagerotate($image, -90, 0);
-    }
-
-    if ($orientation === 8) {
-        return imagerotate($image, 90, 0);
-    }
-
-    return $image;
-}
-
-function prepareManualAttachment(array $file): array
-{
-    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
-        throw new RuntimeException('One of the uploaded files could not be received.');
-    }
-
-    if (($file['size'] ?? 0) <= 0) {
-        throw new RuntimeException('One of the uploaded files is empty.');
-    }
-
-    if (($file['size'] ?? 0) > MANUAL_MAX_FILE_BYTES) {
-        throw new RuntimeException('Each attachment must be 10 MB or smaller.');
-    }
-
-    $tmp = $file['tmp_name'] ?? '';
-
-    if (!$tmp || !is_uploaded_file($tmp)) {
-        throw new RuntimeException('One of the uploaded files could not be verified.');
-    }
-
-    $finfo = new finfo(FILEINFO_MIME_TYPE);
-    $mime = $finfo->file($tmp);
-
-    $allowed = [
-        'image/jpeg',
-        'image/png',
-        'image/webp',
-        'application/pdf'
-    ];
-
-    if (!in_array($mime, $allowed, true)) {
-        throw new RuntimeException('Attachments must be JPG, PNG, WEBP or PDF files.');
-    }
-
-    $safeName = preg_replace('/[^A-Za-z0-9._ -]/', '_', basename((string)($file['name'] ?? 'attachment')));
-
-    if ($mime === 'application/pdf') {
-        $bytes = file_get_contents($tmp);
-
-        if ($bytes === false) {
-            throw new RuntimeException('An uploaded PDF could not be read.');
+        if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+            throw new RuntimeException(
+                'One of the uploaded files could not be received.'
+            );
         }
 
-        return [
-            'name' => $safeName ?: 'document.pdf',
-            'mime' => 'application/pdf',
-            'bytes' => $bytes
+        $size = (int)($file['size'] ?? 0);
+
+        if ($size <= 0) {
+            throw new RuntimeException(
+                'One of the uploaded files is empty.'
+            );
+        }
+
+        if ($size > MANUAL_MAX_FILE_BYTES) {
+            throw new RuntimeException(
+                'Each attachment must be 10 MB or smaller.'
+            );
+        }
+
+        $tmpPath = $file['tmp_name'] ?? '';
+
+        if (!$tmpPath || !is_uploaded_file($tmpPath)) {
+            throw new RuntimeException(
+                'One of the uploaded files could not be verified.'
+            );
+        }
+
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        $mime = $finfo->file($tmpPath);
+
+        $allowed = [
+            'image/jpeg',
+            'image/png',
+            'image/webp',
+            'application/pdf'
+        ];
+
+        if (!in_array($mime, $allowed, true)) {
+            throw new RuntimeException(
+                'Attachments must be JPG, PNG, WEBP or PDF files.'
+            );
+        }
+
+        $totalBytes += $size;
+
+        if ($totalBytes > MANUAL_MAX_TOTAL_BYTES) {
+            throw new RuntimeException(
+                'The combined attachments are too large. Please keep the total below 22 MB.'
+            );
+        }
+
+        $safeName = preg_replace(
+            '/[^A-Za-z0-9._ -]/',
+            '_',
+            basename((string)($file['name'] ?? 'attachment'))
+        );
+
+        $validated[] = [
+            'name' => $safeName ?: 'attachment',
+            'mime' => $mime,
+            'tmp_name' => $tmpPath,
+            'size' => $size
         ];
     }
 
-    $raw = file_get_contents($tmp);
-
-    if ($raw === false) {
-        throw new RuntimeException('An uploaded image could not be read.');
-    }
-
-    if (function_exists('imagecreatefromstring') && function_exists('imagejpeg')) {
-        $source = @imagecreatefromstring($raw);
-
-        if ($source !== false) {
-            if ($mime === 'image/jpeg') {
-                $rotated = rotateManualJpegFromExif($source, $tmp);
-
-                if ($rotated !== $source) {
-                    imagedestroy($source);
-                    $source = $rotated;
-                }
-            }
-
-            $width = imagesx($source);
-            $height = imagesy($source);
-            $longEdge = max($width, $height);
-
-            if ($longEdge > MANUAL_IMAGE_MAX_EDGE) {
-                $scale = MANUAL_IMAGE_MAX_EDGE / $longEdge;
-                $newWidth = max(1, (int)round($width * $scale));
-                $newHeight = max(1, (int)round($height * $scale));
-
-                $resized = imagecreatetruecolor($newWidth, $newHeight);
-                $white = imagecolorallocate($resized, 255, 255, 255);
-                imagefill($resized, 0, 0, $white);
-
-                imagecopyresampled(
-                    $resized,
-                    $source,
-                    0,
-                    0,
-                    0,
-                    0,
-                    $newWidth,
-                    $newHeight,
-                    $width,
-                    $height
-                );
-
-                imagedestroy($source);
-                $source = $resized;
-            }
-
-            ob_start();
-            imagejpeg($source, null, MANUAL_IMAGE_JPEG_QUALITY);
-            $jpeg = ob_get_clean();
-            imagedestroy($source);
-
-            if ($jpeg !== false && $jpeg !== '') {
-                $base = pathinfo($safeName, PATHINFO_FILENAME);
-                $safeName = ($base ?: 'photo') . '.jpg';
-
-                return [
-                    'name' => $safeName,
-                    'mime' => 'image/jpeg',
-                    'bytes' => $jpeg
-                ];
-            }
-        }
-    }
-
-    return [
-        'name' => $safeName ?: 'photo',
-        'mime' => $mime,
-        'bytes' => $raw
-    ];
+    return $validated;
 }
 
 function getManualQuoteRecipient(): string
@@ -208,57 +149,99 @@ function getManualQuoteRecipient(): string
 
     foreach ($candidates as $constant) {
         if (defined($constant)) {
-            $value = trim((string)constant($constant));
+            $value = trim(
+                (string)constant($constant)
+            );
 
-            if (filter_var($value, FILTER_VALIDATE_EMAIL)) {
+            if (
+                filter_var(
+                    $value,
+                    FILTER_VALIDATE_EMAIL
+                )
+            ) {
                 return $value;
             }
         }
     }
 
-    throw new RuntimeException(
-        'Manual quote email is not configured yet. Add a valid MIKE_CONTACT_EMAIL constant to includes/config.php.'
+    /*
+     * Existing business address used elsewhere in the site.
+     */
+    return 'mike@mikeofalltrades.com.au';
+}
+
+/**
+ * Tiny manual-request duplicate guard.
+ * No customer photos/PDFs are stored in this directory.
+ */
+function manualRequestDuplicateKey(
+    string $name,
+    string $email,
+    string $service,
+    string $message,
+    array $attachments
+): string {
+    $parts = [];
+
+    foreach ($attachments as $attachment) {
+        $parts[] =
+            ($attachment['name'] ?? '') . ':' .
+            ($attachment['size'] ?? 0);
+    }
+
+    return hash(
+        'sha256',
+        implode('|', [
+            strtolower($name),
+            strtolower($email),
+            $service,
+            $message,
+            implode(',', $parts)
+        ])
     );
 }
 
-function sendManualRequestEmail(
-    string $recipient,
-    string $subject,
-    string $body,
-    string $replyTo,
-    array $attachments
+function manualRequestAlreadySent(
+    string $key
 ): bool {
-    $boundary = '=_MOT_' . bin2hex(random_bytes(12));
+    $dir = __DIR__ . '/quote_submission_locks';
 
-    $headers = [];
-    $headers[] = 'MIME-Version: 1.0';
-    $headers[] = 'From: Mike Of All Trades Website <' . $recipient . '>';
-    $headers[] = 'Reply-To: ' . $replyTo;
-    $headers[] = 'Content-Type: multipart/mixed; boundary="' . $boundary . '"';
-
-    $message = '--' . $boundary . "\r\n";
-    $message .= "Content-Type: text/plain; charset=UTF-8\r\n";
-    $message .= "Content-Transfer-Encoding: 8bit\r\n\r\n";
-    $message .= $body . "\r\n";
-
-    foreach ($attachments as $attachment) {
-        $encoded = chunk_split(base64_encode($attachment['bytes']));
-        $filename = addcslashes($attachment['name'], '"\\');
-
-        $message .= '--' . $boundary . "\r\n";
-        $message .= 'Content-Type: ' . $attachment['mime'] . '; name="' . $filename . '"' . "\r\n";
-        $message .= "Content-Transfer-Encoding: base64\r\n";
-        $message .= 'Content-Disposition: attachment; filename="' . $filename . '"' . "\r\n\r\n";
-        $message .= $encoded . "\r\n";
+    if (!is_dir($dir)) {
+        mkdir($dir, 0755, true);
     }
 
-    $message .= '--' . $boundary . "--\r\n";
+    $path = $dir . '/manual_' . $key . '.json';
 
-    return mail(
-        $recipient,
-        $subject,
-        $message,
-        implode("\r\n", $headers)
+    if (!file_exists($path)) {
+        return false;
+    }
+
+    $data = json_decode(
+        file_get_contents($path),
+        true
+    );
+
+    return
+        is_array($data) &&
+        !empty($data['success']) &&
+        (time() - (int)($data['timestamp'] ?? 0)) < 600;
+}
+
+function markManualRequestSent(
+    string $key
+): void {
+    $dir = __DIR__ . '/quote_submission_locks';
+
+    if (!is_dir($dir)) {
+        mkdir($dir, 0755, true);
+    }
+
+    file_put_contents(
+        $dir . '/manual_' . $key . '.json',
+        json_encode([
+            'success' => true,
+            'timestamp' => time()
+        ])
     );
 }
 
@@ -346,67 +329,131 @@ try {
             $footerEnquiryType === 'quote' &&
             isset($_FILES['attachments'])
         ) {
-            $incoming = normaliseFiles($_FILES['attachments']);
-
-            $incoming = array_values(array_filter(
-                $incoming,
-                fn($file) => ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE
-            ));
-
-            if (count($incoming) > MANUAL_MAX_ATTACHMENTS) {
-                throw new Exception('Please upload no more than 10 attachments.');
-            }
-
-            $totalBytes = 0;
-
-            foreach ($incoming as $file) {
-                $prepared = prepareManualAttachment($file);
-                $totalBytes += strlen($prepared['bytes']);
-
-                if ($totalBytes > MANUAL_MAX_TOTAL_BYTES) {
-                    throw new Exception(
-                        'The combined attachments are too large to email safely. Please remove some files or use smaller PDFs.'
-                    );
-                }
-
-                $attachments[] = $prepared;
-            }
+            $attachments =
+                validateManualZohoAttachments(
+                    normaliseFiles(
+                        $_FILES['attachments']
+                    )
+                );
         }
 
-        $recipient = getManualQuoteRecipient();
+        /*
+         * Create/find the customer's Zoho contact first.
+         * No estimate is created yet because Mike has not priced the job.
+         */
+        $customerId =
+            getOrCreateZohoCustomer(
+                $name,
+                $email,
+                '',
+                ''
+            );
 
-        $subject = $footerEnquiryType === 'quote'
-            ? 'Manual quote request - ' . $name
-            : 'Website contact enquiry - ' . $name;
+        if (!$customerId) {
+            throw new Exception(
+                'Could not create/find the customer in Zoho.'
+            );
+        }
 
-        $body = "New website request\n\n";
-        $body .= "Type: " . ($footerEnquiryType === 'quote' ? 'Manual quote request' : 'General contact') . "\n";
+        $recipient =
+            getManualQuoteRecipient();
+
+        $subject =
+            $footerEnquiryType === 'quote'
+                ? 'Manual quote request - ' . $name
+                : 'Website contact enquiry - ' . $name;
+
+        $body =
+            "New website request\n\n";
+
+        $body .=
+            "Type: " .
+            (
+                $footerEnquiryType === 'quote'
+                    ? 'Manual quote request'
+                    : 'General contact'
+            ) .
+            "\n";
+
         $body .= "Name: {$name}\n";
-        $body .= "Email: {$email}\n";
+        $body .= "Customer email: {$email}\n";
         $body .= "Service: {$service}\n";
         $body .= "Attachments: " . count($attachments) . "\n\n";
         $body .= "Message:\n{$messageText}\n";
 
-        $sent = sendManualRequestEmail(
-            $recipient,
-            $subject,
-            $body,
-            $email,
-            $attachments
-        );
+        if (!empty($attachments)) {
+            $body .= "\nSupplied files:\n";
 
-        if (!$sent) {
+            foreach ($attachments as $attachment) {
+                $body .=
+                    "- " .
+                    $attachment['name'] .
+                    "\n";
+            }
+        }
+
+        $duplicateKey =
+            manualRequestDuplicateKey(
+                $name,
+                $email,
+                $service,
+                $messageText,
+                $attachments
+            );
+
+        if (
+            manualRequestAlreadySent(
+                $duplicateKey
+            )
+        ) {
+            echo json_encode([
+                'success' => true,
+                'manual_request' => true,
+                'duplicate_prevented' => true,
+                'message' =>
+                    'This request has already been sent to Mike.'
+            ]);
+            exit;
+        }
+
+        /*
+         * Zoho Invoice sends the request to Mike and carries
+         * the original customer files as email attachments.
+         * The web server does not retain permanent copies.
+         */
+        $send =
+            sendZohoContactEmailWithAttachments(
+                $customerId,
+                [$recipient],
+                $subject,
+                $body,
+                $attachments
+            );
+
+        if (($send['code'] ?? 0) >= 400) {
+            error_log(
+                'Zoho manual request email failed: ' .
+                ($send['raw'] ?? 'Unknown Zoho error')
+            );
+
             throw new Exception(
-                'Your request could not be emailed. Please try again or contact Mike another way.'
+                'Your request could not be sent to Mike. Please try again.'
             );
         }
+
+        markManualRequestSent(
+            $duplicateKey
+        );
 
         echo json_encode([
             'success' => true,
             'manual_request' => true,
-            'message' => $footerEnquiryType === 'quote'
-                ? 'Your quote request has been sent to Mike.'
-                : 'Your message has been sent to Mike.'
+            'duplicate_prevented' => false,
+            'attachment_count' => count($attachments),
+            'message' =>
+                $footerEnquiryType === 'quote'
+                    ? 'Your quote request has been sent to Mike.'
+                    : 'Your message has been sent to Mike.'
         ]);
         exit;
     }
