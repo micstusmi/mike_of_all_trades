@@ -316,6 +316,9 @@ Rules:
 - If the customer is asking for a quote, don't mention availability unless the customer specifically asks or implies that they want to know the availability.
 - When enough information exists to estimate a simple quote, set quote_ready to true.
 - If quote_ready is true, include estimated_hours and estimated_price.
+- estimated_hours and estimated_price must be plain numeric values only. Do not put words, units, dollar signs, commas, or ranges in those fields.
+- If the customer-facing reply uses a range, use a sensible representative midpoint in estimated_hours and estimated_price. Example: 1.5-2 hours becomes 1.75, and $180-$220 becomes 200.
+- If quote_ready is false and a meaningful estimate is not yet available, use 0 for estimated_hours and estimated_price.
 - For simple standard residential jobs, make reasonable assumptions instead of endlessly asking questions.
 - If the customer asks for a quote now, provide an indicative quote using the details available.
 - If missing details would only slightly affect price, estimate anyway and list assumptions.
@@ -363,13 +366,68 @@ foreach ($attachmentContent as $attachmentPart) {
     $userContent[] = $attachmentPart;
 }
 
+$quoteResponseSchema = [
+    'type' => 'object',
+    'properties' => [
+        'intent' => [
+            'type' => 'string',
+            'enum' => [
+                'job_quote',
+                'booking',
+                'availability',
+                'general_advice',
+                'multi_task_bundle',
+                'correction',
+                'human_help'
+            ]
+        ],
+        'understood_job' => ['type' => 'string'],
+        'reply' => ['type' => 'string'],
+        'next_step_options' => [
+            'type' => 'array',
+            'items' => ['type' => 'string']
+        ],
+        'estimated_hours' => [
+            'type' => 'number',
+            'minimum' => 0
+        ],
+        'estimated_price' => [
+            'type' => 'number',
+            'minimum' => 0
+        ],
+        'service' => ['type' => 'string'],
+        'suburb' => ['type' => 'string'],
+        'quote_ready' => ['type' => 'boolean']
+    ],
+    'required' => [
+        'intent',
+        'understood_job',
+        'reply',
+        'next_step_options',
+        'estimated_hours',
+        'estimated_price',
+        'service',
+        'suburb',
+        'quote_ready'
+    ],
+    'additionalProperties' => false
+];
+
 $payload = [
     'model' => 'gpt-4.1-mini',
-    'instructions' => 'You are an AI intake assistant and experienced practical estimator for Mike Of All Trades in Victoria, Australia. Keep replies short, friendly and practical. Ask one useful follow-up question at a time. Help gather enough detail for a quote or booking. Use attached job photos and PDF plans/documents when available. Do not infer physical scale from a photo unless a reliable size reference is visible or stated. Use dimensions explicitly stated in PDFs when relevant, but do not invent measurements. Estimate realistic total job time rather than only hands-on tool time, including proportionate preparation, access, setup, site reassessment, cleanup and pack-up where relevant. Do not overwhelm the customer. Avoid repeatedly saying thanks, got it, or thanks for reaching out. Return JSON only.',
+    'instructions' => 'You are an AI intake assistant and experienced practical estimator for Mike Of All Trades in Victoria, Australia. Keep replies short, friendly and practical. Ask one useful follow-up question at a time. Help gather enough detail for a quote or booking. Use attached job photos and PDF plans/documents when available. Do not infer physical scale from a photo unless a reliable size reference is visible or stated. Use dimensions explicitly stated in PDFs when relevant, but do not invent measurements. Estimate realistic total job time rather than only hands-on tool time, including proportionate preparation, access, setup, site reassessment, cleanup and pack-up where relevant. IMPORTANT: estimated_hours and estimated_price must always be plain numeric values with no words, currency symbols, ranges or units. If your reply gives a range, use a sensible representative midpoint for estimated_hours and estimated_price. Example: reply may say 1.5 to 2 hours and $180 to $220, while estimated_hours should be 1.75 and estimated_price should be 200. If the quote is not ready yet, use 0 for those numeric fields. Do not overwhelm the customer. Avoid repeatedly saying thanks, got it, or thanks for reaching out. Return JSON only.',
     'input' => [
         [
             'role' => 'user',
             'content' => $userContent
+        ]
+    ],
+    'text' => [
+        'format' => [
+            'type' => 'json_schema',
+            'name' => 'mike_of_all_trades_quote_intake',
+            'strict' => true,
+            'schema' => $quoteResponseSchema
         ]
     ],
     'temperature' => 0.35
@@ -432,7 +490,20 @@ if (!$content) {
     failJson('OpenAI response did not contain message content.', $data);
 }
 
+$parsedContent = json_decode($content, true);
+
+if (!is_array($parsedContent)) {
+    failJson(
+        'OpenAI returned an unexpected structured response.',
+        $content
+    );
+}
+
 echo json_encode([
     'success' => true,
-    'raw' => $content
+    'raw' => json_encode(
+        $parsedContent,
+        JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
+    ),
+    'parsed' => $parsedContent
 ]);

@@ -167,6 +167,30 @@ if (session_status() === PHP_SESSION_NONE) {
             margin:10px 0 12px;
         }
 
+        .attachmentSummary{
+            display:none;
+            width:100%;
+            align-items:center;
+            justify-content:space-between;
+            gap:10px;
+            margin:8px 0 4px;
+            padding:9px 12px;
+            border-radius:12px;
+            background:#181818;
+            border:1px solid #3a3a3a;
+            color:#ddd;
+            font-size:12px;
+            cursor:pointer;
+        }
+
+        .attachmentSummary strong{ color:#fff; }
+
+        .attachmentSummary .attachmentSummaryAction{
+            color:#8ec5ff;
+            white-space:nowrap;
+            font-weight:700;
+        }
+
         .attachmentButton{
             display:inline-flex;
             align-items:center;
@@ -545,6 +569,53 @@ if (session_status() === PHP_SESSION_NONE) {
                 padding:8px 10px;
             }
 
+            .chatInputBar{
+                position:static;
+                bottom:auto;
+                padding-top:12px;
+                margin-top:16px;
+            }
+
+            .attachmentTools.has-attachments .attachmentHelp{
+                display:none;
+            }
+
+            .attachmentTools.has-attachments .attachmentSummary{
+                display:flex;
+            }
+
+            #attachmentPreview{
+                display:none;
+                max-height:190px;
+                overflow-y:auto;
+                padding:6px 2px;
+                margin-top:8px;
+                gap:7px;
+            }
+
+            #attachmentPreview.mobile-expanded{
+                display:flex;
+            }
+
+            .attachmentPreviewItem{
+                width:72px;
+                padding:4px;
+            }
+
+            .attachmentPreviewItem img,
+            .pdfAttachmentIcon{
+                height:58px;
+            }
+
+            .attachmentPreviewName{
+                font-size:9px;
+            }
+
+            .attachmentButton{
+                padding:9px 12px;
+                font-size:13px;
+            }
+
             input,
             textarea{
                 font-size:16px;
@@ -730,6 +801,17 @@ if (session_status() === PHP_SESSION_NONE) {
                 multiple
                 hidden
             >
+
+            <button
+                id="attachmentSummary"
+                class="attachmentSummary"
+                type="button"
+                aria-expanded="false"
+                onclick="toggleMobileAttachmentManager()"
+            >
+                <span id="attachmentSummaryText"><strong>Files ready to send</strong></span>
+                <span class="attachmentSummaryAction">Manage files</span>
+            </button>
 
             <p class="attachmentHelp">
                 Add up to 10 photos or PDF plans/documents (10 MB each). If size is hard to judge from a photo, Mike's assistant may ask for dimensions.
@@ -1024,15 +1106,81 @@ if (session_status() === PHP_SESSION_NONE) {
     });
 
 
-    function renderAttachmentPreview(){
+    function toggleMobileAttachmentManager(){
+        const preview = document.getElementById('attachmentPreview');
+        const summary = document.getElementById('attachmentSummary');
 
-        const box =
-            document.getElementById('attachmentPreview');
+        if(!preview || !summary){
+            return;
+        }
+
+        const expanded = preview.classList.toggle('mobile-expanded');
+
+        summary.setAttribute(
+            'aria-expanded',
+            expanded ? 'true' : 'false'
+        );
+
+        const action = summary.querySelector('.attachmentSummaryAction');
+
+        if(action){
+            action.textContent = expanded ? 'Hide files' : 'Manage files';
+        }
+    }
+
+
+    function updateAttachmentSummary(){
+        const tools = document.querySelector('.attachmentTools');
+        const summary = document.getElementById('attachmentSummary');
+        const summaryText = document.getElementById('attachmentSummaryText');
+        const preview = document.getElementById('attachmentPreview');
+
+        if(!tools || !summary || !summaryText || !preview){
+            return;
+        }
+
+        const photoCount = selectedAttachments.filter(
+            file =>
+                file.type !== 'application/pdf' &&
+                !file.name.toLowerCase().endsWith('.pdf')
+        ).length;
+
+        const pdfCount = selectedAttachments.length - photoCount;
+
+        if(selectedAttachments.length === 0){
+            tools.classList.remove('has-attachments');
+            preview.classList.remove('mobile-expanded');
+            summary.setAttribute('aria-expanded', 'false');
+            return;
+        }
+
+        tools.classList.add('has-attachments');
+
+        const parts = [];
+
+        if(photoCount){
+            parts.push(photoCount + (photoCount === 1 ? ' photo' : ' photos'));
+        }
+
+        if(pdfCount){
+            parts.push(pdfCount + (pdfCount === 1 ? ' PDF' : ' PDFs'));
+        }
+
+        summaryText.innerHTML =
+            '<strong>📎 ' +
+            selectedAttachments.length +
+            (selectedAttachments.length === 1 ? ' file ready' : ' files ready') +
+            '</strong><br>' +
+            escapeHtml(parts.join(' · '));
+    }
+
+
+    function renderAttachmentPreview(){
+        const box = document.getElementById('attachmentPreview');
 
         box.innerHTML = '';
 
         selectedAttachments.forEach((file, index) => {
-
             const item = document.createElement('div');
             item.className = 'attachmentPreviewItem';
 
@@ -1070,6 +1218,8 @@ if (session_status() === PHP_SESSION_NONE) {
             item.appendChild(remove);
             box.appendChild(item);
         });
+
+        updateAttachmentSummary();
     }
 
 
@@ -1134,6 +1284,37 @@ if (session_status() === PHP_SESSION_NONE) {
             document.getElementById('messageInput').placeholder =
                 'Continue typing or responding to this chat...';
         });
+
+
+    function parseAiStructuredResponse(rawValue){
+        if(rawValue && typeof rawValue === 'object'){
+            return rawValue;
+        }
+
+        let text = String(rawValue || '').trim();
+
+        if(!text){
+            throw new Error('The AI returned an empty response.');
+        }
+
+        text = text
+            .replace(/^```(?:json)?\s*/i, '')
+            .replace(/\s*```$/i, '')
+            .trim();
+
+        try{
+            return JSON.parse(text);
+        }catch(firstError){
+            const firstBrace = text.indexOf('{');
+            const lastBrace = text.lastIndexOf('}');
+
+            if(firstBrace !== -1 && lastBrace > firstBrace){
+                return JSON.parse(text.slice(firstBrace, lastBrace + 1));
+            }
+
+            throw firstError;
+        }
+    }
 
 
     async function sendMessageToAI(message, roleLabel, attachments = []){
@@ -1233,13 +1414,22 @@ if (session_status() === PHP_SESSION_NONE) {
                     }
                 );
 
-            data = await r.json();
+            const responseText = await r.text();
+
+            try{
+                data = JSON.parse(responseText);
+            }catch(parseError){
+                console.log('Non-JSON response from ai_intake.php:', responseText);
+                throw new Error('The server returned an unexpected response.');
+            }
 
         }catch(err){
 
+            console.log('AI request error:', err);
+
             replaceThinkingMessage(
                 thinkingId,
-                'Sorry, I had trouble contacting the AI.'
+                'Sorry, I had trouble contacting the AI. Please try sending your message again.'
             );
 
             return;
@@ -1264,18 +1454,18 @@ if (session_status() === PHP_SESSION_NONE) {
         try{
 
             parsed =
-                JSON.parse(
-                    data.raw
-                );
+                data.parsed && typeof data.parsed === 'object'
+                    ? data.parsed
+                    : parseAiStructuredResponse(data.raw);
 
         }catch(err){
 
             replaceThinkingMessage(
                 thinkingId,
-                'Sorry, I had trouble understanding the AI response.'
+                'Sorry, the AI response was incomplete. Please try sending your message again.'
             );
 
-            console.log(data.raw);
+            console.log('Could not parse AI response:', data.raw, err);
 
             return;
         }
@@ -1380,7 +1570,7 @@ if (session_status() === PHP_SESSION_NONE) {
         }
 
         saveAiIntake(
-            'Review quote form'
+            'Proceed to quote preview'
         );
 
         /*
