@@ -10,7 +10,7 @@ $history = trim($_POST['history'] ?? '');
  * Photo upload limits.
  * The browser also limits selection to 10, but the server must enforce it too.
  */
-const MAX_AI_ATTACHMENTS = 10;
+const MAX_AI_ATTACHMENTS = 15;
 const MAX_AI_ATTACHMENT_BYTES = 10 * 1024 * 1024; // 10 MB each
 const AI_IMAGE_MAX_EDGE = 1600;
 const AI_IMAGE_JPEG_QUALITY = 82;
@@ -29,6 +29,57 @@ function failJson(string $message, $debug = null): void
     echo json_encode($response);
     exit;
 }
+
+function iniBytes(string $value): int
+{
+    $value = trim($value);
+
+    if ($value === '') {
+        return 0;
+    }
+
+    $last = strtolower(substr($value, -1));
+    $number = (float)$value;
+
+    switch ($last) {
+        case 'g':
+            $number *= 1024;
+            // no break
+        case 'm':
+            $number *= 1024;
+            // no break
+        case 'k':
+            $number *= 1024;
+    }
+
+    return (int)$number;
+}
+
+/*
+ * When PHP's post_max_size is exceeded, PHP can discard BOTH
+ * $_POST and $_FILES before this script gets them. Detect that
+ * situation and return a useful error instead of pretending the
+ * customer did not type a message or attach files.
+ */
+$contentLength =
+    (int)($_SERVER['CONTENT_LENGTH'] ?? 0);
+
+$postMaxBytes =
+    iniBytes(
+        (string)ini_get('post_max_size')
+    );
+
+if (
+    $contentLength > 0 &&
+    $postMaxBytes > 0 &&
+    $contentLength > $postMaxBytes
+) {
+    failJson(
+        'The selected files are too large to upload together. '
+        . 'Please try again with fewer files, or smaller photos/PDFs.'
+    );
+}
+
 
 function normaliseUploadedFiles(array $fileBag): array
 {
@@ -190,7 +241,7 @@ $uploadedFiles = array_values(array_filter(
 ));
 
 if (count($uploadedFiles) > MAX_AI_ATTACHMENTS) {
-    failJson('Please upload no more than 10 photos or PDF files at a time.');
+    failJson('Please upload no more than 15 photos or PDF files at a time.');
 }
 
 if (!$job && count($uploadedFiles) === 0) {
@@ -442,7 +493,9 @@ curl_setopt_array($ch, [
         'Content-Type: application/json',
         'Authorization: Bearer ' . OPENAI_API_KEY
     ],
-    CURLOPT_POSTFIELDS => json_encode($payload)
+    CURLOPT_POSTFIELDS => json_encode($payload),
+    CURLOPT_CONNECTTIMEOUT => 20,
+    CURLOPT_TIMEOUT => 120
 ]);
 
 $response = curl_exec($ch);

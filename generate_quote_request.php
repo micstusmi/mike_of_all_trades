@@ -7,7 +7,7 @@ header('Content-Type: application/json');
 require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/zoho_functions.php';
 
-const AI_QUOTE_MAX_ATTACHMENTS = 10;
+const AI_QUOTE_MAX_ATTACHMENTS = 15;
 const AI_QUOTE_MAX_FILE_BYTES = 10 * 1024 * 1024;
 const AI_QUOTE_MAX_TOTAL_BYTES = 25 * 1024 * 1024;
 
@@ -48,7 +48,7 @@ function validateAiQuoteAttachments(array $files): array
 
     if (count($files) > AI_QUOTE_MAX_ATTACHMENTS) {
         throw new RuntimeException(
-            'Please attach no more than 10 files to a quote.'
+            'Please attach no more than 15 files to a quote.'
         );
     }
 

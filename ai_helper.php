@@ -934,7 +934,7 @@ if (session_status() === PHP_SESSION_NONE) {
             </button>
 
             <p class="attachmentHelp">
-                Add up to 10 photos or PDF plans/documents (10 MB each). If size is hard to judge from a photo, Mike's assistant may ask for dimensions.
+                Add up to 15 photos or PDF plans/documents (10 MB each). If size is hard to judge from a photo, Mike's assistant may ask for dimensions.
             </p>
 
             <div id="attachmentPreview"></div>
@@ -1006,7 +1006,7 @@ if (session_status() === PHP_SESSION_NONE) {
     const AI_QUOTE_DB_NAME = 'MikeOfAllTradesQuoteFiles';
     const AI_QUOTE_DB_VERSION = 1;
     const AI_QUOTE_STORE = 'quoteFiles';
-    const AI_QUOTE_MAX_RETAINED_FILES = 10;
+    const AI_QUOTE_MAX_RETAINED_FILES = 15;
     const AI_QUOTE_FILE_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 
     function openAiQuoteDb(){
@@ -1106,7 +1106,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
         if(existing.length + uniqueNew.length > AI_QUOTE_MAX_RETAINED_FILES){
             throw new Error(
-                'A quote can retain a maximum of 10 unique photos/PDFs. ' +
+                'A quote can retain a maximum of 15 unique photos/PDFs. ' +
                 'Please remove some files before continuing.'
             );
         }
@@ -1189,7 +1189,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
         incomingFiles.forEach(file => {
 
-            if(selectedAttachments.length >= 10){
+            if(selectedAttachments.length >= 15){
                 return;
             }
 
@@ -1406,6 +1406,137 @@ if (session_status() === PHP_SESSION_NONE) {
         });
 
 
+    /*
+     * Prepare a lightweight copy for AI analysis.
+     *
+     * The ORIGINAL File remains in IndexedDB for the formal quote.
+     * Only the copy sent to ai_intake.php is resized/compressed,
+     * which avoids large groups of phone photos exceeding PHP's
+     * combined POST-size limit.
+     */
+    async function prepareAttachmentForAi(file){
+
+        const isPdf =
+            file.type === 'application/pdf' ||
+            file.name.toLowerCase().endsWith('.pdf');
+
+        if(isPdf){
+            return file;
+        }
+
+        if(!file.type.startsWith('image/')){
+            return file;
+        }
+
+        const MAX_EDGE = 1600;
+        const JPEG_QUALITY = 0.80;
+
+        try{
+            const bitmap =
+                await createImageBitmap(file);
+
+            const width = bitmap.width;
+            const height = bitmap.height;
+            const longEdge = Math.max(width, height);
+
+            /*
+             * Small images are already economical enough.
+             */
+            if(
+                longEdge <= MAX_EDGE &&
+                file.size <= 1500 * 1024
+            ){
+                bitmap.close();
+                return file;
+            }
+
+            const scale =
+                Math.min(
+                    1,
+                    MAX_EDGE / longEdge
+                );
+
+            const newWidth =
+                Math.max(
+                    1,
+                    Math.round(width * scale)
+                );
+
+            const newHeight =
+                Math.max(
+                    1,
+                    Math.round(height * scale)
+                );
+
+            const canvas =
+                document.createElement('canvas');
+
+            canvas.width = newWidth;
+            canvas.height = newHeight;
+
+            const ctx =
+                canvas.getContext(
+                    '2d',
+                    { alpha:false }
+                );
+
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(
+                0,
+                0,
+                newWidth,
+                newHeight
+            );
+
+            ctx.drawImage(
+                bitmap,
+                0,
+                0,
+                newWidth,
+                newHeight
+            );
+
+            bitmap.close();
+
+            const blob =
+                await new Promise(resolve =>
+                    canvas.toBlob(
+                        resolve,
+                        'image/jpeg',
+                        JPEG_QUALITY
+                    )
+                );
+
+            if(!blob){
+                return file;
+            }
+
+            const baseName =
+                file.name.replace(
+                    /\.[^.]+$/,
+                    ''
+                );
+
+            return new File(
+                [blob],
+                baseName + '-ai.jpg',
+                {
+                    type:'image/jpeg',
+                    lastModified:file.lastModified
+                }
+            );
+
+        }catch(err){
+            console.log(
+                'Could not compress image in browser; using original:',
+                err
+            );
+
+            return file;
+        }
+    }
+
+
     function parseAiStructuredResponse(rawValue){
         if(rawValue && typeof rawValue === 'object'){
             return rawValue;
@@ -1517,8 +1648,20 @@ if (session_status() === PHP_SESSION_NONE) {
             formatChatHistory()
         );
 
-        attachments.forEach(file => {
-            fd.append('attachments[]', file, file.name);
+        const aiUploadAttachments = [];
+
+        for(const file of attachments){
+            aiUploadAttachments.push(
+                await prepareAttachmentForAi(file)
+            );
+        }
+
+        aiUploadAttachments.forEach(file => {
+            fd.append(
+                'attachments[]',
+                file,
+                file.name
+            );
         });
 
         let data;
