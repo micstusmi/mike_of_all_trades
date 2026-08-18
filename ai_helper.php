@@ -467,6 +467,70 @@ if (session_status() === PHP_SESSION_NONE) {
             font-size:14px;
         }
 
+        .mobile-only{
+            display:none;
+        }
+
+        .ai-help-details{
+            margin:12px 0 14px;
+            border:1px solid #383838;
+            border-radius:12px;
+            background:#181818;
+            overflow:hidden;
+        }
+
+        .ai-help-details summary{
+            list-style:none;
+            cursor:pointer;
+            padding:12px 14px;
+            font-weight:700;
+            color:#ddd;
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:12px;
+        }
+
+        .ai-help-details summary::-webkit-details-marker{
+            display:none;
+        }
+
+        .ai-help-details summary::after{
+            content:'＋';
+            color:#aaa;
+            font-size:18px;
+            line-height:1;
+        }
+
+        .ai-help-details[open] summary::after{
+            content:'−';
+        }
+
+        .ai-help-details-content{
+            padding:0 14px 14px;
+            color:#bdbdbd;
+            font-size:13px;
+            line-height:1.5;
+        }
+
+        .ai-capability-chips{
+            display:flex;
+            flex-wrap:wrap;
+            gap:7px;
+            margin-top:10px;
+        }
+
+        .ai-capability-chip{
+            display:inline-flex;
+            align-items:center;
+            padding:7px 10px;
+            border-radius:999px;
+            border:1px solid #3a3a3a;
+            background:#222;
+            color:#ddd;
+            font-size:12px;
+        }
+
         /* =========================================================
            MOBILE
            ========================================================= */
@@ -493,21 +557,47 @@ if (session_status() === PHP_SESSION_NONE) {
                 gap:14px;
             }
 
+            .mobile-only{
+                display:block;
+            }
+
+            .desktop-only{
+                display:none !important;
+            }
+
             .landing-intro{
-                padding:26px 4px 20px;
+                padding:18px 4px 12px;
+            }
+
+            .landing-eyebrow{
+                font-size:11px;
+                margin-bottom:6px;
             }
 
             .landing-intro h1{
-                font-size:29px;
-                line-height:1.12;
+                font-size:25px;
+                line-height:1.1;
+                margin-bottom:0;
             }
 
-            .landing-intro p{
-                font-size:15px;
-            }
-
+            /*
+             * Keep the marketing explanation available, but don't make
+             * mobile customers read a whole screen before they can chat.
+             */
+            .landing-intro > p,
             .landing-trust{
-                gap:6px;
+                display:none;
+            }
+
+            .card{
+                margin-top:0;
+            }
+
+            .mobile-chat-intro{
+                margin:0 0 6px;
+                color:#bdbdbd;
+                font-size:14px;
+                line-height:1.4;
             }
 
             .trust-pill{
@@ -536,14 +626,14 @@ if (session_status() === PHP_SESSION_NONE) {
                 padding:11px 12px;
             }
 
+            /*
+             * The four large pre-chat action buttons consumed most of a
+             * phone screen. Their capabilities are now explained in the
+             * expandable help panel and contextual actions appear after
+             * the AI understands what the customer wants.
+             */
             #actionButtons{
-                gap:5px;
-            }
-
-            #actionButtons button{
-                font-size:12px;
-                padding:9px 11px;
-                flex:1 1 calc(50% - 10px);
+                display:none !important;
             }
 
             .chatInputBar textarea{
@@ -689,19 +779,49 @@ if (session_status() === PHP_SESSION_NONE) {
 
 <div class="card">
 
-    <h2 class="assistant-heading">
-        Briefly - tell us what you need done, if we have follow up questions, Mike's assistant will ask.
-    </h2>
+    <div class="desktop-only">
+        <h2 class="assistant-heading">
+            Briefly - tell us what you need done, if we have follow up questions, Mike's assistant will ask.
+        </h2>
 
-    <p class="hint assistant-subheading">
-        Type your job below (or use voice to text on mobile), and then continue replying to Mike's assistant below.
-    </p>
+        <p class="hint assistant-subheading">
+            Type your job below (or use voice to text on mobile), and then continue replying to Mike's assistant below.
+        </p>
 
-    <p class="assistant-explainer">
-        You don't need to know the technical name for the job.
-        Just describe the problem, repair, installation or maintenance work
-        as you would explain it to Mike.
-    </p>
+        <p class="assistant-explainer">
+            You don't need to know the technical name for the job.
+            Just describe the problem, repair, installation or maintenance work
+            as you would explain it to Mike.
+        </p>
+    </div>
+
+    <div class="mobile-only">
+        <h2 class="assistant-heading">
+            What do you need done?
+        </h2>
+
+        <p class="mobile-chat-intro">
+            Describe the job in your own words. Mike's assistant can help with quotes, bookings and availability.
+        </p>
+
+        <details class="ai-help-details">
+            <summary>What can Mike's AI assistant do?</summary>
+
+            <div class="ai-help-details-content">
+                You can describe a job, get an indicative quote, upload photos or PDF plans,
+                check Mike's availability, make a booking, or send the conversation to Mike.
+                You don't need to know the technical name for the work — just explain the problem
+                in your own words.
+
+                <div class="ai-capability-chips">
+                    <span class="ai-capability-chip">Get a quote</span>
+                    <span class="ai-capability-chip">Make a booking</span>
+                    <span class="ai-capability-chip">See availability</span>
+                    <span class="ai-capability-chip">Send to Mike</span>
+                </div>
+            </div>
+        </details>
+    </div>
 
     <div id="responseBox">
         <p id="replyText"></p>
@@ -1570,7 +1690,7 @@ if (session_status() === PHP_SESSION_NONE) {
         }
 
         saveAiIntake(
-            'Proceed to quote preview'
+            'Review quote form'
         );
 
         /*
