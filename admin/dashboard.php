@@ -1,6 +1,7 @@
 <?php
 require '../includes/auth_admin.php';
 include '../includes/header.php';
+require '../includes/admin_nav.php';
 ?>
 
 <style>

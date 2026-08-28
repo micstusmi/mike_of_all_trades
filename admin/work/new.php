@@ -79,6 +79,9 @@ textarea{min-height:90px}
 </style>
 </head>
 <body>
+
+<?php require __DIR__ . '/../../includes/admin_nav.php'; ?>
+
 <div class="wrap"><div class="card">
 <h1>New / Current Job</h1>
 <div class="warning"><b>Already underway?</b> Record the position honestly as it exists now. This agreement applies from the time the customer signs and does not backdate terms.</div>

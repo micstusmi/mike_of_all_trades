@@ -202,6 +202,9 @@ textarea{width:100%;box-sizing:border-box}
 </style>
 </head>
 <body>
+
+<?php require __DIR__ . '/../../includes/admin_nav.php'; ?>
+
 <div class="wrap">
 
 <p><a href="index.php">← All jobs</a></p>
