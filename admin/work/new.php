@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/_auth.php';
+require_once __DIR__ . '/../../includes/auth_admin.php';
 require_once __DIR__ . '/../../includes/work_tracker.php';
 $error='';
 if ($_SERVER['REQUEST_METHOD']==='POST') {
