@@ -5,10 +5,14 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+$base = ($_SERVER['HTTP_HOST'] ?? '') === 'localhost'
+    ? '/mike_of_all_trades'
+    : '';
+
 if (!empty($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'admin') {
-    header('Location: /admin/dashboard.php');
+    header('Location: ' . $base . '/admin/dashboard.php');
     exit;
 }
 
-header('Location: /admin/login.php');
+header('Location: ' . $base . '/login.php');
 exit;
