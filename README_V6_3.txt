@@ -1,0 +1,1 @@
+V6.3 simplifies retrospective entries: date + worker + total job hours + free-text notes, with optional exact start/finish times. No activity/location dropdowns. Requires migration_v6.sql first, then migration_v6_3.sql.

@@ -185,6 +185,7 @@ textarea{width:100%;box-sizing:border-box}
 .wide{min-width:260px;flex:2}
 .session-row{border-top:1px solid #eee;padding:12px 0}
 .session-meta{font-size:14px;color:#4f5b66;line-height:1.5}
+.source-badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:900;margin-left:6px}.source-live{background:#e7f5ec;color:#087f23}.source-retro{background:#fff3cd;color:#795d00}.travel-card{background:#eef6ff;border:2px solid #7fb2df}.retro-card{background:#fffaf0;border:2px solid #e1c66f}.checkline{display:flex;align-items:center;gap:8px}.checkline input{width:auto}
 @media(max-width:700px){.grid{grid-template-columns:1fr}}
 
 .plan-card{background:#eef6ff;border:2px solid #a7c8eb}
@@ -219,6 +220,12 @@ textarea{width:100%;box-sizing:border-box}
 <div class="card notice-warn"><b>SESSION ALREADY RUNNING.</b> That worker already has an active session. Stop it before starting another one.</div>
 <?php elseif(($_GET['stopped'] ?? '') === '1'):?>
 <div class="card notice-good"><b>✓ SESSION STOPPED.</b> The stop reason and expected return have been recorded.</div>
+<?php elseif(($_GET['retrospective_added'] ?? '') === '1'):?>
+<div class="card notice-good"><b>✓ PAST WORK ADDED.</b> This session is clearly marked as a retrospective entry and is included in the job history/totals.</div>
+<?php elseif(($_GET['on_my_way'] ?? '') === '1'):?>
+<div class="card notice-good"><b>🚗 ON MY WAY STARTED.</b> Travel time is now running and the ETA/customer update has been recorded.</div>
+<?php elseif(($_GET['arrived'] ?? '') === '1'):?>
+<div class="card notice-good"><b>📍 ARRIVED.</b> Travel was stopped and a new on-site work session was started.</div>
 <?php endif;?>
 
 <?php foreach($runningSessions as $rs):
@@ -235,6 +242,14 @@ textarea{width:100%;box-sizing:border-box}
         <div class="timer live-timer" data-start="<?=wt_html($rs['started_at'])?>">00:00:00</div>
     </div>
 
+    <?php if(($rs['travel_type'] ?? '') === 'to_customer' && $rs['worker_id'] === null):?>
+    <form method="post" action="../../api/work/arrive_start_work.php" style="margin-top:14px">
+        <input type="hidden" name="job_id" value="<?=$id?>">
+        <div class="field wide"><label>What are you starting on site?</label><input name="notes" placeholder="e.g. continue bathroom preparation" required></div>
+        <button class="btn start" style="font-size:19px;padding:16px 22px">📍 ARRIVED — STOP TRAVEL &amp; START WORK</button>
+    </form>
+    <details style="margin-top:12px"><summary><b>Need to pause or cancel the trip instead?</b></summary>
+    <?php endif;?>
     <form class="stop-panel" method="post" action="../../api/work/stop_session.php">
         <input type="hidden" name="job_id" value="<?=$id?>">
         <input type="hidden" name="session_id" value="<?=$rs['id']?>">
@@ -259,6 +274,7 @@ textarea{width:100%;box-sizing:border-box}
         </div>
         <button class="btn stop" style="font-size:18px;padding:15px 22px">■ STOP / PAUSE SESSION</button>
     </form>
+    <?php if(($rs['travel_type'] ?? '') === 'to_customer' && $rs['worker_id'] === null):?></details><?php endif;?>
 </div>
 <?php endforeach;?>
 
@@ -503,6 +519,66 @@ textarea{width:100%;box-sizing:border-box}
 <?php endforeach;?>
 </div>
 
+<div class="card travel-card">
+<h2>🚗 On my way to customer</h2>
+<p class="small">Use this when leaving for the customer's premises. It starts a separate live travel session, records the ETA, and sends an SMS under Full transparency / Important only.</p>
+<form method="post" action="../../api/work/on_my_way.php">
+<input type="hidden" name="job_id" value="<?=$id?>">
+<div class="row">
+    <div class="field">
+        <label>Worker</label>
+        <select name="worker_id" required>
+            <option value="mike" <?=isset($runningWorkerKeys['mike'])?'disabled':''?>>Mike<?=isset($runningWorkerKeys['mike'])?' — RUNNING':''?></option>
+            <?php foreach($workers as $w): $wr=isset($runningWorkerKeys['worker_'.$w['id']]); ?>
+            <option value="<?=$w['id']?>" <?=$wr?'disabled':''?>><?=wt_html($w['worker_name'])?><?=$wr?' — RUNNING':''?></option>
+            <?php endforeach;?>
+        </select>
+    </div>
+    <div class="field"><label>Leaving from (optional)</label><input name="origin" placeholder="e.g. Home / Bunnings Pakenham"></div>
+    <div class="field"><label>ETA in minutes</label><input name="eta_minutes" type="number" min="1" max="240" value="30" required></div>
+    <div class="field wide"><label>Travel note (optional)</label><input name="notes" placeholder="e.g. bringing materials collected this morning"></div>
+</div>
+<button class="btn sms" style="font-size:18px;padding:15px 22px">🚗 ON MY WAY + START TRAVEL</button>
+</form>
+
+<?php foreach($runningSessions as $rs): if(($rs['category']??'')==='travel' && ($rs['start_location']??'')==='travel_job'): ?>
+<form method="post" action="../../api/work/arrive_start_work.php" style="margin-top:14px;background:#fff;padding:13px;border-radius:10px;border:1px solid #b9d6ee">
+<input type="hidden" name="job_id" value="<?=$id?>">
+<input type="hidden" name="worker_id" value="<?=$rs['worker_id']===null?'mike':(int)$rs['worker_id']?>">
+<b>Travel currently running for <?=wt_html($rs['worker_name']?:'Mike')?>.</b>
+<?php if(!empty($rs['travel_eta'])):?><span class="small"> ETA was <?=wt_html(date('g:i a',strtotime($rs['travel_eta'])))?>.</span><?php endif;?>
+<div class="row" style="margin-top:8px">
+    <div class="field wide"><label>What are you starting on arrival?</label><input name="notes" placeholder="e.g. continue wall preparation and tile removal"></div>
+</div>
+<button class="btn start">📍 ARRIVED — STOP TRAVEL & START ON-SITE WORK</button>
+</form>
+<?php endif; endforeach;?>
+</div>
+
+<div class="card retro-card">
+<h2>🕘 Add previously completed work</h2>
+<p class="small"><b>Retrospective entry.</b> Use this for legitimate work already completed before it was entered into the tracker. For complicated days, simply enter the total job hours after excluding breaks, unrelated calls, errands and other customers. No fake historical SMS is sent.</p>
+<form method="post" action="../../api/work/add_retrospective_session.php">
+<input type="hidden" name="job_id" value="<?=$id?>">
+<div class="row">
+    <div class="field"><label>Worker</label><select name="worker_id" required><option value="mike">Mike / default rate</option><?php foreach($workers as $w):?><option value="<?=$w['id']?>"><?=wt_html($w['worker_name'])?> — <?=wt_money((float)$w['hourly_rate'])?>/hr</option><?php endforeach;?></select></div>
+    <div class="field"><label>Date work occurred</label><input name="work_date" type="date" max="<?=date('Y-m-d')?>" required></div>
+    <div class="field"><label>Total job hours</label><input name="recorded_hours" type="number" min="0.01" max="24" step="0.01" placeholder="e.g. 8.5" required></div>
+    <div class="field wide"><label>What was done? / notes</label><textarea name="notes" placeholder="e.g. Removed damaged materials, measured, sourced supplies, preparation and cleanup. Hours exclude lunch and unrelated calls/errands." required></textarea></div>
+</div>
+<details style="margin:12px 0">
+<summary><b>I know the exact start &amp; finish times</b> (optional)</summary>
+<div class="row" style="margin-top:10px">
+    <div class="field"><label>Start time</label><input name="start_time" type="time"></div>
+    <div class="field"><label>Finish time</label><input name="end_time" type="time"></div>
+</div>
+<p class="small">If both times are entered, they are shown as the known start/finish times. Otherwise only the total job hours are shown.</p>
+</details>
+<p class="checkline"><input type="checkbox" name="billable" value="1" checked> <b>Billable job time</b></p>
+<button class="btn">＋ ADD PAST WORK</button>
+</form>
+</div>
+
 <div class="card">
 <h2>Start job activity</h2>
 <p class="small">Record where you are and what you are doing. One active session per worker is allowed, so repeated clicks cannot create duplicate running timers.</p>
@@ -581,7 +657,9 @@ textarea{width:100%;box-sizing:border-box}
 ?>
 <div class="session-row">
     <b><?=wt_html($s['worker_name'] ?: 'Mike')?></b>
+    <?php if(($s['session_source']??'live')==='retrospective'):?><span class="source-badge source-retro">RETROSPECTIVE</span><?php else:?><span class="source-badge source-live">LIVE</span><?php endif;?>
     <?php if(empty($s['ended_at'])):?><span class="status-good"> · RUNNING</span><?php endif;?><br>
+    <?php if(($s['session_source']??'live')==='retrospective' && !empty($s['retrospective_entered_at'])):?><div class="small">Entered into tracker <?=wt_html($s['retrospective_entered_at'])?></div><?php endif;?>
     <div class="session-meta">
         <b>Started:</b> <?=wt_html($s['started_at'])?> · <?=wt_html($locLabel)?>
         <?php if(!empty($s['location_detail'])):?> (<?=wt_html($s['location_detail'])?>)<?php endif;?>

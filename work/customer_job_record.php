@@ -16,6 +16,9 @@ ORDER BY started_at DESC LIMIT 100");
 $sessions->execute([$job['id']]);
 $sessions=$sessions->fetchAll(PDO::FETCH_ASSOC);
 
+$retrospectiveSessions=array_values(array_filter($sessions,fn($s)=>(($s['session_source']??'live')==='retrospective')));
+$liveSessions=array_values(array_filter($sessions,fn($s)=>(($s['session_source']??'live')!=='retrospective')));
+
 $workers=$pdo->prepare("SELECT * FROM work_workers WHERE job_id=? AND active=1 ORDER BY id");
 $workers->execute([$job['id']]);
 $workers=$workers->fetchAll(PDO::FETCH_ASSOC);
@@ -38,7 +41,7 @@ foreach($sessions as $s){
     if(empty($s['started_at'])) continue;
     $endTs=!empty($s['ended_at'])?strtotime($s['ended_at']):time();
     $startTs=strtotime($s['started_at']);
-    $secs=max(0,$endTs-$startTs);
+    $secs=(($s['session_source']??'live')==='retrospective' && isset($s['retrospective_hours']) && $s['retrospective_hours']!==null) ? (int)round((float)$s['retrospective_hours']*3600) : max(0,$endTs-$startTs);
     $loc=$s['start_location']??'';
     $cat=$s['category']??'';
 
@@ -187,6 +190,7 @@ textarea,input{box-sizing:border-box;width:100%;padding:11px;border:1px solid #c
 .eta-box{margin-top:11px;padding:11px 12px;background:#fff3c4;border:1px solid #e2c35e;border-radius:9px;font-size:16px}
 .running-pill{display:inline-block;background:#087f23;color:#fff;font-size:12px;font-weight:850;border-radius:999px;padding:4px 8px}
 .activity-empty{color:#68737d;font-style:italic}
+.timeline-section{margin-top:18px}.timeline-section-title{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.retro-note{background:#fff8df;border:1px solid #e2c76c;border-radius:10px;padding:11px 12px;margin:10px 0}.source-pill{display:inline-block;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:900}.source-pill.live{background:#e7f5ec;color:#087f23}.source-pill.retro{background:#fff3cd;color:#795d00}.travel-eta{background:#eef6ff;border:1px solid #a7c8eb;border-radius:9px;padding:10px 12px;margin-top:10px}
 @media(max-width:600px){
   .activity-grid{grid-template-columns:1fr;gap:2px}
   .activity-label{margin-top:7px}
@@ -477,91 +481,72 @@ The Terms &amp; Conditions do not exclude rights or remedies that cannot lawfull
 <?php endif;?>
 
 <div class="card">
-<h2>Activity timeline</h2>
-<p class="muted">A clear record of when job activity started and stopped, where it occurred, why work paused, and when Mike expected to return.</p>
+<h2>Job activity history</h2>
+<p class="muted">The record separates work entered retrospectively from activity captured live with the tracker. Both contribute to the job-time record where marked billable.</p>
 
-<?php if(!$sessions):?>
-<p class="activity-empty">No job activity recorded yet.</p>
-<?php endif;?>
-
-<?php foreach($sessions as $s):
+<div class="timeline-section">
+<div class="timeline-section-title"><h3>Previously completed work</h3><span class="source-pill retro">RETROSPECTIVE</span></div>
+<div class="retro-note"><b>Why this section exists:</b> These sessions describe work that had already occurred before it was entered into the tracker. The original work date/time is shown together with the later entry timestamp, so historical entries are not presented as if they were captured live.</div>
+<?php if(!$retrospectiveSessions):?><p class="activity-empty">No retrospective work has been entered.</p><?php endif;?>
+<?php foreach($retrospectiveSessions as $s):
     $locLabel=$locationLabels[$s['start_location']??'']??($s['start_location']?:'Not specified');
-    $stopLabel=$stopReasonLabels[$s['stop_reason']??'']??($s['stop_reason']?:'');
-    $durationSeconds=!empty($s['ended_at'])?max(0,strtotime($s['ended_at'])-strtotime($s['started_at'])):null;
-
-    if($durationSeconds!==null){
-        $hours=intdiv($durationSeconds,3600);
-        $mins=intdiv($durationSeconds%3600,60);
-        if($hours>0){
-            $durationText=$hours.' hr '.str_pad((string)$mins,2,'0',STR_PAD_LEFT).' min';
-        } elseif($mins>0){
-            $durationText=$mins.' min';
-        } else {
-            $durationText='< 1 min';
-        }
-    } else {
-        $durationText='Currently running';
-    }
+    $durationSeconds=isset($s['retrospective_hours']) && $s['retrospective_hours']!==null ? (int)round((float)$s['retrospective_hours']*3600) : (!empty($s['ended_at'])?max(0,strtotime($s['ended_at'])-strtotime($s['started_at'])):0);
+    $durationText=wt_public_duration_hm($durationSeconds);
 ?>
 <div class="activity-card">
-
-    <div class="activity-start <?=empty($s['ended_at'])?'running':''?>">
-        <div class="activity-heading">
-            <span class="activity-icon">🟢</span>
-            <span class="activity-time"><?=wt_html(date('g:i a',strtotime($s['started_at'])))?></span>
-            <span>— WORK STARTED</span>
-            <?php if(empty($s['ended_at'])):?><span class="running-pill">CURRENTLY RUNNING</span><?php endif;?>
-        </div>
-
+    <div class="activity-start">
+        <div class="activity-heading"><span class="activity-icon">🕘</span><span><?=wt_html(date('D j M Y',strtotime($s['started_at'])))?><?php if(($s['retrospective_entry_basis']??'')==='exact_times'):?> · <?=wt_html(date('g:i a',strtotime($s['started_at'])))?>–<?=wt_html(date('g:i a',strtotime($s['ended_at'])))?><?php endif;?></span></div>
         <div class="activity-grid">
-            <div class="activity-label">Worker</div>
-            <div class="activity-value"><?=wt_html($s['worker_name']?:'Mike')?></div>
-
-            <div class="activity-label">Location</div>
-            <div class="activity-value">
-                <?=wt_html($locLabel)?>
-                <?php if(!empty($s['location_detail'])):?> — <?=wt_html($s['location_detail'])?><?php endif;?>
-            </div>
-
-            <div class="activity-label">Work / activity</div>
-            <div class="activity-value"><?=wt_html(ucwords(str_replace('_',' ',$s['category'])))?></div>
+            <div class="activity-label">Worker</div><div class="activity-value"><?=wt_html($s['worker_name']?:'Mike')?></div>
+            <div class="activity-label">Recorded job time</div><div class="activity-value"><b><?=wt_html($durationText)?></b><?php if(($s['retrospective_entry_basis']??'hours')==='hours'):?> — total hours entered retrospectively<?php endif;?></div>
         </div>
-
-        <?php if(!empty($s['notes'])):?>
-        <div class="activity-note"><b>What Mike was doing:</b><br><?=nl2br(wt_html($s['notes']))?></div>
-        <?php endif;?>
+        <?php if(!empty($s['notes'])):?><div class="activity-note"><b>Work completed:</b><br><?=nl2br(wt_html($s['notes']))?></div><?php endif;?>
     </div>
-
-    <?php if(!empty($s['ended_at'])):?>
-    <div class="activity-stop">
-        <div class="activity-heading">
-            <span class="activity-icon">🟠</span>
-            <span class="activity-time"><?=wt_html(date('g:i a',strtotime($s['ended_at'])))?></span>
-            <span>— WORK PAUSED / STOPPED</span>
-        </div>
-
-        <div class="activity-grid">
-            <div class="activity-label">Reason</div>
-            <div class="activity-value"><?=wt_html($stopLabel ?: 'Not specified')?></div>
-        </div>
-
-        <?php if(!empty($s['stop_note'])):?>
-        <div class="activity-note"><b>Explanation:</b><br><?=nl2br(wt_html($s['stop_note']))?></div>
-        <?php endif;?>
-
-        <?php if(!empty($s['expected_return'])):?>
-        <div class="eta-box"><b>Expected return / next attendance:</b> <?=wt_html($s['expected_return'])?></div>
-        <?php endif;?>
-    </div>
-    <?php endif;?>
-
-    <div class="activity-footer">
-        <b>Recorded activity time:</b> <?=wt_html($durationText)?>
-    </div>
+    <div class="activity-footer">Retrospective entry added to tracker <?=!empty($s['retrospective_entered_at'])?wt_html(date('D j M Y g:i a',strtotime($s['retrospective_entered_at']))):'after the work occurred'?>.</div>
 </div>
 <?php endforeach;?>
 </div>
 
+<div class="timeline-section">
+<div class="timeline-section-title"><h3>Live tracked activity</h3><span class="source-pill live">LIVE</span></div>
+<p class="muted">These sessions were started using the live tracker, including separately recorded travel to the customer or suppliers.</p>
+<?php if(!$liveSessions):?><p class="activity-empty">No live tracked activity yet.</p><?php endif;?>
+<?php foreach($liveSessions as $s):
+    $locLabel=$locationLabels[$s['start_location']??'']??($s['start_location']?:'Not specified');
+    $stopLabel=$stopReasonLabels[$s['stop_reason']??'']??($s['stop_reason']?:'');
+    $durationSeconds=!empty($s['ended_at'])?max(0,strtotime($s['ended_at'])-strtotime($s['started_at'])):null;
+    $durationText=$durationSeconds!==null?wt_public_duration_hm($durationSeconds):'Currently running';
+    $isTravel=(($s['category']??'')==='travel'||($s['start_location']??'')==='travel_job');
+?>
+<div class="activity-card">
+    <div class="activity-start <?=empty($s['ended_at'])?'running':''?>">
+        <div class="activity-heading">
+            <span class="activity-icon"><?=$isTravel?'🚗':'🟢'?></span>
+            <span class="activity-time"><?=wt_html(date('g:i a',strtotime($s['started_at'])))?></span>
+            <span>— <?=$isTravel?'TRAVEL STARTED':'WORK STARTED'?></span>
+            <?php if(empty($s['ended_at'])):?><span class="running-pill">CURRENTLY RUNNING</span><?php endif;?>
+        </div>
+        <div class="activity-grid">
+            <div class="activity-label">Worker</div><div class="activity-value"><?=wt_html($s['worker_name']?:'Mike')?></div>
+            <div class="activity-label">Location</div><div class="activity-value"><?=wt_html($locLabel)?><?php if(!empty($s['location_detail'])):?> — <?=wt_html($s['location_detail'])?><?php endif;?></div>
+            <div class="activity-label">Work / activity</div><div class="activity-value"><?=wt_html(ucwords(str_replace('_',' ',$s['category'])))?></div>
+        </div>
+        <?php if($isTravel && !empty($s['travel_eta'])):?><div class="travel-eta"><b>ETA recorded at departure:</b> approx. <?=wt_html(date('g:i a',strtotime($s['travel_eta'])))?></div><?php endif;?>
+        <?php if(!empty($s['notes'])):?><div class="activity-note"><b><?=$isTravel?'Travel note':'What was being done'?>:</b><br><?=nl2br(wt_html($s['notes']))?></div><?php endif;?>
+    </div>
+    <?php if(!empty($s['ended_at'])):?>
+    <div class="activity-stop">
+        <div class="activity-heading"><span class="activity-icon">🟠</span><span class="activity-time"><?=wt_html(date('g:i a',strtotime($s['ended_at'])))?></span><span>— <?=$isTravel?'TRAVEL ENDED':'WORK PAUSED / STOPPED'?></span></div>
+        <?php if($stopLabel):?><div class="activity-grid"><div class="activity-label">Reason</div><div class="activity-value"><?=wt_html($stopLabel)?></div></div><?php endif;?>
+        <?php if(!empty($s['stop_note'])):?><div class="activity-note"><b>Explanation:</b><br><?=nl2br(wt_html($s['stop_note']))?></div><?php endif;?>
+        <?php if(!empty($s['expected_return'])):?><div class="eta-box"><b>Expected return / next attendance:</b> <?=wt_html($s['expected_return'])?></div><?php endif;?>
+    </div>
+    <?php endif;?>
+    <div class="activity-footer"><b>Recorded activity time:</b> <?=wt_html($durationText)?></div>
+</div>
+<?php endforeach;?>
+</div>
+</div>
 <div class="card">
 <h2>Daily reports</h2>
 <?php if(!$reports):?><p>No daily reports yet.</p><?php endif;?>

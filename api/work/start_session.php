@@ -66,8 +66,8 @@ $locationDetail = trim($_POST['location_detail'] ?? '');
 
 $stmt = $pdo->prepare("
     INSERT INTO work_sessions
-    (job_id,worker_id,started_at,category,start_location,location_detail,billable,notes)
-    VALUES(?,?,NOW(),?,?,?,?,?)
+    (job_id,session_source,worker_id,started_at,category,start_location,location_detail,billable,notes)
+    VALUES(?,'live',?,NOW(),?,?,?,?,?)
 ");
 $stmt->execute([$id, $workerId, $category, $location, $locationDetail ?: null, 1, $notes]);
 

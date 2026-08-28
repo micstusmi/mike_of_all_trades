@@ -74,7 +74,7 @@ function wt_totals(PDO $pdo, int $jobId): array {
 
     $sql = "SELECT COALESCE(SUM(
               CASE WHEN s.billable=1 AND s.ended_at IS NOT NULL
-              THEN TIMESTAMPDIFF(SECOND,s.started_at,s.ended_at)/3600 * COALESCE(w.hourly_rate, ?)
+              THEN (CASE WHEN s.session_source='retrospective' AND s.retrospective_hours IS NOT NULL THEN s.retrospective_hours ELSE TIMESTAMPDIFF(SECOND,s.started_at,s.ended_at)/3600 END) * COALESCE(w.hourly_rate, ?)
               ELSE 0 END),0)
             FROM work_sessions s
             LEFT JOIN work_workers w ON w.id=s.worker_id
