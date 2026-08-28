@@ -104,17 +104,47 @@ $stopReasonLabels=[
 
 $isFixed = (($job['original_pricing_type'] ?? '') === 'fixed_price');
 $variationRequired = $isFixed && !empty($job['variation_required']);
+
+$signedSnapshot = [];
+if (!empty($job['agreement_snapshot_json'])) {
+    $decodedSnapshot = json_decode((string)$job['agreement_snapshot_json'], true);
+    if (is_array($decodedSnapshot)) {
+        $signedSnapshot = $decodedSnapshot;
+    }
+}
 ?>
 <!doctype html>
 <html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Job record</title>
+<title>Live Job Record & Agreement — Mike of All Trades</title>
+<link rel="icon" type="image/png" href="/assets/favicon.png?v=1">
 <style>
 body{font-family:system-ui,-apple-system,sans-serif;margin:0;background:#f4f6f8;color:#17202a}
 .wrap{max-width:850px;margin:auto;padding:16px}
 .brand{font-size:29px;font-weight:850}
+.mot-mini-header{
+    background:#17202a;
+    color:#fff;
+    margin:-16px -16px 18px;
+    padding:14px 18px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:14px;
+}
+.mot-mini-brand{font-size:19px;font-weight:850;letter-spacing:.2px}
+.mot-mini-sub{font-size:12px;color:#cfd6dc;margin-top:2px}
+.mot-mini-site{font-size:12px;color:#cfd6dc;white-space:nowrap}
+.terms-box{
+    background:#f5f8fa;
+    border:1px solid #cfd8df;
+    border-radius:10px;
+    padding:13px;
+    margin:14px 0;
+}
+.terms-box a{font-weight:800;color:#1261a0}
 .card{background:#fff;border-radius:14px;padding:18px;margin:12px 0;box-shadow:0 2px 10px #0001}
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .metric{padding:12px;background:#f2f4f5;border-radius:10px}
@@ -170,6 +200,13 @@ textarea,input{box-sizing:border-box;width:100%;padding:11px;border:1px solid #c
 </style>
 </head>
 <body>
+<div class="mot-mini-header">
+    <div>
+        <div class="mot-mini-brand">MIKE OF ALL TRADES</div>
+        <div class="mot-mini-sub">Live Job Record &amp; Agreement</div>
+    </div>
+    <div class="mot-mini-site">mikeofalltrades.com.au</div>
+</div>
 <div class="wrap">
 <div class="brand">Mike of All Trades</div>
 <h2>Current Job Record & Agreement</h2>
@@ -309,6 +346,22 @@ textarea,input{box-sizing:border-box;width:100%;padding:11px;border:1px solid #c
 <span class="muted">I have reviewed the current scope, changed/unforeseen circumstances, pricing basis and forecast shown above.</span></label>
 </div>
 
+<div class="terms-box">
+<b>Terms &amp; Conditions</b><br>
+This job, approved variations, additional work and services provided by Mike of All Trades
+are subject to the
+<a href="/terms" target="_blank" rel="noopener">Mike of All Trades Terms &amp; Conditions</a>.
+The Terms &amp; Conditions do not exclude rights or remedies that cannot lawfully be excluded.
+</div>
+
+<div class="check">
+<input type="checkbox" name="accept_terms" value="1" required>
+<label>
+<b>I agree to the Mike of All Trades Terms &amp; Conditions.</b><br>
+<span class="muted">I have read, or had the opportunity to read, the Terms &amp; Conditions linked above.</span>
+</label>
+</div>
+
 <label><b>Your full name</b></label>
 <input name="agreement_name" required>
 
@@ -325,7 +378,10 @@ textarea,input{box-sizing:border-box;width:100%;padding:11px;border:1px solid #c
 <?=wt_html($job['agreement_name']??'')?> · <?=wt_html($job['agreement_signed_at'])?><br>
 <?php if($job['acknowledged_current_balance']):?>✓ Current account reviewed<br><?php endif;?>
 <?php if($job['variation_authorised']):?>✓ Fixed-price variation expressly authorised<br><?php endif;?>
-<?php if($job['authorised_continuation']):?>✓ Continuation authorised<?php endif;?>
+<?php if($job['authorised_continuation']):?>✓ Continuation authorised<br><?php endif;?>
+<?php if(!empty($signedSnapshot['terms_accepted'])):?>
+✓ Mike of All Trades Terms &amp; Conditions accepted<br>
+<?php endif;?>
 </div>
 <?php endif;?>
 

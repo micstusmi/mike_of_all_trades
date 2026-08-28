@@ -17,6 +17,12 @@ $authorise=($_POST['authorise_continue']??'')==='1';
 $isFixed=(($job['original_pricing_type']??'')==='fixed_price');
 $variationRequired=$isFixed && !empty($job['variation_required']);
 $variationAuthorised=($_POST['authorise_variation']??'')==='1';
+$termsAccepted=($_POST['accept_terms']??'')==='1';
+
+if (!$termsAccepted) {
+    http_response_code(400);
+    exit('You must agree to the Mike of All Trades Terms & Conditions before signing.');
+}
 
 if(!$name || !$ack || !$authorise){
     die('Name and required acknowledgements are required.');
@@ -85,13 +91,18 @@ $file='job_'.$job['id'].'_'.time().'.png';
 file_put_contents($dir.'/'.$file,$data);
 $path='/uploads/job_signatures/'.$file;
 
+$snapshot['terms_accepted'] = true;
+$snapshot['terms_url'] = 'https://www.mikeofalltrades.com.au/terms';
+$snapshot['terms_accepted_at'] = date('Y-m-d H:i:s');
+$snapshot['agreement_version'] = '3.1';
+
 $stmt=$pdo->prepare("UPDATE work_jobs SET
  agreement_name=?,
  agreement_signature_path=?,
  agreement_signed_at=NOW(),
  agreement_ip=?,
  status='active',
- agreement_version='3.0',
+ agreement_version='3.1',
  acknowledged_current_balance=1,
  authorised_continuation=1,
  variation_authorised=?,
