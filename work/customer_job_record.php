@@ -127,8 +127,16 @@ body{font-family:system-ui,-apple-system,sans-serif;margin:0;background:#f4f6f8;
 .mot-mini-header{
     background:#17202a;
     color:#fff;
+    position:sticky;
+    top:0;
+    z-index:1000;
     margin:-16px -16px 18px;
-    padding:14px 18px;
+    box-shadow:0 2px 8px rgba(0,0,0,.12);
+}
+.mot-mini-header-inner{
+    max-width:850px;
+    margin:0 auto;
+    padding:12px 16px;
     display:flex;
     align-items:center;
     justify-content:space-between;
@@ -201,11 +209,13 @@ textarea,input{box-sizing:border-box;width:100%;padding:11px;border:1px solid #c
 </head>
 <body>
 <div class="mot-mini-header">
-    <div>
-        <div class="mot-mini-brand">MIKE OF ALL TRADES</div>
-        <div class="mot-mini-sub">Live Job Record &amp; Agreement</div>
+    <div class="mot-mini-header-inner">
+        <div>
+            <div class="mot-mini-brand">MIKE OF ALL TRADES</div>
+            <div class="mot-mini-sub">Live Job Record &amp; Agreement</div>
+        </div>
+        <div class="mot-mini-site">mikeofalltrades.com.au</div>
     </div>
-    <div class="mot-mini-site">mikeofalltrades.com.au</div>
 </div>
 <div class="wrap">
 <div class="brand">Mike of All Trades</div>
