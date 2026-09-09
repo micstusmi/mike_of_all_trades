@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/config.php';
 // V8.5A — SMS Broadcast provider helper.
 // Credentials stay in includes/config.php or environment variables.
 // Official HTTP endpoint: https://www.smsbroadcast.com.au/api-adv.php

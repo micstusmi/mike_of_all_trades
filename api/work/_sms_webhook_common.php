@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../../includes/config.php';
 // Shared helpers for SMS Broadcast / Sinch-style webhook payloads.
 
 function mot_webhook_payload(): array {
