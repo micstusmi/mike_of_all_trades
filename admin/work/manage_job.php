@@ -110,8 +110,11 @@ $timeBreakdown = [
 
 foreach ($sessions as $s) {
     if (empty($s['started_at'])) continue;
-    $endTs = !empty($s['ended_at']) ? strtotime($s['ended_at']) : time();
-    $startTs = strtotime($s['started_at']);
+    $utc = new DateTimeZone('UTC');
+    $startTs = (new DateTimeImmutable($s['started_at'], $utc))->getTimestamp();
+    $endTs = !empty($s['ended_at'])
+        ? (new DateTimeImmutable($s['ended_at'], $utc))->getTimestamp()
+        : (new DateTimeImmutable('now', $utc))->getTimestamp();
     $secs = max(0, $endTs - $startTs);
 
     $loc = $s['start_location'] ?? '';
@@ -1098,7 +1101,7 @@ Replacement seals if required"><?=wt_html($t['suggested_materials']??'')?></text
 (function(){
     function parseMysqlDate(s){
         if(!s) return null;
-        return new Date(s.replace(' ', 'T'));
+        return new Date(s.replace(' ', 'T') + 'Z');
     }
     function pad(n){ return String(n).padStart(2,'0'); }
     function updateTimers(){
