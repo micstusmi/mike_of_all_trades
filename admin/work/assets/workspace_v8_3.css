@@ -122,3 +122,36 @@
   }
   .wt83-jumpbar a { white-space:nowrap; }
 }
+
+/* Clear left-side accordion indicators */
+.wt83-section-toggle{
+  display:flex !important;
+  flex-direction:row;
+  align-items:flex-start;
+  justify-content:flex-start !important;
+  gap:10px;
+  text-align:left;
+}
+
+.wt83-section-heading{
+  display:block;
+  flex:1 1 auto;
+  min-width:0;
+}
+
+.wt83-section-title,
+.wt83-section-summary{
+  text-align:left;
+  width:100%;
+}
+
+.wt83-chevron{
+  display:inline-block;
+  flex:0 0 auto;
+  margin:2px 0 0 0;
+  color:#111;
+  font-size:16px;
+  font-weight:900;
+  line-height:1;
+  transform:none !important;
+}

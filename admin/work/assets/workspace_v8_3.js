@@ -5,7 +5,7 @@
   'use strict';
 
   const path = location.pathname;
-  if (!/\/admin\/work\/manage_job\.php$/i.test(path)) return;
+  if (!/\/admin\/work\/(?:manage_job|job)\.php$/i.test(path)) return;
 
   const params = new URLSearchParams(location.search);
   const jobId = params.get('id') || 'unknown';
@@ -170,9 +170,9 @@
 
     const chevron = document.createElement('span');
     chevron.className = 'wt83-chevron';
-    chevron.textContent = '⌄';
+    chevron.textContent = '▶';
 
-    button.append(left, chevron);
+    button.append(chevron, left);
 
     body.id = 'wt83-body-' + slug;
     el.id = 'wt83-' + slug;
@@ -185,6 +185,7 @@
 
     el.dataset.wt83Open = open ? '1' : '0';
     button.setAttribute('aria-expanded', open ? 'true' : 'false');
+    chevron.textContent = open ? '▼' : '▶';
 
     el.insertBefore(button, el.firstChild);
     el.appendChild(body);
@@ -193,6 +194,7 @@
       const next = el.dataset.wt83Open !== '1';
       el.dataset.wt83Open = next ? '1' : '0';
       button.setAttribute('aria-expanded', next ? 'true' : 'false');
+      chevron.textContent = next ? '▼' : '▶';
       state[slug] = next;
       stateSave(state);
     });

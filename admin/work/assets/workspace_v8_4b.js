@@ -28,10 +28,22 @@ function run(){
     'SMS history':'Recent customer text messages'
    };
    sub.textContent=subtitles[title]||'Open to view and edit';
-   left.append(t,sub);const chev=document.createElement('span');chev.className='wt83-chevron';chev.textContent='⌄';b.append(left,chev);
+   left.append(t,sub);
+   const chev=document.createElement('span');
+   chev.className='wt83-chevron';
+   const isOpen=!!state[key];
+   chev.textContent=isOpen?'▼':'▶';
+   b.append(chev,left);
    card.classList.add('wt83-section');card.dataset.wt83Open=state[key]?'1':'0';b.setAttribute('aria-expanded',state[key]?'true':'false');
    card.insertBefore(b,card.firstChild);card.appendChild(body);
-   b.addEventListener('click',()=>{const o=card.dataset.wt83Open!=='1';card.dataset.wt83Open=o?'1':'0';b.setAttribute('aria-expanded',o?'true':'false');state[key]=o;try{localStorage.setItem(stateKey,JSON.stringify(state))}catch(_){}});
+   b.addEventListener('click',()=>{
+     const o=card.dataset.wt83Open!=='1';
+     card.dataset.wt83Open=o?'1':'0';
+     b.setAttribute('aria-expanded',o?'true':'false');
+     chev.textContent=o?'▼':'▶';
+     state[key]=o;
+     try{localStorage.setItem(stateKey,JSON.stringify(state))}catch(_){}
+   });
  }
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(run,60));else setTimeout(run,60);
