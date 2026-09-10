@@ -204,3 +204,38 @@
     grid-template-columns:1fr;
   }
 }
+
+.customer-confirm-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-top:12px;
+}
+
+.customer-confirm-actions form{
+  margin:0;
+}
+
+.customer-confirm-actions .btn{
+  width:auto;
+}
+
+.customer-confirm-yes{
+  background:#198754 !important;
+  border-color:#198754 !important;
+  color:#fff !important;
+}
+
+.customer-confirm-change{
+  background:#fff !important;
+  border:1px solid #555 !important;
+  color:#222 !important;
+}
+
+@media(max-width:600px){
+  .customer-confirm-actions,
+  .customer-confirm-actions form,
+  .customer-confirm-actions .btn{
+    width:100%;
+  }
+}

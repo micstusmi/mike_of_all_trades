@@ -394,7 +394,24 @@ $confirmStatus=(string)($job['customer_confirmation_status'] ?? 'not_requested')
 <?php elseif($confirmStatus==='needs_change'):?>
 <div class="customer-confirm needs-change">Change requested — Mike will contact you.</div>
 <?php elseif($confirmStatus==='awaiting'):?>
-<div class="customer-confirm awaiting">Confirmation requested — please confirm your booking.</div>
+<div class="customer-confirm awaiting">
+  <b>Please confirm tomorrow's booking</b>
+  <p>Please check the date, time, parking and access information above.</p>
+
+  <div class="customer-confirm-actions">
+    <form method="post" action="../api/work/confirm_booking.php">
+      <input type="hidden" name="token" value="<?=wt_html($token)?>">
+      <input type="hidden" name="action" value="confirm">
+      <button class="btn customer-confirm-yes" type="submit">✓ CONFIRM THIS BOOKING</button>
+    </form>
+
+    <form method="post" action="../api/work/confirm_booking.php">
+      <input type="hidden" name="token" value="<?=wt_html($token)?>">
+      <input type="hidden" name="action" value="needs_change">
+      <button class="btn customer-confirm-change" type="submit">I NEED TO CHANGE SOMETHING</button>
+    </form>
+  </div>
+</div>
 <?php endif;?>
 
 </div>

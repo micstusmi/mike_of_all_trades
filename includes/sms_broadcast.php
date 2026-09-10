@@ -97,7 +97,6 @@ function mot_sms_broadcast_send(string $to, string $message, ?string $ref=null):
     $response = curl_exec($ch);
     $curlError = curl_error($ch);
     $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
 
     $base['response'] = $response === false ? null : trim((string)$response);
 
