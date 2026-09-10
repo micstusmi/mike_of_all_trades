@@ -83,7 +83,9 @@ $customerUpdateModeLabels = [
 ];
 
 
-$sms = $pdo->prepare("SELECT * FROM work_sms_messages WHERE job_id=? ORDER BY id DESC LIMIT 15");
+$sms = $pdo->prepare("SELECT * FROM work_sms_messages WHERE job_id=? ORDER BY id DESC LIMIT 30");
+$sms->execute([$id]);
+$smsMessages = $sms->fetchAll(PDO::FETCH_ASSOC);
 
 $today = date('Y-m-d');
 
@@ -218,6 +220,44 @@ textarea{width:100%;box-sizing:border-box}
 <link rel="stylesheet" href="assets/task_photos_inline_v8_4c.css?v=1">
 </head>
 <body>
+
+<?php
+$smsFlash = $_SESSION['work_sms_flash'] ?? null;
+unset($_SESSION['work_sms_flash']);
+?>
+<?php if(is_array($smsFlash)):?>
+<div id="sms-dispatch-toast" style="
+position:fixed;
+top:18px;
+right:18px;
+z-index:10000;
+width:min(430px,calc(100vw - 36px));
+background:<?=$smsFlash['ok']?'#e7f6ec':'#fde8e8'?>;
+border:2px solid <?=$smsFlash['ok']?'#268447':'#b42318'?>;
+border-radius:12px;
+padding:15px 17px;
+box-shadow:0 8px 28px #0003;
+">
+    <div style="display:flex;justify-content:space-between;gap:12px">
+        <strong style="font-size:17px">
+            <?=$smsFlash['ok']?'✓ SMS dispatched successfully':'✕ SMS dispatch failed'?>
+        </strong>
+        <button type="button" onclick="document.getElementById('sms-dispatch-toast').remove()" style="border:0;background:transparent;font-size:20px;cursor:pointer">×</button>
+    </div>
+
+    <?php if(!empty($smsFlash['purpose'])):?><div class="small" style="margin-top:6px"><b>Type:</b> <?=wt_html($smsFlash['purpose'])?></div><?php endif;?>
+    <?php if(!empty($smsFlash['time'])):?><div class="small"><b>Time:</b> <?=wt_html($smsFlash['time'])?></div><?php endif;?>
+    <?php if(!empty($smsFlash['status'])):?><div class="small"><b>Gateway:</b> <?=wt_html($smsFlash['status'])?></div><?php endif;?>
+
+    <?php if(!empty($smsFlash['message'])):?>
+    <div style="margin-top:9px;padding:9px;background:#fff;border-radius:8px;font-size:13px;white-space:pre-wrap"><?=wt_html($smsFlash['message'])?></div>
+    <?php endif;?>
+
+    <?php if($smsFlash['ok']):?>
+    <div class="small" style="margin-top:8px">Accepted for dispatch. Handset delivery may be confirmed separately by the delivery-status service.</div>
+    <?php endif;?>
+</div>
+<?php endif;?>
 <div class="wrap">
 
 <p><a href="index.php">← All jobs</a></p>
@@ -668,6 +708,38 @@ Customer day-before confirmation:
 <b>Daily only:</b> session changes remain in the live record but are not individually texted.<br>
 <b>None:</b> no automatic session SMS.
 </p>
+
+<h3 style="margin-top:22px">SMS history</h3>
+<p class="small">Latest customer SMS activity for this job. Gateway acceptance means the SMS provider accepted the message for sending; it does not by itself prove handset delivery.</p>
+
+<?php if(!$smsMessages):?>
+<p class="small">No SMS messages recorded for this job yet.</p>
+<?php else:?>
+<div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+<?php foreach($smsMessages as $sm):
+    $direction = strtolower((string)($sm['direction'] ?? 'outbound'));
+    $status = trim((string)($sm['provider_status'] ?? $sm['status'] ?? ''));
+    $purpose = trim((string)($sm['purpose'] ?? ''));
+    $created = !empty($sm['created_at']) ? date('j M Y, g:i a', strtotime($sm['created_at'])) : '';
+?>
+<div style="border:1px solid #dfe5e9;border-radius:10px;padding:11px 13px;background:<?=$direction==='inbound'?'#eef8ff':'#f8fafb'?>">
+    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <b><?=$direction==='inbound'?'← Incoming SMS':'→ Outgoing SMS'?></b>
+        <span class="small"><?=wt_html($created)?></span>
+    </div>
+    <?php if($purpose!=='' || $status!==''):?>
+    <div class="small" style="margin-top:4px">
+        <?php if($purpose!==''):?><?=wt_html(ucwords(str_replace('_',' ',$purpose)))?><?php endif;?>
+        <?php if($purpose!=='' && $status!==''):?> · <?php endif;?>
+        <?php if($status!==''):?><b><?=wt_html(ucwords(str_replace('_',' ',$status)))?></b><?php endif;?>
+    </div>
+    <?php endif;?>
+    <div style="margin-top:7px;white-space:pre-wrap"><?=wt_html((string)($sm['message'] ?? ''))?></div>
+</div>
+<?php endforeach;?>
+</div>
+<?php endif;?>
+
 </div>
 
 <div class="card">
