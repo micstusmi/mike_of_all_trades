@@ -131,6 +131,18 @@ foreach ($sessions as $s) {
     $timeBreakdown[$bucket] += $secs;
 }
 
+function wt_melbourne_time(?string $utc): string {
+    if (!$utc) return '';
+
+    try {
+        $dt = new DateTimeImmutable($utc, new DateTimeZone('UTC'));
+        $dt = $dt->setTimezone(new DateTimeZone('Australia/Melbourne'));
+        return $dt->format('D j M Y, g:i:s a');
+    } catch (Throwable $e) {
+        return $utc;
+    }
+}
+
 function wt_duration_hm(int $seconds): string {
     $hours = intdiv($seconds, 3600);
     $mins = intdiv($seconds % 3600, 60);
@@ -138,9 +150,6 @@ function wt_duration_hm(int $seconds): string {
     if ($mins > 0) return $mins.' min';
     return '< 1 min';
 }
-
-$sms->execute([$id]);
-$sms = $sms->fetchAll(PDO::FETCH_ASSOC);
 
 $url = wt_public_url($job);
 
@@ -1020,12 +1029,12 @@ Replacement seals if required"><?=wt_html($t['suggested_materials']??'')?></text
     <?php if(($s['session_source']??'live')==='retrospective' && !empty($s['retrospective_entered_at'])):?><div class="small">Entered into tracker <?=wt_html($s['retrospective_entered_at'])?></div><?php endif;?>
     <div class="session-meta">
         <?php if(!empty($s['task_id']) && isset($taskById[(int)$s['task_id']])):?><b>Task:</b> <?=wt_html($taskById[(int)$s['task_id']]['title'])?><br><?php endif;?>
-        <b>Started:</b> <?=wt_html($s['started_at'])?> · <?=wt_html($locLabel)?>
+        <b>Started:</b> <?=wt_html(wt_melbourne_time($s['started_at']))?> · <?=wt_html($locLabel)?>
         <?php if(!empty($s['location_detail'])):?> (<?=wt_html($s['location_detail'])?>)<?php endif;?>
         · <?=wt_html($s['category'])?><br>
         <?php if(!empty($s['notes'])):?><b>Start note:</b> <?=wt_html($s['notes'])?><br><?php endif;?>
         <?php if(!empty($s['ended_at'])):?>
-            <b>Stopped:</b> <?=wt_html($s['ended_at'])?> · duration <?=$durationText?><br>
+            <b>Stopped:</b> <?=wt_html(wt_melbourne_time($s['ended_at']))?> · duration <?=$durationText?><br>
             <?php if($stopLabel):?><b>Reason:</b> <?=wt_html($stopLabel)?><br><?php endif;?>
             <?php if(!empty($s['stop_note'])):?><b>Stop note:</b> <?=wt_html($s['stop_note'])?><br><?php endif;?>
             <?php if(!empty($s['expected_return'])):?><b>Expected return / next attendance:</b> <?=wt_html($s['expected_return'])?><br><?php endif;?>
@@ -1082,13 +1091,6 @@ Replacement seals if required"><?=wt_html($t['suggested_materials']??'')?></text
 </form>
 </div>
 
-<div class="card">
-<h2>SMS history</h2>
-<?php if(!$sms):?><p>No SMS history yet.</p><?php endif;?>
-<?php foreach($sms as $m):?>
-<p><b><?=wt_html($m['direction'])?></b> <?=wt_html($m['sent_at'])?> — <?=nl2br(wt_html($m['message']))?></p>
-<?php endforeach;?>
-</div>
 
 </div>
 

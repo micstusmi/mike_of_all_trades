@@ -27,10 +27,10 @@
       return ['Materials & expenses', 'Materials, supplier costs and reimbursements'];
     if (t.includes('payment'))
       return ['Payments', 'Payments received, balance and progress payments'];
+    if (t.includes('recent sessions') || t.includes('history') || t.includes('tracked time'))
+      return ['Work history', 'Previous sessions, tracked time and activity'];
     if (t.includes('session') || t.includes('start work') || t.includes('work now'))
       return ['Current work session', 'Start, stop and active work'];
-    if (t.includes('history') || t.includes('tracked time'))
-      return ['Work history', 'Previous sessions, tracked time and activity'];
     if (t.includes('change'))
       return ['Customer changes', 'Customer updates and requests awaiting review'];
     if (t.includes('daily') || t.includes('report') || t.includes('update'))
