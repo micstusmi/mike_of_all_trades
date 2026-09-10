@@ -1,0 +1,124 @@
+
+/* Mike of All Trades Work Tracker V8.3 — admin workspace cleanup */
+:root {
+  --wt83-border: #d9e0e7;
+  --wt83-muted: #667085;
+  --wt83-bg: #f7f9fb;
+  --wt83-card: #ffffff;
+  --wt83-shadow: 0 4px 16px rgba(16,24,40,.06);
+}
+
+.wt83-jumpbar {
+  position: sticky;
+  top: 0;
+  z-index: 45;
+  margin: 14px 0 18px;
+  padding: 10px 12px;
+  border: 1px solid var(--wt83-border);
+  border-radius: 12px;
+  background: rgba(255,255,255,.96);
+  box-shadow: var(--wt83-shadow);
+  backdrop-filter: blur(8px);
+}
+.wt83-jumpbar-title {
+  font-weight: 800;
+  font-size: .88rem;
+  margin-right: 8px;
+}
+.wt83-jumpbar-links {
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin-top:7px;
+}
+.wt83-jumpbar a {
+  display:inline-block;
+  padding:6px 9px;
+  border:1px solid var(--wt83-border);
+  border-radius:999px;
+  text-decoration:none;
+  font-size:.8rem;
+  color:inherit;
+  background:#fff;
+}
+.wt83-jumpbar a:hover { background:var(--wt83-bg); }
+
+.wt83-section {
+  border:1px solid var(--wt83-border) !important;
+  border-radius:14px !important;
+  overflow:hidden;
+  box-shadow: var(--wt83-shadow);
+  background:var(--wt83-card);
+  scroll-margin-top:100px;
+}
+.wt83-section + .wt83-section { margin-top:14px; }
+
+.wt83-section-toggle {
+  appearance:none;
+  width:100%;
+  border:0;
+  background:transparent;
+  color:inherit;
+  text-align:left;
+  padding:14px 16px;
+  cursor:pointer;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:12px;
+  align-items:center;
+}
+.wt83-section-toggle:hover { background:#fafbfc; }
+
+.wt83-section-heading {
+  min-width:0;
+}
+.wt83-section-title {
+  display:block;
+  font-size:1.03rem;
+  line-height:1.25;
+  font-weight:800;
+}
+.wt83-section-summary {
+  display:block;
+  margin-top:3px;
+  color:var(--wt83-muted);
+  font-size:.82rem;
+  line-height:1.3;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.wt83-chevron {
+  font-size:1rem;
+  line-height:1;
+  transition:transform .16s ease;
+}
+.wt83-section[data-wt83-open="1"] .wt83-chevron { transform:rotate(180deg); }
+
+.wt83-section-body {
+  border-top:1px solid var(--wt83-border);
+  padding:16px;
+}
+.wt83-section[data-wt83-open="0"] .wt83-section-body { display:none; }
+
+.wt83-section > .wt83-original-heading { display:none !important; }
+
+.wt83-toolbar-note {
+  color:var(--wt83-muted);
+  font-size:.8rem;
+}
+
+@media (max-width: 700px) {
+  .wt83-jumpbar {
+    position:relative;
+    top:auto;
+  }
+  .wt83-section-toggle { padding:12px 13px; }
+  .wt83-section-body { padding:13px; }
+  .wt83-jumpbar-links {
+    flex-wrap:nowrap;
+    overflow-x:auto;
+    padding-bottom:3px;
+  }
+  .wt83-jumpbar a { white-space:nowrap; }
+}

@@ -16,6 +16,18 @@ try {
 }
 
 $tot = wt_totals($pdo, $id);
+$tasks = wt_job_tasks($pdo,$id);
+$taskProgress = wt_task_progress($tasks);
+$activeTasks = array_values(array_filter($tasks, fn($t)=>!in_array($t['status'],['completed','cancelled'],true)));
+$taskById=[]; foreach($tasks as $t)$taskById[(int)$t['id']]=$t;
+
+$changeStmt=$pdo->prepare("SELECT * FROM work_task_change_requests WHERE job_id=? ORDER BY created_at DESC,id DESC");
+$changeStmt->execute([$id]);
+$taskChangeRequests=$changeStmt->fetchAll(PDO::FETCH_ASSOC);
+$changesByTask=[]; foreach($taskChangeRequests as $cr){$changesByTask[(int)$cr['task_id']][]=$cr;}
+$pendingChangeCount=count(array_filter($taskChangeRequests,fn($cr)=>$cr['status']==='awaiting_review'));
+$revStmt=$pdo->prepare("SELECT * FROM work_job_request_revisions WHERE job_id=? ORDER BY created_at DESC,id DESC LIMIT 20");$revStmt->execute([$id]);$requestRevisions=$revStmt->fetchAll(PDO::FETCH_ASSOC);$pendingRequestRevisions=array_values(array_filter($requestRevisions,fn($r)=>!empty($r['requires_review'])&&empty($r['reviewed_at'])));$customerRequest=(string)($job['customer_request_text']??$job['original_scope']??'');
+$jobSourceLabels=['website'=>'Website','ai_website'=>'AI website quote','website_booking'=>'Website booking','phone'=>'Phone call','sms'=>'SMS','whatsapp'=>'WhatsApp','messenger'=>'Messenger','signal'=>'Signal','airtasker'=>'Airtasker','email'=>'Email','friend_family'=>'Friend / family','word_of_mouth'=>'Word of mouth / referral','repeat_customer'=>'Repeat customer','other'=>'Other'];
 
 $workers = $pdo->prepare("SELECT * FROM work_workers WHERE job_id=? AND active=1 ORDER BY id");
 $workers->execute([$id]);
@@ -185,7 +197,9 @@ textarea{width:100%;box-sizing:border-box}
 .wide{min-width:260px;flex:2}
 .session-row{border-top:1px solid #eee;padding:12px 0}
 .session-meta{font-size:14px;color:#4f5b66;line-height:1.5}
-.source-badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:900;margin-left:6px}.source-live{background:#e7f5ec;color:#087f23}.source-retro{background:#fff3cd;color:#795d00}.travel-card{background:#eef6ff;border:2px solid #7fb2df}.retro-card{background:#fffaf0;border:2px solid #e1c66f}.checkline{display:flex;align-items:center;gap:8px}.checkline input{width:auto}
+.source-badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:900;margin-left:6px}.source-live{background:#e7f5ec;color:#087f23}.source-retro{background:#fff3cd;color:#795d00}.travel-card{background:#eef6ff;border:2px solid #7fb2df}.retro-card{background:#fffaf0;border:2px solid #e1c66f}.task-card{border:1px solid #dce3e8}.task-completed{background:#effaf2}.task-blocked{background:#fff5e6}.task-cancelled{opacity:.65}.progressbar{height:16px;background:#e7ebee;border-radius:999px;overflow:hidden}.progressfill{height:100%;background:#087f23}.task-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.task-grid .field{min-width:0}@media(max-width:700px){.task-grid{grid-template-columns:1fr}}.checkline{display:flex;align-items:center;gap:8px}.checkline input{width:auto}.task-detail-box{background:#f7f9fa;border:1px solid #dfe5e9;border-radius:10px;padding:12px;margin:10px 0}.task-detail-box summary{cursor:pointer;font-weight:850}.task-detail-box textarea{min-height:95px}.task-materials{background:#f2f8ee;border-color:#cfe0c5}.task-change-admin{border:2px solid #9fc4e5;background:#f1f8fe;border-radius:11px;padding:12px;margin:11px 0}.task-change-admin.pending{border-color:#ddb74c;background:#fff9df}.task-change-admin .meta{font-size:12px;color:#64727d}.task-change-admin textarea{min-height:70px}.change-pill{display:inline-block;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:900;background:#e7edf2}.change-pill.awaiting_review{background:#fff0bf;color:#715600}.change-pill.accepted,.change-pill.amended{background:#dff3e5;color:#126d2d}.change-pill.declined{background:#f7dfdf;color:#8b2525}.change-pill.question_sent{background:#e3effa;color:#205d91}
+.live-change-alert{position:sticky;top:8px;z-index:999;background:#fff3cd;border:3px solid #d39b00;border-radius:12px;padding:13px 15px;margin:10px 0;box-shadow:0 5px 18px #0002;display:none}.live-change-alert.show{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.live-change-alert strong{font-size:17px}.live-alert-actions{display:flex;gap:8px;flex-wrap:wrap}.notify-btn{background:#6b4f00}.pending-bell{display:inline-block;background:#b42318;color:#fff;border-radius:999px;padding:5px 9px;font-size:12px;font-weight:900}
+.intake-card{background:#eef8ff;border:2px solid #8ebfe7}.ai-status{display:inline-block;padding:5px 9px;border-radius:999px;background:#e8edf1;font-size:12px;font-weight:900}.ai-status.complete{background:#dff3e5;color:#126d2d}.ai-status.failed{background:#f7dfdf;color:#8b2525}.ai-status.running,.ai-status.pending{background:#fff0bf;color:#715600}.request-revision{background:#fff9df;border:1px solid #dfbd58;border-radius:10px;padding:11px;margin-top:10px}
 @media(max-width:700px){.grid{grid-template-columns:1fr}}
 
 .plan-card{background:#eef6ff;border:2px solid #a7c8eb}
@@ -200,16 +214,62 @@ textarea{width:100%;box-sizing:border-box}
 @media(max-width:800px){.plan-grid,.timebreak-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:520px){.plan-grid,.timebreak-grid{grid-template-columns:1fr}}
 </style>
+<link rel="stylesheet" href="assets/workspace_v8_3.css?v=1">
+<link rel="stylesheet" href="assets/task_photos_inline_v8_4c.css?v=1">
 </head>
 <body>
-
-<?php require __DIR__ . '/../../includes/admin_nav.php'; ?>
-
 <div class="wrap">
 
 <p><a href="index.php">← All jobs</a></p>
 <h1>Manage Job #<?=$id?> — <?=wt_html($job['customer_name'])?></h1>
 <p><?=wt_html($job['job_address'])?></p>
+<p><a class="btn" href="task_photos.php?id=<?=$id?>">📷 TASK BEFORE / AFTER PHOTOS</a></p>
+
+<div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+  <div><strong>🔔 Customer change alerts</strong><div class="small">Live admin alerts are active. Enable Chrome notifications so changes can also appear as desktop alerts.</div></div>
+  <button type="button" class="btn notify-btn" id="enableBrowserAlerts">ENABLE CHROME ALERTS</button>
+</div>
+<div id="liveChangeAlert" class="live-change-alert <?= $pendingChangeCount ? 'show' : '' ?>" role="alert" aria-live="assertive">
+  <div><strong>🔔 Customer change awaiting review</strong><div id="liveChangeText" class="small"><?= $pendingChangeCount ? $pendingChangeCount.' unresolved customer change request'.($pendingChangeCount===1?'':'s').'.' : '' ?></div></div>
+  <div class="live-alert-actions"><a class="btn" id="reviewLiveChange" href="#tasks">REVIEW NOW</a></div>
+</div>
+
+
+<!-- V8.4A MATERIALS PLANNING CARD -->
+<div class="card">
+  <h2>Materials &amp; expenses</h2>
+  <?php
+    $matMode = (string)($job['materials_responsibility'] ?? 'mike_advise');
+    $matLabels = [
+      'mike_all' => 'Mike to provide all materials',
+      'customer_all' => 'Customer says they already have all materials',
+      'shared' => 'Customer has some / Mike to provide some',
+      'labour_only' => 'Labour only / no materials required',
+      'mike_advise' => 'Not sure — Mike to advise',
+    ];
+  ?>
+  <p><b>Customer materials instruction:</b> <?=wt_html($matLabels[$matMode] ?? $matLabels['mike_advise'])?></p>
+  <?php if(trim((string)($job['materials_notes'] ?? '')) !== ''):?>
+    <p><b>Customer note:</b><br><?=nl2br(wt_html((string)$job['materials_notes']))?></p>
+  <?php endif;?>
+  <p class="muted">This is the planning instruction supplied with the job. Actual materials, costs, supplier and reimbursement records will be recorded separately.</p>
+</div>
+
+<!-- V8.4B MATERIALS MANAGER -->
+<p><a class="btn" href="materials.php?id=<?=$id?>">🧰 OPEN DETAILED MATERIALS MANAGER</a></p>
+<div class="card intake-card" id="customer-request">
+<h2>Customer request / intake</h2>
+<p class="small">The customer can edit this list immediately from their live job link. Their revisions are retained instead of silently replacing the history.</p>
+<div style="white-space:pre-wrap;background:#fff;border:1px solid #d7e3ec;border-radius:10px;padding:12px"><?=wt_html($customerRequest)?></div>
+<p><span class="ai-status <?=wt_html((string)($job['ai_breakdown_status']??'not_requested'))?>">AI breakdown: <?=wt_html(str_replace('_',' ',(string)($job['ai_breakdown_status']??'not requested')))?></span><?php if(!empty($job['ai_breakdown_generated_at'])):?> <span class="small">Generated <?=wt_html($job['ai_breakdown_generated_at'])?></span><?php endif;?></p>
+<?php if(!empty($job['ai_breakdown_error'])):?><div class="notice-warn" style="padding:10px;border-radius:9px"><?=wt_html($job['ai_breakdown_error'])?></div><?php endif;?>
+<div class="row">
+<form method="post" action="../../api/work/send_customer_job_link.php"><input type="hidden" name="job_id" value="<?=$id?>"><button class="btn" type="submit">SEND / RESEND CUSTOMER LINK</button></form>
+<button class="btn" type="button" id="generateAiTasks">GENERATE / UPDATE AI TASK BREAKDOWN</button>
+</div>
+<div id="aiBreakdownMessage" class="small" style="margin-top:8px"></div>
+<?php foreach($pendingRequestRevisions as $rr):?><div class="request-revision"><b>Customer updated job list — awaiting your review</b><div class="small"><?=wt_html($rr['created_at'])?></div><div style="white-space:pre-wrap;margin:8px 0"><?=wt_html($rr['new_text'])?></div><form method="post" action="../../api/work/review_customer_request.php"><input type="hidden" name="job_id" value="<?=$id?>"><input type="hidden" name="revision_id" value="<?=$rr['id']?>"><button class="btn" type="submit">MARK REVIEWED &amp; NOTIFY CUSTOMER</button></form></div><?php endforeach;?>
+</div>
 
 <div class="grid">
     <div class="metric">Job to date<div class="big"><?=wt_money($tot['total'])?></div></div>
@@ -225,6 +285,12 @@ textarea{width:100%;box-sizing:border-box}
 <div class="card notice-good"><b>✓ SESSION STOPPED.</b> The stop reason and expected return have been recorded.</div>
 <?php elseif(($_GET['retrospective_added'] ?? '') === '1'):?>
 <div class="card notice-good"><b>✓ PAST WORK ADDED.</b> This session is clearly marked as a retrospective entry and is included in the job history/totals.</div>
+<?php elseif(($_GET['task_added'] ?? '') === '1'):?>
+<div class="card notice-good"><b>✓ TASK ADDED.</b></div>
+<?php elseif(($_GET['task_saved'] ?? '') === '1'):?>
+<div class="card notice-good"><b>✓ TASK UPDATED.</b></div>
+<?php elseif(($_GET['source_saved'] ?? '') === '1'):?>
+<div class="card notice-good"><b>✓ JOB SOURCE SAVED.</b></div>
 <?php elseif(($_GET['on_my_way'] ?? '') === '1'):?>
 <div class="card notice-good"><b>🚗 ON MY WAY STARTED.</b> Travel time is now running and the ETA/customer update has been recorded.</div>
 <?php elseif(($_GET['arrived'] ?? '') === '1'):?>
@@ -248,7 +314,7 @@ textarea{width:100%;box-sizing:border-box}
     <?php if(($rs['travel_type'] ?? '') === 'to_customer' && $rs['worker_id'] === null):?>
     <form method="post" action="../../api/work/arrive_start_work.php" style="margin-top:14px">
         <input type="hidden" name="job_id" value="<?=$id?>">
-        <div class="field wide"><label>What are you starting on site?</label><input name="notes" placeholder="e.g. continue bathroom preparation" required></div>
+        <div class="field"><label>Task</label><select name="task_id"><option value="0">General / not task-specific</option><?php foreach($activeTasks as $t):?><option value="<?=$t['id']?>"><?=wt_html($t['title'])?></option><?php endforeach;?></select></div><div class="field wide"><label>What are you starting on site?</label><input name="notes" placeholder="e.g. continue bathroom preparation" required></div>
         <button class="btn start" style="font-size:19px;padding:16px 22px">📍 ARRIVED — STOP TRAVEL &amp; START WORK</button>
     </form>
     <details style="margin-top:12px"><summary><b>Need to pause or cancel the trip instead?</b></summary>
@@ -522,6 +588,58 @@ textarea{width:100%;box-sizing:border-box}
 <?php endforeach;?>
 </div>
 
+<div class="card">
+<h2>Where this job came from</h2>
+<form method="post" action="../../api/work/save_job_source.php"><input type="hidden" name="job_id" value="<?=$id?>">
+<div class="row"><div class="field"><label>Original contact source</label><select name="job_source"><option value="">Not recorded</option><?php foreach($jobSourceLabels as $k=>$v):?><option value="<?=wt_html($k)?>" <?=($job['job_source']??'')===$k?'selected':''?>><?=wt_html($v)?></option><?php endforeach;?></select></div><div class="field wide"><label>Source detail</label><input name="job_source_detail" value="<?=wt_html($job['job_source_detail']??'')?>" placeholder="e.g. WhatsApp chat with Vivek / referred by John"></div></div>
+<div class="field wide"><label>Original contact / booking notes</label><textarea name="original_contact_notes" placeholder="Enough detail to find the original conversation later"><?=wt_html($job['original_contact_notes']??'')?></textarea></div>
+<button class="btn">SAVE SOURCE</button></form></div>
+
+<div class="card" id="tasks">
+<h2>Job tasks <?php if($pendingChangeCount):?><span class="source-badge source-retro"><?=$pendingChangeCount?> customer change request<?=$pendingChangeCount===1?'':'s'?> awaiting review</span><?php endif;?></h2>
+<p class="small">Break the job into real pieces of work. AI and Mike estimates are kept separately. Tracked time is calculated from sessions linked to each task.</p>
+<div style="margin:10px 0"><b>Approximate progress: <?=$taskProgress['percent']?>%</b><div class="progressbar"><div class="progressfill" style="width:<?=$taskProgress['percent']?>%"></div></div></div>
+<?php if(!$tasks):?><p>No tasks yet.</p><?php endif;?>
+<?php foreach($tasks as $t): $cls='task-card '.(($t['status']==='completed')?'task-completed':(($t['status']==='blocked')?'task-blocked':(($t['status']==='cancelled')?'task-cancelled':'')));?>
+<div class="card <?=$cls?>" id="task-<?=$t['id']?>"><form method="post" action="../../api/work/update_task.php"><input type="hidden" name="job_id" value="<?=$id?>"><input type="hidden" name="task_id" value="<?=$t['id']?>">
+<div class="task-grid"><div class="field"><label>Task</label><input name="title" value="<?=wt_html($t['title'])?>" required></div><div class="field"><label>Status</label><select name="status"><?php foreach(['not_started'=>'Not started','in_progress'=>'In progress','blocked'=>'Blocked','completed'=>'Completed','cancelled'=>'Cancelled'] as $k=>$v):?><option value="<?=$k?>" <?=$t['status']===$k?'selected':''?>><?=$v?></option><?php endforeach;?></select></div><div class="field"><label>Origin</label><select name="task_origin"><?php foreach(['original'=>'Original scope','customer_requested'=>'Customer requested','mike_added'=>'Mike added','ai_suggested'=>'AI suggested','unforeseen'=>'Unforeseen / discovered'] as $k=>$v):?><option value="<?=$k?>" <?=$t['task_origin']===$k?'selected':''?>><?=$v?></option><?php endforeach;?></select></div></div>
+<div class="field"><label>Description / scope notes</label><textarea name="description"><?=wt_html($t['description']??'')?></textarea></div>
+<details class="task-detail-box"><summary>Customer explanation &amp; granular task detail</summary>
+<div class="field"><label>Customer summary — simple explanation of this task</label><textarea name="customer_summary" placeholder="e.g. Rebuild rotten timber so the window can be safely refitted and operate correctly."><?=wt_html($t['customer_summary']??'')?></textarea></div>
+<div class="field"><label>What is involved — granular procedure</label><textarea name="detailed_procedure" placeholder="List the actual stages that may be required, preferably one step per line."><?=wt_html($t['detailed_procedure']??'')?></textarea></div>
+<div class="field"><label>Why this can take time / variables</label><textarea name="time_drivers" placeholder="e.g. hidden rot, access, repeated shaping, weather, previous repairs, adjustment/testing."><?=wt_html($t['time_drivers']??'')?></textarea></div>
+<div class="field"><label>Waiting / drying / curing notes</label><textarea name="waiting_curing_notes" placeholder="Explain elapsed waiting time separately from billable labour, e.g. timber drying, filler curing, primer/paint drying."><?=wt_html($t['waiting_curing_notes']??'')?></textarea></div>
+</details>
+<details class="task-detail-box task-materials"><summary>Suggested materials &amp; consumables</summary>
+<div class="field"><label>Suggested materials — one item per line</label><textarea name="suggested_materials" placeholder="Builders Bog
+Wood putty
+Sandpaper / sanding discs
+Primer / undercoat
+Top coat paint
+Replacement seals if required"><?=wt_html($t['suggested_materials']??'')?></textarea></div>
+<p class="small">This is a planning list, not a statement that every item was actually used. Actual purchases/use can be recorded separately later.</p>
+</details>
+<div class="task-grid"><div class="field"><label>AI estimate low (h)</label><input type="number" step="0.1" min="0" name="ai_estimate_low" value="<?=wt_html((string)($t['ai_estimate_low']??''))?>"></div><div class="field"><label>AI estimate high (h)</label><input type="number" step="0.1" min="0" name="ai_estimate_high" value="<?=wt_html((string)($t['ai_estimate_high']??''))?>"></div><div class="field"><label>Tracked actual</label><input value="<?=number_format((float)$t['tracked_hours'],2)?> h" disabled></div></div>
+<div class="field"><label>AI reasoning</label><textarea name="ai_reasoning"><?=wt_html($t['ai_reasoning']??'')?></textarea></div>
+<div class="task-grid"><div class="field"><label>Mike estimate low (h)</label><input type="number" step="0.1" min="0" name="mike_estimate_low" value="<?=wt_html((string)($t['mike_estimate_low']??''))?>"></div><div class="field"><label>Mike estimate high (h)</label><input type="number" step="0.1" min="0" name="mike_estimate_high" value="<?=wt_html((string)($t['mike_estimate_high']??''))?>"></div><div class="field"><label>Mike best actual guess (optional)</label><input type="number" step="0.1" min="0" name="actual_adjusted_hours" value="<?=wt_html((string)($t['actual_adjusted_hours']??''))?>"></div></div>
+<div class="field"><label>Mike estimate reasoning</label><textarea name="mike_reasoning"><?=wt_html($t['mike_reasoning']??'')?></textarea></div><div class="field"><label>Actual-time reasoning / why it differed</label><textarea name="actual_reasoning"><?=wt_html($t['actual_reasoning']??'')?></textarea></div>
+<p class="checkline"><input type="checkbox" name="customer_visible" value="1" <?=$t['customer_visible']?'checked':''?>> Visible to customer</p><button class="btn">SAVE TASK</button></form>
+<?php foreach(($changesByTask[(int)$t['id']]??[]) as $cr):?>
+<div class="task-change-admin <?=$cr['status']==='awaiting_review'?'pending':''?>"><div><b>Customer change request</b> <span class="change-pill <?=wt_html($cr['status'])?>"><?=wt_html(ucwords(str_replace('_',' ',$cr['status'])))?></span></div><div class="meta"><?=wt_html(date('j M Y, g:i a',strtotime($cr['created_at'])))?> · <?=wt_html(ucwords(str_replace('_',' ',$cr['request_type'])))?></div><p><?=nl2br(wt_html($cr['customer_message']))?></p>
+<form method="post" action="../../api/work/review_task_change.php"><input type="hidden" name="job_id" value="<?=$id?>"><input type="hidden" name="request_id" value="<?=$cr['id']?>"><div class="task-grid"><div class="field"><label>Decision</label><select name="status"><?php foreach(['accepted'=>'Accept','amended'=>'Accept with amendment','question_sent'=>'Ask / clarify','declined'=>'Decline'] as $k=>$v):?><option value="<?=$k?>" <?=$cr['status']===$k?'selected':''?>><?=$v?></option><?php endforeach;?></select></div><div class="field"><label>Effect on estimate</label><select name="affects_estimate"><option value="unknown" <?=$cr['affects_estimate']==='unknown'?'selected':''?>>Not assessed</option><option value="no" <?=$cr['affects_estimate']==='no'?'selected':''?>>No material effect</option><option value="yes" <?=$cr['affects_estimate']==='yes'?'selected':''?>>May affect time/cost</option></select></div><div class="field"><label>Approx. extra hours low / high</label><div class="row"><input type="number" step="0.1" min="0" name="estimate_delta_low" value="<?=wt_html((string)($cr['estimate_delta_low']??''))?>"><input type="number" step="0.1" min="0" name="estimate_delta_high" value="<?=wt_html((string)($cr['estimate_delta_high']??''))?>"></div></div></div><div class="field"><label>Mike response / clarification</label><textarea name="mike_response" placeholder="Explain what has been accepted, changed, needs clarification, or why it cannot be done as requested."><?=wt_html($cr['mike_response']??'')?></textarea></div><button class="btn">SAVE RESPONSE &amp; NOTIFY CUSTOMER</button></form>
+<?php if(in_array($cr['status'],['accepted','amended'],true)):?><p class="small"><b>Reminder:</b> if this request changes the actual task instructions, update the task fields above as well. The original customer request remains preserved here.</p><?php endif;?></div>
+<?php endforeach;?>
+</div><?php endforeach;?>
+<details><summary><b>＋ Add another task</b></summary><form method="post" action="../../api/work/add_task.php" style="margin-top:12px"><input type="hidden" name="job_id" value="<?=$id?>"><div class="task-grid"><div class="field"><label>Task title</label><input name="title" required placeholder="e.g. Repair rotten window sill"></div><div class="field"><label>Origin</label><select name="task_origin"><option value="original">Original scope</option><option value="customer_requested">Customer requested</option><option value="mike_added" selected>Mike added</option><option value="ai_suggested">AI suggested</option><option value="unforeseen">Unforeseen / discovered</option></select></div><div class="field"><label>Customer visibility</label><label class="checkline"><input type="checkbox" name="customer_visible" value="1" checked> Show customer</label></div></div><div class="field"><label>Description</label><textarea name="description"></textarea></div>
+<details class="task-detail-box"><summary>Customer explanation &amp; granular task detail</summary>
+<div class="field"><label>Customer summary</label><textarea name="customer_summary" placeholder="Short plain-English explanation for the customer"></textarea></div>
+<div class="field"><label>What is involved — granular procedure</label><textarea name="detailed_procedure" placeholder="One stage per line"></textarea></div>
+<div class="field"><label>Why this can take time / variables</label><textarea name="time_drivers"></textarea></div>
+<div class="field"><label>Waiting / drying / curing notes</label><textarea name="waiting_curing_notes"></textarea></div>
+</details>
+<details class="task-detail-box task-materials"><summary>Suggested materials &amp; consumables</summary><div class="field"><label>One item per line</label><textarea name="suggested_materials"></textarea></div></details>
+<div class="task-grid"><div class="field"><label>AI estimate low (h)</label><input type="number" step="0.1" min="0" name="ai_estimate_low"></div><div class="field"><label>AI estimate high (h)</label><input type="number" step="0.1" min="0" name="ai_estimate_high"></div><div class="field"><label>Mike estimate low/high (h)</label><div class="row"><input type="number" step="0.1" min="0" name="mike_estimate_low" placeholder="low"><input type="number" step="0.1" min="0" name="mike_estimate_high" placeholder="high"></div></div></div><div class="field"><label>AI reasoning</label><textarea name="ai_reasoning"></textarea></div><div class="field"><label>Mike reasoning</label><textarea name="mike_reasoning"></textarea></div><button class="btn start">ADD TASK</button></form></details></div>
+
 <div class="card travel-card">
 <h2>🚗 On my way to customer</h2>
 <p class="small">Use this when leaving for the customer's premises. It starts a separate live travel session, records the ETA, and sends an SMS under Full transparency / Important only.</p>
@@ -551,7 +669,7 @@ textarea{width:100%;box-sizing:border-box}
 <b>Travel currently running for <?=wt_html($rs['worker_name']?:'Mike')?>.</b>
 <?php if(!empty($rs['travel_eta'])):?><span class="small"> ETA was <?=wt_html(date('g:i a',strtotime($rs['travel_eta'])))?>.</span><?php endif;?>
 <div class="row" style="margin-top:8px">
-    <div class="field wide"><label>What are you starting on arrival?</label><input name="notes" placeholder="e.g. continue wall preparation and tile removal"></div>
+    <div class="field"><label>Task</label><select name="task_id"><option value="0">General / not task-specific</option><?php foreach($activeTasks as $t):?><option value="<?=$t['id']?>"><?=wt_html($t['title'])?></option><?php endforeach;?></select></div><div class="field wide"><label>What are you starting on arrival?</label><input name="notes" placeholder="e.g. continue wall preparation and tile removal"></div>
 </div>
 <button class="btn start">📍 ARRIVED — STOP TRAVEL & START ON-SITE WORK</button>
 </form>
@@ -565,6 +683,7 @@ textarea{width:100%;box-sizing:border-box}
 <input type="hidden" name="job_id" value="<?=$id?>">
 <div class="row">
     <div class="field"><label>Worker</label><select name="worker_id" required><option value="mike">Mike / default rate</option><?php foreach($workers as $w):?><option value="<?=$w['id']?>"><?=wt_html($w['worker_name'])?> — <?=wt_money((float)$w['hourly_rate'])?>/hr</option><?php endforeach;?></select></div>
+    <div class="field"><label>Task (optional)</label><select name="task_id"><option value="0">General / not task-specific</option><?php foreach($tasks as $t): if($t['status']==='cancelled') continue; ?><option value="<?=$t['id']?>"><?=wt_html($t['title'])?></option><?php endforeach;?></select></div>
     <div class="field"><label>Date work occurred</label><input name="work_date" type="date" max="<?=date('Y-m-d')?>" required></div>
     <div class="field"><label>Total job hours</label><input name="recorded_hours" type="number" min="0.01" max="24" step="0.01" placeholder="e.g. 8.5" required></div>
     <div class="field wide"><label>What was done? / notes</label><textarea name="notes" placeholder="e.g. Removed damaged materials, measured, sourced supplies, preparation and cleanup. Hours exclude lunch and unrelated calls/errands." required></textarea></div>
@@ -599,6 +718,8 @@ textarea{width:100%;box-sizing:border-box}
             <?php endforeach;?>
         </select>
     </div>
+
+    <div class="field"><label>Task (optional)</label><select name="task_id"><option value="0">General / not task-specific</option><?php foreach($activeTasks as $t):?><option value="<?=$t['id']?>"><?=wt_html($t['title'])?></option><?php endforeach;?></select></div>
 
     <div class="field">
         <label>Where / context</label>
@@ -664,6 +785,7 @@ textarea{width:100%;box-sizing:border-box}
     <?php if(empty($s['ended_at'])):?><span class="status-good"> · RUNNING</span><?php endif;?><br>
     <?php if(($s['session_source']??'live')==='retrospective' && !empty($s['retrospective_entered_at'])):?><div class="small">Entered into tracker <?=wt_html($s['retrospective_entered_at'])?></div><?php endif;?>
     <div class="session-meta">
+        <?php if(!empty($s['task_id']) && isset($taskById[(int)$s['task_id']])):?><b>Task:</b> <?=wt_html($taskById[(int)$s['task_id']]['title'])?><br><?php endif;?>
         <b>Started:</b> <?=wt_html($s['started_at'])?> · <?=wt_html($locLabel)?>
         <?php if(!empty($s['location_detail'])):?> (<?=wt_html($s['location_detail'])?>)<?php endif;?>
         · <?=wt_html($s['category'])?><br>
@@ -834,6 +956,88 @@ textarea{width:100%;box-sizing:border-box}
     applyLocationPreset(false);
 })();
 </script>
+<script>
+(function(){
+    const jobId = <?= (int)$id ?>;
+    const initialIds = <?= json_encode(array_merge(array_map(fn($cr)=>'task-'.(int)$cr['id'], array_values(array_filter($taskChangeRequests,fn($cr)=>$cr['status']==='awaiting_review'))), array_map(fn($rr)=>'request-'.(int)$rr['id'], $pendingRequestRevisions))) ?>;
+    let knownIds = new Set(initialIds);
+    const alertBox = document.getElementById('liveChangeAlert');
+    const alertText = document.getElementById('liveChangeText');
+    const reviewLink = document.getElementById('reviewLiveChange');
+    const enableBtn = document.getElementById('enableBrowserAlerts');
 
+    function updatePermissionButton(){
+        if(!('Notification' in window)){ enableBtn.style.display='none'; return; }
+        if(Notification.permission === 'granted') enableBtn.textContent='CHROME ALERTS ON';
+        else if(Notification.permission === 'denied') enableBtn.textContent='CHROME ALERTS BLOCKED';
+        else enableBtn.textContent='ENABLE CHROME ALERTS';
+    }
+    enableBtn.addEventListener('click', async function(){
+        if(!('Notification' in window)) return;
+        if(Notification.permission === 'default') await Notification.requestPermission();
+        updatePermissionButton();
+    });
+    updatePermissionButton();
+
+    function showBrowserNotification(item){
+        if(!('Notification' in window) || Notification.permission !== 'granted') return;
+        const n = new Notification('Customer job change received', {
+            body: item.customer_name + ' — ' + item.task_title + ': ' + item.customer_message,
+            tag: 'work-change-' + item.id,
+            requireInteraction: true
+        });
+        n.onclick = function(){ window.focus(); location.href='manage_job.php?id='+jobId+'#'+(item.anchor||('task-'+item.task_id)); n.close(); };
+    }
+
+    async function pollChanges(){
+        try{
+            const r = await fetch('../../api/work/pending_task_changes.php?job_id='+encodeURIComponent(jobId), {cache:'no-store', credentials:'same-origin'});
+            if(!r.ok) return;
+            const data = await r.json();
+            const items = Array.isArray(data.pending) ? data.pending : [];
+            const ids = new Set(items.map(x=>String(x.id)));
+            const fresh = items.filter(x=>!knownIds.has(String(x.id)));
+            knownIds = ids;
+
+            if(items.length){
+                alertBox.classList.add('show');
+                const newest=items[0];
+                alertText.textContent=items.length+' unresolved customer change request'+(items.length===1?'':'s')+'. Latest: '+newest.task_title+' — '+newest.customer_message;
+                reviewLink.href='manage_job.php?id='+jobId+'&live_change=1#'+(newest.anchor||('task-'+newest.task_id));
+            }else{
+                alertBox.classList.remove('show');
+            }
+            fresh.forEach(showBrowserNotification);
+        }catch(e){ /* keep admin page usable if polling temporarily fails */ }
+    }
+    setInterval(pollChanges, 10000);
+    document.addEventListener('visibilitychange', function(){ if(!document.hidden) pollChanges(); });
+})();
+</script>
+
+<script>
+(function(){
+ const btn=document.getElementById('generateAiTasks');
+ const msg=document.getElementById('aiBreakdownMessage');
+ if(!btn) return;
+ async function runAi(){
+   btn.disabled=true; btn.textContent='AI BREAKDOWN RUNNING…'; msg.textContent='Creating individual tasks, granular procedures, time drivers, waiting notes and suggested materials…';
+   try{
+     const fd=new FormData(); fd.append('job_id','<?= (int)$id ?>');
+     const r=await fetch('../../api/work/generate_ai_tasks.php',{method:'POST',body:fd,credentials:'same-origin'});
+     const d=await r.json();
+     if(!r.ok||!d.ok) throw new Error(d.error||'AI breakdown failed');
+     msg.textContent='✓ Added '+d.count+' AI-generated task'+(d.count===1?'':'s')+'. Reloading…';
+     setTimeout(()=>location.href='manage_job.php?id=<?= (int)$id ?>&ai_generated=1#tasks',700);
+   }catch(e){msg.textContent='AI breakdown failed: '+e.message;btn.disabled=false;btn.textContent='GENERATE / UPDATE AI TASK BREAKDOWN';}
+ }
+ btn.addEventListener('click',runAi);
+ <?php if(($_GET['run_ai']??'')==='1'):?>setTimeout(runAi,500);<?php endif;?>
+})();
+</script>
+
+<script src="assets/workspace_v8_3.js?v=1" defer></script>
+<script src="assets/workspace_v8_4b.js?v=1" defer></script>
+<script src="assets/task_photos_inline_v8_4c.js?v=1" defer></script>
 </body>
 </html>

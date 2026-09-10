@@ -48,8 +48,9 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
         ]);
 
         $id=(int)$pdo->lastInsertId();
-        header("Location: job.php?id=".$id);
-        exit;
+        // V8: log the customer request immediately, send the live job link, then build AI tasks after the admin page loads.
+        wt_initialise_job_intake($pdo, $id, trim((string)($_POST['original_scope'] ?? '')), true);
+        header("Location: manage_job.php?id=".$id."&run_ai=1&job_logged=1"); exit;
     } catch(Throwable $e){
         $error=$e->getMessage();
     }
@@ -84,6 +85,11 @@ textarea{min-height:90px}
 
 <div class="wrap"><div class="card">
 <h1>New / Current Job</h1>
+<div style="margin:14px 0;padding:16px;border:2px solid #8ebddd;background:#eef8ff;border-radius:12px">
+<b style="font-size:18px">📷 IMPORT CUSTOMER JOB LIST</b><br>
+<span style="color:#52636f">Upload screenshots, photos or PDFs and let AI extract the customer's requested items before building the task board.</span><br>
+<a href="import_customer_job.php" style="display:inline-block;margin-top:10px;background:#1769aa;color:#fff;text-decoration:none;padding:11px 15px;border-radius:9px;font-weight:800">UPLOAD & ANALYSE</a>
+</div>
 <div class="warning"><b>Already underway?</b> Record the position honestly as it exists now. This agreement applies from the time the customer signs and does not backdate terms.</div>
 
 <?php if($error):?><p style="color:#b00"><?=wt_html($error)?></p><?php endif;?>

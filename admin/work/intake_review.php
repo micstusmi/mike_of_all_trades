@@ -1,0 +1,22 @@
+<?php
+require_once __DIR__ . '/_auth.php';
+require_once __DIR__ . '/../../includes/work_tracker.php';
+$id=(int)($_GET['id']??0); if($id<=0) die('Invalid job ID.');
+$job=wt_job($pdo,$id);
+$q=$pdo->prepare('SELECT * FROM work_job_intake_items WHERE job_id=? ORDER BY item_order,id');$q->execute([$id]);$items=$q->fetchAll(PDO::FETCH_ASSOC);
+$q=$pdo->prepare('SELECT * FROM work_job_intake_files WHERE job_id=? ORDER BY id');$q->execute([$id]);$files=$q->fetchAll(PDO::FETCH_ASSOC);
+$url=wt_public_url($job);
+?>
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Review imported request</title>
+<style>body{font-family:system-ui;background:#f4f6f8;color:#17202a}.wrap{max-width:950px;margin:auto;padding:20px}.card{background:#fff;border:1px solid #dde4e8;border-radius:14px;padding:18px;margin:14px 0}.item{border:1px solid #d6e0e6;border-radius:11px;padding:12px;margin:10px 0}.warn{background:#fff5d8;border-color:#e5c45f}.row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:start}input[type=text],textarea{width:100%;box-sizing:border-box;padding:11px;border:1px solid #cbd5dc;border-radius:8px;font:inherit}.btn{display:inline-block;background:#17202a;color:#fff;border:0;border-radius:9px;padding:12px 16px;font-weight:800;text-decoration:none;cursor:pointer}.btn.blue{background:#1769aa}.small{font-size:13px;color:#64717b}.pill{display:inline-block;background:#f4d66b;border-radius:999px;padding:3px 8px;font-size:12px;font-weight:800}.good{background:#eaf8ef;border:1px solid #a8dbb8;padding:12px;border-radius:9px}.bad{background:#ffecec;border:1px solid #e5a4a4;padding:12px;border-radius:9px}</style></head><body><div class="wrap">
+<p><a href="index.php">← All jobs</a></p><h1>Review imported customer request</h1>
+<div class="card"><b><?=wt_html((string)($job['customer_organisation']?:$job['customer_name']))?></b><?php if(!empty($job['site_name'])):?> — <?=wt_html((string)$job['site_name'])?><?php endif;?><br><span class="small">Draft job #<?=$id?> is already logged. Customer live page: <a target="_blank" href="<?=wt_html($url)?>"><?=wt_html($url)?></a></span></div>
+<?php if(isset($_GET['ai_failed'])):?><div class="bad"><b>The job and original files were saved, but AI extraction failed.</b><br><?=wt_html((string)($job['ai_breakdown_error']??'Unknown error'))?>. You can still enter/edit the list manually below.</div><?php elseif(isset($_GET['extracted'])):?><div class="good"><b>AI extraction complete.</b> Check the list against the screenshots before building the detailed task breakdown.</div><?php endif;?>
+<div class="card"><h2>Original files preserved</h2><?php if($files):?><ul><?php foreach($files as $f):?><li><?=wt_html($f['original_name'])?> <span class="small">(<?=number_format(((int)$f['file_size'])/1024,0)?> KB)</span></li><?php endforeach;?></ul><?php else:?><p class="small">No uploaded files; request came from pasted text.</p><?php endif;?></div>
+<form class="card" method="post" action="../../api/work/save_intake_review.php"><input type="hidden" name="job_id" value="<?=$id?>"><h2>Extracted customer requests</h2><p class="small">Edit wording, remove incorrect items or add anything the AI missed. This list remains separate from the later granular Mike/AI work plan.</p>
+<div id="items">
+<?php foreach($items as $i=>$item):?><div class="item <?=!empty($item['needs_clarification'])?'warn':''?>"><input type="hidden" name="item_id[]" value="<?=(int)$item['id']?>"><div class="row"><div><input type="text" name="item_text[]" value="<?=wt_html($item['request_text'])?>"><?php if(!empty($item['needs_clarification'])):?><div style="margin-top:7px"><span class="pill">NEEDS CLARIFICATION</span> <?=wt_html((string)$item['clarification_reason'])?></div><?php endif;?></div><label class="small"><input type="checkbox" name="delete_ids[]" value="<?=(int)$item['id']?>"> remove</label></div></div><?php endforeach;?>
+</div>
+<button type="button" class="btn" id="addItem">+ Add item</button>
+<div style="margin-top:18px"><button class="btn blue" type="submit">SAVE LIST & BUILD DETAILED TASKS</button></div></form>
+</div><script>document.getElementById('addItem').onclick=function(){const d=document.createElement('div');d.className='item';d.innerHTML='<input type="hidden" name="item_id[]" value="0"><input type="text" name="item_text[]" placeholder="Add another requested item">';document.getElementById('items').appendChild(d);d.querySelector('input[type=text]').focus();};</script></body></html>
