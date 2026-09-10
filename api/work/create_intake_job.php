@@ -33,11 +33,31 @@ function response_text(array $data): string {
 if($_SERVER['REQUEST_METHOD']!=='POST') intake_fail('POST required.',405);
 $organisation=trim((string)($_POST['customer_organisation']??''));
 $contact=trim((string)($_POST['customer_name']??''));
-$phone=trim((string)($_POST['customer_phone']??''));
+$phone=wt_normalise_phone((string)($_POST['customer_phone']??''));
 $email=trim((string)($_POST['customer_email']??''));
 $site=trim((string)($_POST['site_name']??''));
 $address=trim((string)($_POST['job_address']??''));
 $pasted=trim((string)($_POST['pasted_text']??''));
+
+function intake_schedule_datetime(?string $value): ?string {
+    $value=trim((string)$value);
+    if($value==='') return null;
+
+    $ts=strtotime($value);
+    if($ts===false) intake_fail('Invalid booking date/time.');
+
+    return date('Y-m-d H:i:s',$ts);
+}
+
+$plannedStart=intake_schedule_datetime($_POST['planned_start_at']??null);
+$plannedFinish=intake_schedule_datetime($_POST['planned_finish_at']??null);
+
+if($plannedStart && $plannedFinish && strtotime($plannedFinish)<strtotime($plannedStart)){
+    intake_fail('Expected finish cannot be before the planned start.');
+}
+
+$parkingNotes=trim((string)($_POST['parking_notes']??''));
+$accessNotes=trim((string)($_POST['access_notes']??''));
 $displayName=$organisation!=='' ? $organisation : ($contact!=='' ? $contact : 'Customer');
 $jobAddress=$address!=='' ? $address : ($site!=='' ? $site.' showroom / site' : 'Address to be confirmed');
 
@@ -67,9 +87,20 @@ try{
       (public_token,customer_name,customer_organisation,site_name,customer_phone,customer_email,job_address,original_scope,current_scope,unforeseen_conditions,
        original_estimate_amount,original_estimate_hours,agreed_hourly_rate,payment_mode,unpaid_balance_limit,
        work_already_value,materials_already_value,payments_received,revised_forecast_low,revised_forecast_high,status,
-       customer_request_text,customer_request_updated_at,ai_breakdown_status,job_source,job_source_detail,original_contact_notes)
-      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
-    $stmt->execute([$token,$displayName,$organisation?:null,$site?:null,$phone,$email,$jobAddress,$placeholder,'','',null,null,null,'completion',null,0,0,0,null,null,'awaiting_agreement',$placeholder,date('Y-m-d H:i:s'),'pending','other','Uploaded screenshots / PDF / pasted list','Original customer material imported into Work Tracker']);
+       customer_request_text,customer_request_updated_at,ai_breakdown_status,job_source,job_source_detail,original_contact_notes,
+       planned_start_at,planned_finish_at,parking_notes,access_notes)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+    $stmt->execute([
+        $token,$displayName,$organisation?:null,$site?:null,$phone,$email,$jobAddress,
+        $placeholder,'','',null,null,null,'completion',null,0,0,0,null,null,
+        'awaiting_agreement',$placeholder,date('Y-m-d H:i:s'),'pending','other',
+        'Uploaded screenshots / PDF / pasted list',
+        'Original customer material imported into Work Tracker',
+        $plannedStart,
+        $plannedFinish,
+        $parkingNotes!=='' ? $parkingNotes : null,
+        $accessNotes!=='' ? $accessNotes : null
+    ]);
     $jobId=(int)$pdo->lastInsertId();
 /* V8.4A: persist customer's materials expectation without disturbing draft creation. */
 $pdo->prepare("UPDATE work_jobs SET materials_responsibility=?, materials_notes=? WHERE id=?")
@@ -80,7 +111,19 @@ $pdo->prepare("UPDATE work_jobs SET materials_responsibility=?, materials_notes=
 // Send the live link immediately, before AI analysis, so the job is already logged.
 $job=wt_job($pdo,$jobId);
 if($phone!==''){
-    wt_send_sms($pdo,$jobId,$phone,'Mike of All Trades: Your job has been logged. I am processing the list you supplied. You can already review or update the live job here: '.wt_public_url($job),'job_logged_link');
+    $message='Mike of All Trades: Your job has been logged. I am processing the list you supplied.';
+
+    if($plannedStart){
+        $message.=' I have proposed '.
+            date('D j M',strtotime($plannedStart)).
+            ' at '.
+            date('g:i a',strtotime($plannedStart)).
+            ' for the booking.';
+    }
+
+    $message.=' You can already review or update the live job here: '.wt_public_url($job);
+
+    wt_send_sms($pdo,$jobId,$phone,$message,'job_logged_link');
 }
 
 $base=wt_env('WORKTRACKER_PRIVATE_UPLOAD_DIR',dirname(__DIR__,2).'/storage/private/job_intake');

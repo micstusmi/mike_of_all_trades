@@ -17,6 +17,32 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f4f6f8;color:#17
 <div class="grid"><div><label>Organisation / customer</label><input name="customer_organisation" placeholder="e.g. Fontaine Industries"></div><div><label>Contact name</label><input name="customer_name" placeholder="Customer contact name (optional)"></div></div>
 <div class="grid"><div><label>Mobile for live-link SMS</label><input name="customer_phone" placeholder="04..."></div><div><label>Email</label><input name="customer_email" type="email"></div></div>
 <div class="grid"><div><label>Site / showroom</label><input name="site_name" placeholder="e.g. Niddrie"></div><div><label>Street address (optional for draft)</label><input name="job_address" placeholder="Can be confirmed later"></div></div>
+
+<h2>Booking / schedule</h2>
+<p class="small">Optional. Leave blank if a date or time has not been arranged yet.</p>
+
+<div class="grid">
+<div>
+<label>Planned start</label>
+<input name="planned_start_at" type="datetime-local">
+</div>
+<div>
+<label>Expected finish</label>
+<input name="planned_finish_at" type="datetime-local">
+</div>
+</div>
+
+<div class="grid">
+<div>
+<label>Parking instructions</label>
+<textarea name="parking_notes" placeholder="e.g. driveway available, street parking, loading zone"></textarea>
+</div>
+<div>
+<label>Access / arrival instructions</label>
+<textarea name="access_notes" placeholder="e.g. reception, loading dock, side gate, contact on site"></textarea>
+</div>
+</div>
+
 <h2>Customer's original material</h2>
 <div class="drop"><b>Upload screenshots, photos or PDFs</b><br><span class="small">JPEG, PNG, WEBP or PDF. Up to 10 files. Originals are retained with the job.</span><br><br><input id="intakeFiles" type="file" name="intake_files[]" multiple accept="image/jpeg,image/png,image/webp,application/pdf"></div>
 <label>Or paste / type the customer's list</label><textarea name="pasted_text" placeholder="Optional — paste any accompanying message or task list here."></textarea>

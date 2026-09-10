@@ -44,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
         $stmt->execute([
             $token,
             trim($_POST['customer_name']),
-            trim($_POST['customer_phone']),
+            wt_normalise_phone((string)($_POST['customer_phone'] ?? '')),
             trim($_POST['customer_email'] ?: ''),
             trim($_POST['job_address']),
             trim($_POST['original_scope']),
