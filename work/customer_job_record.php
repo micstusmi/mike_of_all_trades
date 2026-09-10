@@ -268,6 +268,7 @@ textarea,input{box-sizing:border-box;width:100%;padding:11px;border:1px solid #c
 @media(max-width:700px){.today-plan-grid,.time-summary{grid-template-columns:1fr 1fr}}
 @media(max-width:500px){.today-plan-grid,.time-summary{grid-template-columns:1fr}}
 </style>
+<link rel="stylesheet" href="assets/customer_workspace_v8_6.css?v=1">
 </head>
 <body>
 <div class="mot-mini-header">
@@ -354,7 +355,58 @@ textarea,input{box-sizing:border-box;width:100%;padding:11px;border:1px solid #c
 <?php if($requestRevisions):?><details class="request-history"><summary><b>Previous job-list versions</b></summary><?php foreach($requestRevisions as $rr):?><div style="margin-top:10px"><b><?=wt_html(date('j M Y, g:i a',strtotime($rr['created_at'])))?></b> — <?=wt_html(ucfirst($rr['source']))?><div class="muted"><?=nl2br(wt_html($rr['new_text']))?></div></div><?php endforeach;?></details><?php endif;?>
 </div>
 
-<?php if($tasks):
+<?php if(!empty($job['planned_start_at'])):?>
+<div class="card customer-schedule-card" id="customer-schedule">
+<h2>Schedule</h2>
+
+<div class="customer-schedule-grid">
+  <div>
+    <span class="muted">Planned start</span>
+    <strong><?=wt_html(date('D j M Y, g:i a',strtotime($job['planned_start_at'])))?></strong>
+  </div>
+
+  <?php if(!empty($job['planned_finish_at'])):?>
+  <div>
+    <span class="muted">Expected finish</span>
+    <strong><?=wt_html(date('D j M Y, g:i a',strtotime($job['planned_finish_at'])))?></strong>
+  </div>
+  <?php endif;?>
+</div>
+
+<?php if(!empty($job['parking_notes']) || !empty($job['access_notes'])):?>
+<div class="customer-site-info">
+  <?php if(!empty($job['parking_notes'])):?>
+    <p><b>🚗 Parking:</b> <?=nl2br(wt_html($job['parking_notes']))?></p>
+  <?php endif;?>
+
+  <?php if(!empty($job['access_notes'])):?>
+    <p><b>🔑 Access / arrival:</b> <?=nl2br(wt_html($job['access_notes']))?></p>
+  <?php endif;?>
+</div>
+<?php endif;?>
+
+<?php
+$confirmStatus=(string)($job['customer_confirmation_status'] ?? 'not_requested');
+?>
+
+<?php if($confirmStatus==='confirmed'):?>
+<div class="customer-confirm confirmed">✓ Booking confirmed</div>
+<?php elseif($confirmStatus==='needs_change'):?>
+<div class="customer-confirm needs-change">Change requested — Mike will contact you.</div>
+<?php elseif($confirmStatus==='awaiting'):?>
+<div class="customer-confirm awaiting">Confirmation requested — please confirm your booking.</div>
+<?php endif;?>
+
+</div>
+<?php endif;?>
+
+<?php if(!$tasks):?>
+<div class="card" id="customer-tasks">
+<h2>Tasks &amp; approximate progress</h2>
+<p><b>Your detailed work list is being prepared.</b></p>
+<p class="muted">Tasks and progress will appear here as the job is planned and work is completed.</p>
+</div>
+<?php else:
 $taskCounts=['completed'=>0,'in_progress'=>0,'not_started'=>0,'blocked'=>0];
 foreach($tasks as $ct){if(isset($taskCounts[$ct['status']]))$taskCounts[$ct['status']]++;}
 ?>
@@ -765,5 +817,6 @@ if(c){
  }
 }
 </script>
+<script src="assets/customer_workspace_v8_6.js?v=1"></script>
 </body>
 </html>

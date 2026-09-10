@@ -223,6 +223,66 @@ textarea{width:100%;box-sizing:border-box}
 <p><a href="index.php">← All jobs</a></p>
 <h1>Manage Job #<?=$id?> — <?=wt_html($job['customer_name'])?></h1>
 <p><?=wt_html($job['job_address'])?></p>
+
+<div class="card" id="schedule-access">
+<h2>Schedule, parking &amp; access</h2>
+
+<?php if(!empty($_GET['schedule_saved'])):?>
+<div class="notice-good" style="padding:10px;border-radius:9px;margin-bottom:12px">
+Schedule and site instructions saved.
+</div>
+<?php endif;?>
+
+<form method="post" action="../../api/work/update_schedule.php">
+<input type="hidden" name="job_id" value="<?=$id?>">
+
+<div class="row">
+  <div class="field">
+    <label>Planned start</label>
+    <input
+      type="datetime-local"
+      name="planned_start_at"
+      value="<?=!empty($job['planned_start_at']) ? wt_html(date('Y-m-d\TH:i',strtotime($job['planned_start_at']))) : ''?>"
+    >
+  </div>
+
+  <div class="field">
+    <label>Expected finish</label>
+    <input
+      type="datetime-local"
+      name="planned_finish_at"
+      value="<?=!empty($job['planned_finish_at']) ? wt_html(date('Y-m-d\TH:i',strtotime($job['planned_finish_at']))) : ''?>"
+    >
+  </div>
+</div>
+
+<div class="row" style="margin-top:10px">
+  <div class="field wide">
+    <label>Parking instructions</label>
+    <textarea name="parking_notes" rows="3" placeholder="e.g. Park in driveway beside garage"><?=wt_html((string)($job['parking_notes']??''))?></textarea>
+  </div>
+
+  <div class="field wide">
+    <label>Access / arrival instructions</label>
+    <textarea name="access_notes" rows="3" placeholder="e.g. Side gate unlocked, call on arrival, reception on level 2"><?=wt_html((string)($job['access_notes']??''))?></textarea>
+  </div>
+</div>
+
+<p class="small">
+Customer day-before confirmation:
+<b><?=wt_html(ucwords(str_replace('_',' ',(string)($job['customer_confirmation_status']??'not_requested'))))?></b>
+<?php if(!empty($job['confirmation_requested_at'])):?>
+ · requested <?=wt_html($job['confirmation_requested_at'])?>
+<?php endif;?>
+<?php if(!empty($job['confirmation_received_at'])):?>
+ · response <?=wt_html($job['confirmation_received_at'])?>
+<?php endif;?>
+</p>
+
+<button class="btn" type="submit">SAVE SCHEDULE &amp; SITE INFO</button>
+</form>
+</div>
+
 <p><a class="btn" href="task_photos.php?id=<?=$id?>">📷 TASK BEFORE / AFTER PHOTOS</a></p>
 
 <div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
