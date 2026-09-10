@@ -671,8 +671,61 @@ Customer day-before confirmation:
 </div>
 
 <div class="card">
-<h2>Customer agreement / live report</h2>
-<p><a target="_blank" href="<?=wt_html($url)?>"><?=wt_html($url)?></a></p>
+<h2>Pricing &amp; agreement</h2>
+
+<?php if(isset($_GET['pricing_saved'])):?><p style="color:#087830"><b>✓ Pricing settings saved.</b></p><?php endif;?>
+
+<form method="post" action="../../api/work/update_pricing.php">
+<input type="hidden" name="job_id" value="<?=$id?>">
+
+<div class="row">
+    <div class="field">
+        <label>Mike's agreed hourly rate $</label>
+        <input
+            name="agreed_hourly_rate"
+            type="number"
+            min="0"
+            step=".01"
+            value="<?=wt_html((string)($job['agreed_hourly_rate'] ?? ''))?>"
+            placeholder="e.g. 85.00">
+    </div>
+
+    <div class="field">
+        <label>Payment mode</label>
+        <select name="payment_mode">
+            <?php foreach([
+                'daily'=>'Daily progress payments',
+                'balance_limit'=>'Unpaid-balance limit',
+                'completion'=>'Payment on completion',
+                'milestone'=>'Milestones'
+            ] as $value=>$label):?>
+            <option value="<?=$value?>" <?=($job['payment_mode']??'completion')===$value?'selected':''?>>
+                <?=wt_html($label)?>
+            </option>
+            <?php endforeach;?>
+        </select>
+    </div>
+
+    <div class="field">
+        <label>Maximum unpaid balance $</label>
+        <input
+            name="unpaid_balance_limit"
+            type="number"
+            min="0"
+            step=".01"
+            value="<?=wt_html((string)($job['unpaid_balance_limit'] ?? ''))?>"
+            placeholder="Optional">
+    </div>
+</div>
+
+<p class="small">Saving these settings does not send the customer an SMS. Check them before sending the agreement.</p>
+<button class="btn">SAVE PRICING</button>
+</form>
+
+<hr style="margin:20px 0;border:0;border-top:1px solid #dfe5e9">
+
+<p><a target="_blank" href="<?=wt_html($url)?>">Open customer job page</a></p>
+
 <div class="row">
 <form method="post" action="../../api/work/send_sms.php">
     <input type="hidden" name="job_id" value="<?=$id?>">
@@ -680,6 +733,7 @@ Customer day-before confirmation:
     <button class="btn sms">SMS agreement/report link</button>
 </form>
 </div>
+
 <p>Status: <b><?=wt_html($job['status'])?></b></p>
 </div>
 
