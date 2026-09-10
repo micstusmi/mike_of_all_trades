@@ -1,9 +1,7 @@
 <?php
-session_start();
+require_once __DIR__.'/../../includes/auth_admin.php';
 require_once __DIR__.'/../../includes/work_tracker.php';
 require_once __DIR__.'/../../includes/sms_broadcast.php';
-$role=$_SESSION['user_role']??$_SESSION['role']??null;
-if($role!=='admin'){http_response_code(403);die('Admin login required.');}
 $enabled=mot_sms_enabled();
 ?>
 <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">

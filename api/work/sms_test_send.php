@@ -1,9 +1,7 @@
 <?php
-session_start();
+require_once __DIR__.'/../../includes/auth_admin.php';
 require_once __DIR__.'/../../includes/work_tracker.php';
 require_once __DIR__.'/../../includes/sms_broadcast.php';
-$role=$_SESSION['user_role']??$_SESSION['role']??null;
-if($role!=='admin'){http_response_code(403);die('Admin login required.');}
 if($_SERVER['REQUEST_METHOD']!=='POST'){http_response_code(405);die('POST required.');}
 
 $mobile=trim((string)($_POST['mobile']??''));

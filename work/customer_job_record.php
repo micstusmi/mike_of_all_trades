@@ -175,7 +175,33 @@ body{font-family:system-ui,-apple-system,sans-serif;margin:0;background:#f4f6f8;
 }
 .mot-mini-brand{font-size:19px;font-weight:850;letter-spacing:.2px}
 .mot-mini-sub{font-size:12px;color:#cfd6dc;margin-top:2px}
-.mot-mini-site{font-size:12px;color:#cfd6dc;white-space:nowrap}
+.mot-mini-site{
+    display:flex;
+    align-items:center;
+    gap:18px;
+    font-size:13px;
+    white-space:nowrap;
+}
+.mot-mini-site a{
+    color:#cfd6dc;
+    text-decoration:none;
+}
+.mot-mini-site a:hover{
+    color:#fff;
+    text-decoration:underline;
+}
+@media(max-width:600px){
+    .mot-mini-header-inner{
+        padding:10px 14px;
+    }
+    .mot-mini-site{
+        gap:11px;
+        font-size:11px;
+    }
+    .mot-mini-sub{
+        display:none;
+    }
+}
 .terms-box{
     background:#f5f8fa;
     border:1px solid #cfd8df;
@@ -250,7 +276,11 @@ textarea,input{box-sizing:border-box;width:100%;padding:11px;border:1px solid #c
             <div class="mot-mini-brand">MIKE OF ALL TRADES</div>
             <div class="mot-mini-sub">Live Job Record &amp; Agreement</div>
         </div>
-        <div class="mot-mini-site">mikeofalltrades.com.au</div>
+        <nav class="mot-mini-site" aria-label="Customer navigation">
+            <a href="/">Home</a>
+            <a href="/quotes_bookings.php">Quotes / Bookings</a>
+            <a href="/terms">Terms</a>
+        </nav>
     </div>
 </div>
 <div class="wrap">
