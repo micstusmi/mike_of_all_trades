@@ -65,7 +65,8 @@ foreach ($jobs as $job) {
         $message =
             $greeting .
             "just confirming I'm scheduled for tomorrow at {$time}. " .
-            "Please check the job schedule, parking/access details and confirm here: " .
+            "Please reply YES to confirm. If you need to change anything, reply with the details. " .
+            "View your schedule, parking/access details here: " .
             wt_public_url($job) .
             " - Mike of All Trades";
 

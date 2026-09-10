@@ -8,14 +8,38 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
         $pricingType = $_POST['original_pricing_type'] ?? 'unspecified';
         $variationRequired = ($pricingType === 'fixed_price' && !empty($_POST['variation_required'])) ? 1 : 0;
 
+        $plannedStartRaw = trim((string)($_POST['planned_start_at'] ?? ''));
+        $plannedFinishRaw = trim((string)($_POST['planned_finish_at'] ?? ''));
+
+        $plannedStart = $plannedStartRaw !== ''
+            ? date('Y-m-d H:i:s', strtotime($plannedStartRaw))
+            : null;
+
+        $plannedFinish = $plannedFinishRaw !== ''
+            ? date('Y-m-d H:i:s', strtotime($plannedFinishRaw))
+            : null;
+
+        if ($plannedStartRaw !== '' && strtotime($plannedStartRaw) === false) {
+            throw new InvalidArgumentException('Invalid planned start date/time.');
+        }
+
+        if ($plannedFinishRaw !== '' && strtotime($plannedFinishRaw) === false) {
+            throw new InvalidArgumentException('Invalid expected finish date/time.');
+        }
+
+        if ($plannedStart && $plannedFinish && strtotime($plannedFinish) < strtotime($plannedStart)) {
+            throw new InvalidArgumentException('Expected finish cannot be before planned start.');
+        }
+
         $stmt=$pdo->prepare("INSERT INTO work_jobs
         (public_token,customer_name,customer_phone,customer_email,job_address,
          original_scope,original_pricing_type,current_scope,unforeseen_conditions,
          variation_required,variation_description,variation_pricing_method,
          variation_fixed_amount,variation_hourly_rate,variation_forecast_low,variation_forecast_high,
          original_estimate_amount,original_estimate_hours,agreed_hourly_rate,payment_mode,unpaid_balance_limit,
-         work_already_value,materials_already_value,payments_received,revised_forecast_low,revised_forecast_high,status)
-         VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+         work_already_value,materials_already_value,payments_received,revised_forecast_low,revised_forecast_high,status,
+         planned_start_at,planned_finish_at,parking_notes,access_notes)
+         VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
 
         $stmt->execute([
             $token,
@@ -44,7 +68,11 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
             $_POST['payments_received'] ?: 0,
             ($_POST['revised_forecast_low'] ?? '') !== '' ? $_POST['revised_forecast_low'] : null,
             ($_POST['revised_forecast_high'] ?? '') !== '' ? $_POST['revised_forecast_high'] : null,
-            'awaiting_agreement'
+            'awaiting_agreement',
+            $plannedStart,
+            $plannedFinish,
+            trim((string)($_POST['parking_notes'] ?? '')) ?: null,
+            trim((string)($_POST['access_notes'] ?? '')) ?: null
         ]);
 
         $id=(int)$pdo->lastInsertId();
@@ -102,6 +130,31 @@ textarea{min-height:90px}
 <div class="grid">
 <div><label>Email</label><input name="customer_email" type="email"></div>
 <div><label>Job address</label><input name="job_address" required></div>
+</div>
+
+<h3>Booking / schedule</h3>
+<div class="help">Optional. Leave blank if the job has not been booked yet.</div>
+
+<div class="grid">
+<div>
+<label>Planned start</label>
+<input name="planned_start_at" type="datetime-local">
+</div>
+<div>
+<label>Expected finish</label>
+<input name="planned_finish_at" type="datetime-local">
+</div>
+</div>
+
+<div class="grid">
+<div>
+<label>Parking instructions</label>
+<textarea name="parking_notes" placeholder="e.g. driveway available, street parking, loading zone"></textarea>
+</div>
+<div>
+<label>Access / arrival instructions</label>
+<textarea name="access_notes" placeholder="e.g. ring bell, reception, side gate, customer on site"></textarea>
+</div>
 </div>
 
 <label>Original pricing arrangement</label>

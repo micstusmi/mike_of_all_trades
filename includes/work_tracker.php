@@ -145,7 +145,25 @@ function wt_initialise_job_intake(PDO $pdo, int $jobId, string $requestText, boo
     $job=wt_job($pdo,$jobId);
     $smsResult=null;
     if($sendCustomerSms && !empty($job['customer_phone'])) {
-        $smsResult=wt_send_sms($pdo,$jobId,(string)$job['customer_phone'],'Mike of All Trades: Your job has been logged. You can review your requested work, update details and follow progress here: '.wt_public_url($job),'job_logged_link');
+        $message = 'Mike of All Trades: Your job has been logged.';
+
+        if (!empty($job['planned_start_at'])) {
+            $message .= ' It is scheduled for ' .
+                date('D j M', strtotime($job['planned_start_at'])) .
+                ' at ' .
+                date('g:i a', strtotime($job['planned_start_at'])) .
+                '.';
+        }
+
+        $message .= ' View your job, schedule and progress here: ' . wt_public_url($job);
+
+        $smsResult = wt_send_sms(
+            $pdo,
+            $jobId,
+            (string)$job['customer_phone'],
+            $message,
+            'job_logged_link'
+        );
     }
     return ['job'=>$job,'sms'=>$smsResult];
 }

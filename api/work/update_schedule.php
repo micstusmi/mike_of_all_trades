@@ -81,6 +81,38 @@ try {
         $jobId
     ]);
 
+    if ($startChanged && !empty($job['customer_phone'])) {
+        $updatedJob = wt_job($pdo, $jobId);
+
+        if ($plannedStart) {
+            $when =
+                date('D j M', strtotime($plannedStart)) .
+                ' at ' .
+                date('g:i a', strtotime($plannedStart));
+
+            if ($oldStart === null) {
+                $message = 'Mike of All Trades: Your booking has been scheduled for ' . $when . '.';
+            } else {
+                $message = 'Mike of All Trades: Your booking schedule has been updated to ' . $when . '.';
+            }
+
+            $message .= ' Check your schedule, parking/access details here: ' . wt_public_url($updatedJob);
+        } else {
+            $message =
+                'Mike of All Trades: Your booking schedule has been changed. ' .
+                'Please check your current job details here: ' .
+                wt_public_url($updatedJob);
+        }
+
+        wt_send_sms(
+            $pdo,
+            $jobId,
+            (string)$job['customer_phone'],
+            $message,
+            'schedule_updated'
+        );
+    }
+
     header('Location: ../../admin/work/job.php?id=' . $jobId . '&schedule_saved=1#schedule-access');
     exit;
 

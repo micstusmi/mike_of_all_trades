@@ -156,6 +156,76 @@ try {
 }
 
 /*
+ * Booking confirmation by SMS reply.
+ *
+ * If we are waiting for confirmation:
+ *   YES / Y / YEP / YEAH / CONFIRM / CONFIRMED -> confirmed
+ *   Any other meaningful reply -> needs_change
+ *
+ * The original inbound message is still retained above and is still
+ * forwarded to Mike below.
+ */
+if ($jobId && trim((string)$message) !== '') {
+    try {
+        $q = $pdo->prepare("
+            SELECT customer_confirmation_status, planned_start_at
+            FROM work_jobs
+            WHERE id=?
+            LIMIT 1
+        ");
+        $q->execute([$jobId]);
+        $confirmationJob = $q->fetch(PDO::FETCH_ASSOC);
+
+        if (
+            $confirmationJob &&
+            ($confirmationJob['customer_confirmation_status'] ?? '') === 'awaiting' &&
+            !empty($confirmationJob['planned_start_at'])
+        ) {
+            $reply = strtoupper(trim((string)$message));
+            $reply = preg_replace('/[.!?,]+$/', '', $reply);
+            $reply = trim($reply);
+
+            $yesReplies = [
+                'Y',
+                'YES',
+                'YES PLEASE',
+                'YEP',
+                'YEAH',
+                'YEA',
+                'CONFIRM',
+                'CONFIRMED'
+            ];
+
+            if (in_array($reply, $yesReplies, true)) {
+                $u = $pdo->prepare("
+                    UPDATE work_jobs
+                    SET customer_confirmation_status='confirmed',
+                        confirmation_received_at=NOW()
+                    WHERE id=?
+                      AND customer_confirmation_status='awaiting'
+                ");
+                $u->execute([$jobId]);
+
+                error_log('Booking confirmed by SMS reply for Job #'.$jobId);
+            } else {
+                $u = $pdo->prepare("
+                    UPDATE work_jobs
+                    SET customer_confirmation_status='needs_change',
+                        confirmation_received_at=NOW()
+                    WHERE id=?
+                      AND customer_confirmation_status='awaiting'
+                ");
+                $u->execute([$jobId]);
+
+                error_log('Booking change requested by SMS reply for Job #'.$jobId);
+            }
+        }
+    } catch (Throwable $e) {
+        error_log('Inbound booking confirmation processing failed: '.$e->getMessage());
+    }
+}
+
+/*
  * Immediately forward customer replies to Mike's private mobile.
  * Failure here must never make the inbound webhook fail.
  */
