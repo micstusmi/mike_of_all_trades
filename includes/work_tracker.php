@@ -148,11 +148,11 @@ function wt_initialise_job_intake(PDO $pdo, int $jobId, string $requestText, boo
         $message = 'Mike of All Trades: Your job has been logged.';
 
         if (!empty($job['planned_start_at'])) {
-            $message .= ' It is scheduled for ' .
+            $message .= ' I have proposed ' .
                 date('D j M', strtotime($job['planned_start_at'])) .
                 ' at ' .
                 date('g:i a', strtotime($job['planned_start_at'])) .
-                '.';
+                ' for the booking.';
         }
 
         $message .= ' View your job, schedule and progress here: ' . wt_public_url($job);
@@ -171,7 +171,7 @@ function wt_initialise_job_intake(PDO $pdo, int $jobId, string $requestText, boo
 function wt_send_sms(PDO $pdo, ?int $jobId, string $phone, string $message, string $purpose='general'): array {
     require_once __DIR__ . '/sms_broadcast.php';
 
-    $phone = trim($phone);
+    $phone = wt_normalise_phone($phone);
     $message = trim($message);
     $localRef = 'WT' . ($jobId ?? 0) . '-' . bin2hex(random_bytes(4));
 

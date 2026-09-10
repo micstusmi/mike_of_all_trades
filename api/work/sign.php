@@ -122,9 +122,21 @@ $stmt->execute([
 
 $msg="Mike of All Trades: thank you. Your job agreement".
      ($variationRequired ? " and fixed-price variation" : "").
-     " were recorded at ".date('g:i a j M Y').
-     ". Current recorded outstanding balance: ".wt_money($tot['outstanding']).
-     ". Job record: ".wt_public_url($job);
+     " was accepted.";
+
+if (!empty($job['planned_start_at'])) {
+    $startTs = strtotime($job['planned_start_at']);
+    $msg .= " Your booking for ".
+        date('D j M', $startTs).
+        " at ".
+        date('g:i a', $startTs).
+        " is confirmed.";
+}
+
+$msg .= " Current recorded outstanding balance: ".
+        wt_money($tot['outstanding']).
+        ". Job record: ".
+        wt_public_url($job);
 
 wt_send_sms($pdo,(int)$job['id'],$job['customer_phone'],$msg,'agreement_signed');
 

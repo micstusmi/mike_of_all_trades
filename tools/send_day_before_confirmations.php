@@ -20,6 +20,7 @@ $sql = "
     FROM work_jobs
     WHERE planned_start_at IS NOT NULL
       AND DATE(planned_start_at)=?
+      AND agreement_signed_at IS NOT NULL
       AND confirmation_requested_at IS NULL
       AND customer_confirmation_status='not_requested'
       AND customer_phone IS NOT NULL

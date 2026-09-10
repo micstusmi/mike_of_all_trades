@@ -26,6 +26,16 @@ if (empty($job['planned_start_at'])) {
     die('This booking does not currently have a scheduled start time.');
 }
 
+if (empty($job['agreement_signed_at'])) {
+    http_response_code(409);
+    die('The job agreement must be accepted before the day-before booking can be confirmed.');
+}
+
+if (($job['customer_confirmation_status'] ?? '') !== 'awaiting') {
+    http_response_code(409);
+    die('This booking is not currently awaiting day-before confirmation.');
+}
+
 $status = $action === 'confirm' ? 'confirmed' : 'needs_change';
 
 $q = $pdo->prepare("
@@ -33,8 +43,15 @@ $q = $pdo->prepare("
     SET customer_confirmation_status=?,
         confirmation_received_at=NOW()
     WHERE id=?
+      AND agreement_signed_at IS NOT NULL
+      AND customer_confirmation_status='awaiting'
 ");
 $q->execute([$status, (int)$job['id']]);
+
+if ($q->rowCount() !== 1) {
+    http_response_code(409);
+    die('This booking confirmation is no longer awaiting a response.');
+}
 
 /*
  * If the customer needs something changed, alert Mike immediately.

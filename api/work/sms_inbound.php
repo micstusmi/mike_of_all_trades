@@ -168,7 +168,7 @@ try {
 if ($jobId && trim((string)$message) !== '') {
     try {
         $q = $pdo->prepare("
-            SELECT customer_confirmation_status, planned_start_at
+            SELECT customer_confirmation_status, planned_start_at, agreement_signed_at
             FROM work_jobs
             WHERE id=?
             LIMIT 1
@@ -179,7 +179,8 @@ if ($jobId && trim((string)$message) !== '') {
         if (
             $confirmationJob &&
             ($confirmationJob['customer_confirmation_status'] ?? '') === 'awaiting' &&
-            !empty($confirmationJob['planned_start_at'])
+            !empty($confirmationJob['planned_start_at']) &&
+            !empty($confirmationJob['agreement_signed_at'])
         ) {
             $reply = strtoupper(trim((string)$message));
             $reply = preg_replace('/[.!?,]+$/', '', $reply);

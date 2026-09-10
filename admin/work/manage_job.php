@@ -224,6 +224,54 @@ textarea{width:100%;box-sizing:border-box}
 <h1>Manage Job #<?=$id?> — <?=wt_html($job['customer_name'])?></h1>
 <p><?=wt_html($job['job_address'])?></p>
 
+<div class="card" id="customer-details">
+<h2>Customer details</h2>
+
+<?php if(!empty($_GET['customer_saved'])):?>
+<div class="notice-good" style="padding:10px;border-radius:9px;margin-bottom:12px">
+Customer details saved.
+</div>
+<?php endif;?>
+
+<form method="post" action="../../api/work/update_customer_details.php">
+<input type="hidden" name="job_id" value="<?=$id?>">
+
+<div class="row">
+  <div class="field">
+    <label>Customer name</label>
+    <input
+      type="text"
+      name="customer_name"
+      required
+      value="<?=wt_html((string)($job['customer_name']??''))?>"
+    >
+  </div>
+
+  <div class="field">
+    <label>Mobile / phone</label>
+    <input
+      type="tel"
+      name="customer_phone"
+      value="<?=wt_html((string)($job['customer_phone']??''))?>"
+      placeholder="e.g. 0467 123 456"
+    >
+    <span class="small">Spaces and Australian 04 numbers are automatically normalised for SMS.</span>
+  </div>
+
+  <div class="field">
+    <label>Email</label>
+    <input
+      type="email"
+      name="customer_email"
+      value="<?=wt_html((string)($job['customer_email']??''))?>"
+    >
+  </div>
+</div>
+
+<button class="btn" type="submit">SAVE CUSTOMER DETAILS</button>
+</form>
+</div>
+
 <div class="card" id="schedule-access">
 <h2>Schedule, parking &amp; access</h2>
 

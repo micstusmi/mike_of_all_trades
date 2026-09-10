@@ -387,22 +387,46 @@ textarea,input{box-sizing:border-box;width:100%;padding:11px;border:1px solid #c
 
 <?php
 $confirmStatus=(string)($job['customer_confirmation_status'] ?? 'not_requested');
+$bookingAccepted=!empty($job['agreement_signed_at']);
 ?>
 
+<?php if(!$bookingAccepted):?>
+<div class="customer-confirm awaiting">
+  <b>Proposed booking — awaiting your acceptance</b>
+  <p>
+    Please review the job details and Terms &amp; Conditions below.
+    Sign the agreement to accept the proposed booking and authorise the work.
+  </p>
+</div>
+<?php else:?>
+<div class="customer-confirm confirmed">
+  <b>✓ Booking confirmed</b>
+  <p>
+    Agreement accepted
+    <?=wt_html(date('j M Y, g:i a',strtotime($job['agreement_signed_at'])))?>.
+  </p>
+</div>
+
 <?php if($confirmStatus==='confirmed'):?>
-<div class="customer-confirm confirmed">✓ Booking confirmed</div>
+<div class="customer-confirm confirmed">
+  <b>✓ Tomorrow reconfirmed</b>
+  <p>Thank you. Your day-before confirmation has been received.</p>
+</div>
 <?php elseif($confirmStatus==='needs_change'):?>
-<div class="customer-confirm needs-change">Change requested — Mike will contact you.</div>
+<div class="customer-confirm needs-change">
+  <b>Day-before change requested</b>
+  <p>Mike has received your request and will contact you.</p>
+</div>
 <?php elseif($confirmStatus==='awaiting'):?>
 <div class="customer-confirm awaiting">
-  <b>Please confirm tomorrow's booking</b>
+  <b>Please reconfirm tomorrow's booking</b>
   <p>Please check the date, time, parking and access information above.</p>
 
   <div class="customer-confirm-actions">
     <form method="post" action="../api/work/confirm_booking.php">
       <input type="hidden" name="token" value="<?=wt_html($token)?>">
       <input type="hidden" name="action" value="confirm">
-      <button class="btn customer-confirm-yes" type="submit">✓ CONFIRM THIS BOOKING</button>
+      <button class="btn customer-confirm-yes" type="submit">✓ YES, TOMORROW IS CONFIRMED</button>
     </form>
 
     <form method="post" action="../api/work/confirm_booking.php">
@@ -412,6 +436,7 @@ $confirmStatus=(string)($job['customer_confirmation_status'] ?? 'not_requested')
     </form>
   </div>
 </div>
+<?php endif;?>
 <?php endif;?>
 
 </div>

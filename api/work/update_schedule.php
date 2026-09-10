@@ -84,22 +84,53 @@ try {
     if ($startChanged && !empty($job['customer_phone'])) {
         $updatedJob = wt_job($pdo, $jobId);
 
+        $bookingAccepted = !empty($updatedJob['agreement_signed_at']);
+
         if ($plannedStart) {
             $when =
                 date('D j M', strtotime($plannedStart)) .
                 ' at ' .
                 date('g:i a', strtotime($plannedStart));
 
-            if ($oldStart === null) {
-                $message = 'Mike of All Trades: Your booking has been scheduled for ' . $when . '.';
+            if ($bookingAccepted) {
+                if ($oldStart === null) {
+                    $message =
+                        'Mike of All Trades: Your confirmed booking is scheduled for ' .
+                        $when .
+                        '.';
+                } else {
+                    $message =
+                        'Mike of All Trades: Your confirmed booking schedule has been updated to ' .
+                        $when .
+                        '.';
+                }
             } else {
-                $message = 'Mike of All Trades: Your booking schedule has been updated to ' . $when . '.';
+                if ($oldStart === null) {
+                    $message =
+                        'Mike of All Trades: I have proposed ' .
+                        $when .
+                        ' for your booking.';
+                } else {
+                    $message =
+                        'Mike of All Trades: Your proposed booking has been updated to ' .
+                        $when .
+                        '.';
+                }
             }
 
-            $message .= ' Check your schedule, parking/access details here: ' . wt_public_url($updatedJob);
+            $message .=
+                ' Check your schedule, parking/access details here: ' .
+                wt_public_url($updatedJob);
         } else {
-            $message =
-                'Mike of All Trades: Your booking schedule has been changed. ' .
+            if ($bookingAccepted) {
+                $message =
+                    'Mike of All Trades: Your confirmed booking schedule has been changed. ';
+            } else {
+                $message =
+                    'Mike of All Trades: Your proposed booking schedule has been changed. ';
+            }
+
+            $message .=
                 'Please check your current job details here: ' .
                 wt_public_url($updatedJob);
         }
