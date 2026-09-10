@@ -110,52 +110,65 @@ function wt_public_url(array $job): string {
 }
 
 function wt_send_sms(PDO $pdo, ?int $jobId, string $phone, string $message, string $purpose='general'): array {
-    $username = wt_env('SMSBROADCAST_USERNAME');
-    $password = wt_env('SMSBROADCAST_PASSWORD');
-    $from = wt_env('SMSBROADCAST_FROM');
+    require_once __DIR__ . '/sms_broadcast.php';
 
+    $phone = trim($phone);
+    $message = trim($message);
     $localRef = 'WT' . ($jobId ?? 0) . '-' . bin2hex(random_bytes(4));
-    $stmt = $pdo->prepare("INSERT INTO work_sms_messages(job_id,direction,phone,message,purpose,local_ref) VALUES(?,?,?,?,?,?)");
-    $stmt->execute([$jobId, 'outbound', $phone, $message, $purpose, $localRef]);
+
+    $stmt = $pdo->prepare("
+        INSERT INTO work_sms_messages
+        (job_id,direction,phone,message,purpose,local_ref)
+        VALUES(?, 'outbound', ?, ?, ?, ?)
+    ");
+    $stmt->execute([$jobId, $phone, $message, $purpose, $localRef]);
     $rowId = (int)$pdo->lastInsertId();
 
-    if (!$username || !$password || !$from) {
-        return ['ok'=>false, 'message'=>'SMS credentials not configured; message saved but not sent.', 'id'=>$rowId];
+    $gateway = mot_sms_broadcast_send($phone, $message, $localRef);
+
+    $status = !empty($gateway['ok']) ? 'accepted' : 'failed';
+    $providerRef = $gateway['smsref'] ?? null;
+    $raw = $gateway['response'] ?? $gateway['error'] ?? null;
+
+    $u = $pdo->prepare("
+        UPDATE work_sms_messages
+        SET provider_ref=?, delivery_status=?, raw_payload=?
+        WHERE id=?
+    ");
+    $u->execute([$providerRef, $status, $raw, $rowId]);
+
+    try {
+        $g = $pdo->prepare("
+            INSERT INTO work_sms_gateway_events
+            (job_id,direction,event_kind,mobile_to,message,our_ref,smsref,provider_status,provider_response)
+            VALUES(?, 'outbound', ?, ?, ?, ?, ?, ?, ?)
+        ");
+        $g->execute([
+            $jobId,
+            $purpose,
+            $gateway['to'] ?? $phone,
+            $message,
+            $localRef,
+            $providerRef,
+            $gateway['status'] ?? $status,
+            $raw
+        ]);
+    } catch (Throwable $e) {
+        error_log('SMS gateway audit log failed: '.$e->getMessage());
     }
 
-    $payload = http_build_query([
-        'username'=>$username,
-        'password'=>$password,
-        'to'=>wt_normalise_phone($phone),
-        'from'=>$from,
-        'message'=>$message,
-        'ref'=>$localRef
-    ]);
+    $line = !empty($gateway['ok'])
+        ? ('OK:' . ($gateway['to'] ?? $phone) . ':' . ($providerRef ?? ''))
+        : (string)($gateway['error'] ?? 'SMS request failed');
 
-    $ch = curl_init('https://www.smsbroadcast.com.au/api-adv.php');
-    curl_setopt_array($ch, [
-        CURLOPT_POST=>true,
-        CURLOPT_POSTFIELDS=>$payload,
-        CURLOPT_RETURNTRANSFER=>true,
-        CURLOPT_TIMEOUT=>20,
-        CURLOPT_CONNECTTIMEOUT=>10,
-    ]);
-    $response = curl_exec($ch);
-    $error = curl_error($ch);
-    curl_close($ch);
-
-    if ($response === false) return ['ok'=>false,'message'=>$error ?: 'SMS request failed','id'=>$rowId];
-
-    $line = trim(explode("\n", trim($response))[0] ?? '');
-    $parts = explode(':', $line, 3);
-    $ok = (($parts[0] ?? '') === 'OK');
-    $providerRef = $ok ? trim($parts[2] ?? '') : null;
-    $status = $ok ? 'accepted' : 'failed';
-
-    $u = $pdo->prepare("UPDATE work_sms_messages SET provider_ref=?, delivery_status=?, raw_payload=? WHERE id=?");
-    $u->execute([$providerRef, $status, $response, $rowId]);
-
-    return ['ok'=>$ok,'message'=>$line,'id'=>$rowId,'ref'=>$providerRef];
+    return [
+        'ok' => (bool)($gateway['ok'] ?? false),
+        'message' => $line,
+        'id' => $rowId,
+        'ref' => $providerRef,
+        'local_ref' => $localRef,
+        'gateway_status' => $gateway['status'] ?? null,
+    ];
 }
 
 function wt_html(string $s): string {
