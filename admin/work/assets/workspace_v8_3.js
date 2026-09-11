@@ -244,3 +244,85 @@
     }
   }, 4000);
 })();
+
+/* V8.7 TIMER POSITION
+ * Keep the frequently used timer controls directly below the job heading.
+ */
+(() => {
+  'use strict';
+
+  function normalise(value) {
+    return (value || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  }
+
+  function findStartActivitySection() {
+    const sections = Array.from(
+      document.querySelectorAll('.wt83-section')
+    );
+
+    return sections.find(section => {
+      const title = section.querySelector('.wt83-section-title');
+      const heading = section.querySelector(
+        'h2, h3, .wt83-original-heading'
+      );
+
+      const text = normalise(
+        title?.textContent || heading?.textContent
+      );
+
+      return (
+        text.includes('start job activity') ||
+        text.includes('current work session') ||
+        text.includes('start activity')
+      );
+    }) || null;
+  }
+
+  function positionTimerControls() {
+    const wrap = document.querySelector('.wrap');
+    const heading = wrap?.querySelector('h1');
+
+    if (!wrap || !heading) return;
+
+    /*
+     * The paragraph immediately following the heading normally contains
+     * the job address. Keep that visible before the timer controls.
+     */
+    let anchor = heading;
+
+    if (
+      heading.nextElementSibling &&
+      heading.nextElementSibling.tagName === 'P'
+    ) {
+      anchor = heading.nextElementSibling;
+    }
+
+    const startSection = findStartActivitySection();
+
+    if (startSection) {
+      anchor.insertAdjacentElement('afterend', startSection);
+    }
+
+    /*
+     * A running timer is more important than the new-activity form.
+     * Inserting it after the address places it above Start Activity.
+     */
+    const liveTimer = document.getElementById('live-timer');
+
+    if (liveTimer) {
+      anchor.insertAdjacentElement('afterend', liveTimer);
+    }
+  }
+
+  /*
+   * workspace_v8_3.js creates the accordion sections during page loading.
+   * Run once immediately and once after all page enhancements finish.
+   */
+  positionTimerControls();
+
+  window.addEventListener('load', () => {
+    positionTimerControls();
+
+    window.setTimeout(positionTimerControls, 100);
+  });
+})();

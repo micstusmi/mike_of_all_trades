@@ -89,7 +89,7 @@ function wt_totals(PDO $pdo, int $jobId): array {
 
     $sql = "SELECT COALESCE(SUM(
               CASE WHEN s.billable=1 AND s.ended_at IS NOT NULL
-              THEN (CASE WHEN s.session_source='retrospective' AND s.retrospective_hours IS NOT NULL THEN s.retrospective_hours ELSE TIMESTAMPDIFF(SECOND,s.started_at,s.ended_at)/3600 END) * COALESCE(w.hourly_rate, ?)
+              THEN (CASE WHEN s.session_source='retrospective' AND s.retrospective_hours IS NOT NULL THEN s.retrospective_hours ELSE GREATEST(0,TIMESTAMPDIFF(SECOND,s.started_at,s.ended_at)-COALESCE((SELECT SUM(TIMESTAMPDIFF(SECOND,b.started_at,COALESCE(b.ended_at,s.ended_at))) FROM work_session_breaks b WHERE b.session_id=s.id),0))/3600 END) * COALESCE(w.hourly_rate, ?)
               ELSE 0 END),0)
             FROM work_sessions s
             LEFT JOIN work_workers w ON w.id=s.worker_id
@@ -231,13 +231,13 @@ function wt_send_sms(PDO $pdo, ?int $jobId, string $phone, string $message, stri
 }
 
 function wt_task_tracked_hours(PDO $pdo, int $taskId): float {
-    $q = $pdo->prepare("SELECT COALESCE(SUM(CASE WHEN ended_at IS NOT NULL THEN CASE WHEN session_source='retrospective' AND retrospective_hours IS NOT NULL THEN retrospective_hours ELSE TIMESTAMPDIFF(SECOND,started_at,ended_at)/3600 END ELSE 0 END),0) FROM work_sessions WHERE task_id=?");
+    $q = $pdo->prepare("SELECT COALESCE(SUM(CASE WHEN ended_at IS NOT NULL THEN CASE WHEN session_source='retrospective' AND retrospective_hours IS NOT NULL THEN retrospective_hours ELSE GREATEST(0,TIMESTAMPDIFF(SECOND,started_at,ended_at)-COALESCE((SELECT SUM(TIMESTAMPDIFF(SECOND,b.started_at,COALESCE(b.ended_at,work_sessions.ended_at))) FROM work_session_breaks b WHERE b.session_id=work_sessions.id),0))/3600 END ELSE 0 END),0) FROM work_sessions WHERE task_id=?");
     $q->execute([$taskId]);
     return round((float)$q->fetchColumn(), 2);
 }
 
 function wt_job_tasks(PDO $pdo, int $jobId, bool $customerVisibleOnly=false): array {
-    $sql = "SELECT t.*, (SELECT COALESCE(SUM(CASE WHEN s.ended_at IS NOT NULL THEN CASE WHEN s.session_source='retrospective' AND s.retrospective_hours IS NOT NULL THEN s.retrospective_hours ELSE TIMESTAMPDIFF(SECOND,s.started_at,s.ended_at)/3600 END ELSE 0 END),0) FROM work_sessions s WHERE s.task_id=t.id) AS tracked_hours FROM work_tasks t WHERE t.job_id=?";
+    $sql = "SELECT t.*, (SELECT COALESCE(SUM(CASE WHEN s.ended_at IS NOT NULL THEN CASE WHEN s.session_source='retrospective' AND s.retrospective_hours IS NOT NULL THEN s.retrospective_hours ELSE GREATEST(0,TIMESTAMPDIFF(SECOND,s.started_at,s.ended_at)-COALESCE((SELECT SUM(TIMESTAMPDIFF(SECOND,b.started_at,COALESCE(b.ended_at,s.ended_at))) FROM work_session_breaks b WHERE b.session_id=s.id),0))/3600 END ELSE 0 END),0) FROM work_sessions s WHERE s.task_id=t.id) AS tracked_hours FROM work_tasks t WHERE t.job_id=?";
     if ($customerVisibleOnly) $sql .= " AND t.customer_visible=1";
     $sql .= " ORDER BY t.task_order,t.id";
     $q=$pdo->prepare($sql); $q->execute([$jobId]);

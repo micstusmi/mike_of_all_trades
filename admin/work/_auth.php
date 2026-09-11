@@ -1,12 +1,11 @@
 <?php
 declare(strict_types=1);
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+require_once __DIR__ . '/../../includes/admin_session.php';
 
-if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
-    // This file is used from /admin/work/, which is two levels below the project root.
-    header('Location: ../../login.php');
+$role = $_SESSION['user_role'] ?? $_SESSION['role'] ?? '';
+if (empty($_SESSION['user_id']) || $role !== 'admin') {
+    $returnTo = $_SERVER['REQUEST_URI'] ?? '';
+    header('Location: ../../login.php?return_to=' . rawurlencode($returnTo));
     exit;
 }

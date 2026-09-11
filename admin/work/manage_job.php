@@ -44,6 +44,57 @@ $sessions = $pdo->prepare("
 $sessions->execute([$id]);
 $sessions = $sessions->fetchAll(PDO::FETCH_ASSOC);
 
+/*
+ * V8.7: collect non-chargeable breaks belonging to each session.
+ * An open break means the activity is currently paused.
+ */
+$breakStmt = $pdo->prepare("
+    SELECT b.*
+    FROM work_session_breaks b
+    INNER JOIN work_sessions s ON s.id = b.session_id
+    WHERE s.job_id = ?
+    ORDER BY b.started_at
+");
+$breakStmt->execute([$id]);
+
+$sessionBreakSeconds = [];
+$activeBreaks = [];
+$utcZone = new DateTimeZone('UTC');
+$utcNow = new DateTimeImmutable('now', $utcZone);
+
+foreach ($breakStmt->fetchAll(PDO::FETCH_ASSOC) as $breakRow) {
+    $breakStart = (
+        new DateTimeImmutable($breakRow['started_at'], $utcZone)
+    )->getTimestamp();
+
+    $breakEnd = !empty($breakRow['ended_at'])
+        ? (
+            new DateTimeImmutable($breakRow['ended_at'], $utcZone)
+        )->getTimestamp()
+        : $utcNow->getTimestamp();
+
+    $breakSeconds = max(0, $breakEnd - $breakStart);
+    $breakSessionId = (int)$breakRow['session_id'];
+
+    $sessionBreakSeconds[$breakSessionId] =
+        ($sessionBreakSeconds[$breakSessionId] ?? 0) + $breakSeconds;
+
+    if (empty($breakRow['ended_at'])) {
+        $activeBreaks[$breakSessionId] = $breakRow;
+    }
+}
+
+foreach ($sessions as &$sessionRow) {
+    $sessionId = (int)$sessionRow['id'];
+
+    $sessionRow['break_seconds'] =
+        $sessionBreakSeconds[$sessionId] ?? 0;
+
+    $sessionRow['active_break'] =
+        $activeBreaks[$sessionId] ?? null;
+}
+unset($sessionRow);
+
 $runningSessions = array_values(array_filter($sessions, fn($s) => empty($s['ended_at'])));
 $runningWorkerKeys = [];
 foreach ($runningSessions as $rs) {
@@ -115,7 +166,10 @@ foreach ($sessions as $s) {
     $endTs = !empty($s['ended_at'])
         ? (new DateTimeImmutable($s['ended_at'], $utc))->getTimestamp()
         : (new DateTimeImmutable('now', $utc))->getTimestamp();
-    $secs = max(0, $endTs - $startTs);
+    $secs = max(
+        0,
+        $endTs - $startTs - (int)($s['break_seconds'] ?? 0)
+    );
 
     $loc = $s['start_location'] ?? '';
     $cat = $s['category'] ?? '';
@@ -236,6 +290,35 @@ textarea{width:100%;box-sizing:border-box}
 <?php
 $smsFlash = $_SESSION['work_sms_flash'] ?? null;
 unset($_SESSION['work_sms_flash']);
+
+/* V8.7 COMPLETE SMS RESULT TOAST */
+$latestOutboundSms = null;
+
+foreach ($smsMessages as $smsCandidate) {
+    if (
+        strtolower((string)($smsCandidate['direction'] ?? 'outbound'))
+        === 'outbound'
+    ) {
+        $latestOutboundSms = $smsCandidate;
+        break;
+    }
+}
+
+$latestOutboundSmsId =
+    (int)($latestOutboundSms['id'] ?? 0);
+
+$latestOutboundSmsStatus =
+    trim((string)(
+        $latestOutboundSms['provider_status']
+        ?? $latestOutboundSms['status']
+        ?? ''
+    ));
+
+$latestOutboundSmsPurpose =
+    trim((string)($latestOutboundSms['purpose'] ?? ''));
+
+$latestOutboundSmsMessage =
+    trim((string)($latestOutboundSms['message'] ?? ''));
 ?>
 <?php if(is_array($smsFlash)):?>
 <div id="sms-dispatch-toast" style="
@@ -458,52 +541,294 @@ Customer day-before confirmation:
 <?php endif;?>
 
 <?php foreach($runningSessions as $rs):
-    $locLabel = $locationLabels[$rs['start_location'] ?? ''] ?? ($rs['start_location'] ?: 'Not specified');
+    $locLabel = $locationLabels[$rs['start_location'] ?? '']
+        ?? ($rs['start_location'] ?: 'Not specified');
+
+    $isPaused = !empty($rs['active_break']);
 ?>
-<div class="card running-card">
+<div class="card running-card" id="live-timer">
     <div class="running-head">
         <div>
-            <div class="running-title">● SESSION RUNNING — <?=wt_html($rs['worker_name'] ?: 'Mike')?></div>
-            <div><b><?=wt_html($locLabel)?></b><?php if(!empty($rs['location_detail'])):?> — <?=wt_html($rs['location_detail'])?><?php endif;?></div>
-            <div class="small">Started <?=wt_html($rs['started_at'])?> · <?=wt_html($rs['category'])?></div>
-            <?php if(!empty($rs['notes'])):?><div style="margin-top:6px"><?=wt_html($rs['notes'])?></div><?php endif;?>
+            <div class="running-title">
+                <?=$isPaused ? '⏸ ACTIVITY PAUSED' : '● ACTIVITY RUNNING'?>
+                — <?=wt_html($rs['worker_name'] ?: 'Mike')?>
+            </div>
+
+            <div>
+                <b><?=wt_html($locLabel)?></b>
+                <?php if(!empty($rs['location_detail'])):?>
+                    — <?=wt_html($rs['location_detail'])?>
+                <?php endif;?>
+            </div>
+
+            <div class="small">
+                Started <?=wt_html(wt_melbourne_time($rs['started_at']))?>
+                · <?=wt_html($rs['category'])?>
+            </div>
+
+            <?php if(!empty($rs['notes'])):?>
+                <div style="margin-top:6px">
+                    <?=wt_html($rs['notes'])?>
+                </div>
+            <?php endif;?>
         </div>
-        <div class="timer live-timer" data-start="<?=wt_html($rs['started_at'])?>">00:00:00</div>
+
+        <div
+            class="timer live-timer"
+            data-start="<?=wt_html($rs['started_at'])?>"
+            data-break-seconds="<?=(int)($rs['break_seconds'] ?? 0)?>"
+            data-paused="<?=$isPaused ? '1' : '0'?>"
+        >00:00:00</div>
     </div>
 
-    <?php if(($rs['travel_type'] ?? '') === 'to_customer' && $rs['worker_id'] === null):?>
-    <form method="post" action="../../api/work/arrive_start_work.php" style="margin-top:14px">
-        <input type="hidden" name="job_id" value="<?=$id?>">
-        <div class="field"><label>Task</label><select name="task_id"><option value="0">General / not task-specific</option><?php foreach($activeTasks as $t):?><option value="<?=$t['id']?>"><?=wt_html($t['title'])?></option><?php endforeach;?></select></div><div class="field wide"><label>What are you starting on site?</label><input name="notes" placeholder="e.g. continue bathroom preparation" required></div>
-        <button class="btn start" style="font-size:19px;padding:16px 22px">📍 ARRIVED — STOP TRAVEL &amp; START WORK</button>
-    </form>
-    <details style="margin-top:12px"><summary><b>Need to pause or cancel the trip instead?</b></summary>
-    <?php endif;?>
-    <form class="stop-panel" method="post" action="../../api/work/stop_session.php">
-        <input type="hidden" name="job_id" value="<?=$id?>">
-        <input type="hidden" name="session_id" value="<?=$rs['id']?>">
-        <div class="row">
+    <?php if($isPaused):?>
+
+        <div
+            class="notice-warn"
+            style="padding:12px;border-radius:10px;margin-top:14px"
+        >
+            <b>Non-chargeable break in progress.</b><br>
+            The original activity remains open, but break time is excluded
+            from the customer’s job tally.
+        </div>
+
+        <form
+            method="post"
+            action="../../api/work/continue_session.php"
+            style="margin-top:12px"
+        >
+            <input type="hidden" name="job_id" value="<?=$id?>">
+            <input type="hidden" name="session_id" value="<?=$rs['id']?>">
+
+            <button
+                class="btn start"
+                style="font-size:20px;padding:17px 24px;width:100%"
+            >
+                ▶ CONTINUE SAME ACTIVITY
+            </button>
+        </form>
+
+    <?php else:?>
+
+        <?php if(
+            ($rs['travel_type'] ?? '') === 'to_customer'
+            && $rs['worker_id'] === null
+        ):?>
+
+        <form
+            method="post"
+            action="../../api/work/arrive_start_work.php"
+            style="margin-top:14px"
+        >
+            <input type="hidden" name="job_id" value="<?=$id?>">
+
             <div class="field">
-                <label>Why are you stopping / pausing?</label>
-                <select name="stop_reason" required>
-                    <option value="">Select reason...</option>
-                    <?php foreach($stopReasonLabels as $value=>$label):?>
-                    <option value="<?=wt_html($value)?>"><?=wt_html($label)?></option>
+                <label>Task</label>
+                <select name="task_id">
+                    <option value="0">General / not task-specific</option>
+
+                    <?php foreach($activeTasks as $task):?>
+                    <option value="<?=$task['id']?>">
+                        <?=wt_html($task['title'])?>
+                    </option>
                     <?php endforeach;?>
                 </select>
             </div>
+
             <div class="field wide">
-                <label>Stop note / explanation</label>
-                <input name="stop_note" placeholder="e.g. stopping for lunch after completing demolition">
+                <label>What are you starting on site?</label>
+                <input
+                    name="notes"
+                    placeholder="e.g. continue bathroom preparation"
+                    required
+                >
             </div>
-            <div class="field">
-                <label>Expected return / next attendance</label>
-                <input name="expected_return" list="eta-options" placeholder="e.g. about 1:30 pm">
-            </div>
+
+            <button
+                class="btn start"
+                style="font-size:19px;padding:16px 22px"
+            >
+                📍 ARRIVED — STOP TRAVEL &amp; START WORK
+            </button>
+        </form>
+
+        <?php endif;?>
+
+        <div
+            class="row"
+            style="margin-top:14px;align-items:flex-start"
+        >
+            <form
+                method="post"
+                action="../../api/work/pause_session.php"
+                style="flex:1;min-width:260px"
+            >
+                <input type="hidden" name="job_id" value="<?=$id?>">
+                <input type="hidden" name="session_id" value="<?=$rs['id']?>">
+
+                <div class="field">
+                    <label>Non-chargeable interruption</label>
+
+                    <select name="pause_reason">
+                        <option value="toilet">
+                            Quick personal break
+                        </option>
+                        <option value="meal">
+                            Meal break
+                        </option>
+                        <option value="personal_call">
+                            Personal phone call
+                        </option>
+                        <option value="rest">
+                            Rest break
+                        </option>
+                        <option value="other">
+                            Other non-chargeable break
+                        </option>
+                    </select>
+                </div>
+
+                <button
+                    class="btn"
+                    style="
+                        background:#b76e00;
+                        font-size:18px;
+                        padding:15px 22px;
+                        width:100%
+                    "
+                >
+                    ⏸ PAUSE
+                </button>
+            </form>
+
+            <details
+                class="stop-panel"
+                style="flex:2;min-width:280px;margin-top:0"
+            >
+                <summary style="cursor:pointer">
+                    <b>🔄 Change activity or ■ finish activity</b>
+                </summary>
+
+                <form
+                    method="post"
+                    action="../../api/work/stop_session.php"
+                    style="margin-top:12px"
+                >
+                    <input type="hidden" name="job_id" value="<?=$id?>">
+                    <input type="hidden" name="session_id" value="<?=$rs['id']?>">
+                    <div class="field">
+                        <label>What do you want to do?</label>
+
+                        <select
+                            name="session_action"
+                            class="session-action-select"
+                            required
+                        >
+                            <option value="change">
+                                Change activity — remain on this job
+                            </option>
+                            <option value="finish">
+                                Finish current activity
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="change-activity-fields">
+                        <div class="field">
+                            <label>New location</label>
+
+                            <select name="start_location">
+                                <option value="travel_job">
+                                    Travelling for this job
+                                </option>
+                                <option value="bunnings">
+                                    Bunnings
+                                </option>
+                                <option value="supplier">
+                                    Another supplier / store
+                                </option>
+                                <option value="onsite">
+                                    On site
+                                </option>
+                                <option value="workshop_home">
+                                    Workshop / home preparation
+                                </option>
+                                <option value="offsite_planning">
+                                    Off-site planning / admin
+                                </option>
+                                <option value="other">
+                                    Other
+                                </option>
+                            </select>
+                        </div>
+
+                        <div class="field">
+                            <label>New activity category</label>
+
+                            <select name="category">
+                                <option value="travel">
+                                    Job-specific travel
+                                </option>
+                                <option value="procurement">
+                                    Sourcing / procurement
+                                </option>
+                                <option value="onsite">
+                                    On-site work
+                                </option>
+                                <option value="loading_setup">
+                                    Loading / setup / pack-up
+                                </option>
+                                <option value="planning">
+                                    Planning
+                                </option>
+                                <option value="measurement">
+                                    Measurement / investigation
+                                </option>
+                                <option value="repair">
+                                    Repair / preparation
+                                </option>
+                                <option value="unforeseen">
+                                    Unforeseen / remedial
+                                </option>
+                                <option value="other">
+                                    Other
+                                </option>
+                            </select>
+                        </div>
+
+                        <div class="field wide">
+                            <label>What are you changing to?</label>
+
+                            <input
+                                name="notes"
+                                placeholder="e.g. travelling to Bunnings for tri-quad trim sprays"
+                            >
+                        </div>
+                    </div>
+
+                    <div class="field wide">
+                        <label>Note about the change or completed activity</label>
+                        <input
+                            name="stop_note"
+                            placeholder="Optional"
+                        >
+                    </div>
+
+                    <button
+                        class="btn stop"
+                        style="
+                            font-size:18px;
+                            padding:15px 22px;
+                            width:100%
+                        "
+                    >
+                        SAVE CHANGE / FINISH
+                    </button>
+                </form>
+            </details>
         </div>
-        <button class="btn stop" style="font-size:18px;padding:15px 22px">■ STOP / PAUSE SESSION</button>
-    </form>
-    <?php if(($rs['travel_type'] ?? '') === 'to_customer' && $rs['worker_id'] === null):?></details><?php endif;?>
+
+    <?php endif;?>
 </div>
 <?php endforeach;?>
 
@@ -1108,7 +1433,11 @@ Replacement seals if required"><?=wt_html($t['suggested_materials']??'')?></text
         document.querySelectorAll('.live-timer').forEach(function(el){
             const start = parseMysqlDate(el.dataset.start);
             if(!start || isNaN(start.getTime())) return;
-            const sec = Math.max(0, Math.floor((Date.now()-start.getTime())/1000));
+            const breakSeconds = Number(el.dataset.breakSeconds || 0);
+            const sec = Math.max(
+                0,
+                Math.floor((Date.now()-start.getTime())/1000) - breakSeconds
+            );
             const h = Math.floor(sec/3600);
             const m = Math.floor((sec%3600)/60);
             const s = sec%60;
@@ -1278,5 +1607,366 @@ Replacement seals if required"><?=wt_html($t['suggested_materials']??'')?></text
 <script src="assets/workspace_v8_3.js?v=1" defer></script>
 <script src="assets/workspace_v8_4b.js?v=1" defer></script>
 <script src="assets/task_photos_inline_v8_4c.js?v=1" defer></script>
+
+<script>
+(function () {
+    function updateChangeActivityForm(select) {
+        const form = select.closest('form');
+        if (!form) return;
+
+        const fields = form.querySelector('.change-activity-fields');
+        const notes = form.querySelector('[name="notes"]');
+
+        if (!fields || !notes) return;
+
+        const changing = select.value === 'change';
+
+        fields.style.display = changing ? '' : 'none';
+        notes.required = changing;
+    }
+
+    document.querySelectorAll('.session-action-select').forEach(function (select) {
+        updateChangeActivityForm(select);
+
+        select.addEventListener('change', function () {
+            updateChangeActivityForm(select);
+        });
+    });
+
+    /*
+     * Keep the active timer directly below the job heading on mobile.
+     * This avoids scrolling through the complete admin record every time.
+     */
+    function positionMobileTimer() {
+        if (!window.matchMedia('(max-width: 700px)').matches) return;
+
+        const timer = document.getElementById('live-timer');
+        const heading = document.querySelector('.wrap h1');
+
+        if (!timer || !heading) return;
+
+        let anchor = heading.nextElementSibling;
+
+        if (anchor) {
+            anchor.insertAdjacentElement('afterend', timer);
+        } else {
+            heading.insertAdjacentElement('afterend', timer);
+        }
+    }
+
+    window.addEventListener('load', positionMobileTimer);
+})();
+</script>
+
+
+<script>
+/* V8.7 COMPLETE SMS RESULT TOAST */
+(() => {
+    'use strict';
+
+    const jobId = <?=json_encode((string)$id)?>;
+    const storageKey =
+        'mot-pending-admin-action-' + jobId;
+
+    const latestSms = {
+        id: <?=(int)$latestOutboundSmsId?>,
+        status: <?=json_encode($latestOutboundSmsStatus)?>,
+        purpose: <?=json_encode($latestOutboundSmsPurpose)?>,
+        message: <?=json_encode($latestOutboundSmsMessage)?>
+    };
+
+    const existingBackendToast =
+        <?=is_array($smsFlash) ? 'true' : 'false'?>;
+
+    function clean(value) {
+        return (value || '')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    function getActionName(form) {
+        const clicked = form.__clickedButton;
+
+        if (clicked) {
+            const label = clean(
+                clicked.textContent || clicked.value
+            );
+
+            if (label) return label;
+        }
+
+        const container = form.closest(
+            '.card, .wt83-section, details, section'
+        );
+
+        const heading = container?.querySelector(
+            'h2, h3, summary, .wt83-section-title'
+        );
+
+        return clean(heading?.textContent)
+            || 'Manage Job change';
+    }
+
+    function showResultToast(
+        type,
+        heading,
+        summary,
+        details
+    ) {
+        document
+            .getElementById('mot-complete-sms-toast')
+            ?.remove();
+
+        const colours = {
+            sent: {
+                background: '#e7f6ec',
+                border: '#268447',
+                heading: '#146b32'
+            },
+            none: {
+                background: '#eef4fb',
+                border: '#4779a8',
+                heading: '#225985'
+            },
+            failed: {
+                background: '#fde8e8',
+                border: '#b42318',
+                heading: '#9d1c13'
+            }
+        };
+
+        const colour = colours[type] || colours.none;
+
+        const toast = document.createElement('div');
+        toast.id = 'mot-complete-sms-toast';
+
+        Object.assign(toast.style, {
+            position: 'fixed',
+            top: '18px',
+            right: '18px',
+            zIndex: '30000',
+            width: 'min(460px, calc(100vw - 36px))',
+            maxHeight: '85vh',
+            overflowY: 'auto',
+            background: colour.background,
+            border: '2px solid ' + colour.border,
+            borderRadius: '12px',
+            padding: '15px 17px',
+            boxShadow: '0 8px 28px #0004',
+            fontFamily: 'system-ui, sans-serif'
+        });
+
+        const top = document.createElement('div');
+
+        Object.assign(top.style, {
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            gap: '12px'
+        });
+
+        const title = document.createElement('strong');
+        title.textContent = heading;
+
+        Object.assign(title.style, {
+            color: colour.heading,
+            fontSize: '18px'
+        });
+
+        const close = document.createElement('button');
+        close.type = 'button';
+        close.textContent = '×';
+
+        Object.assign(close.style, {
+            border: '0',
+            background: 'transparent',
+            cursor: 'pointer',
+            fontSize: '24px',
+            lineHeight: '1'
+        });
+
+        close.addEventListener(
+            'click',
+            () => toast.remove()
+        );
+
+        top.append(title, close);
+
+        const summaryBox = document.createElement('div');
+        summaryBox.textContent = summary;
+        summaryBox.style.marginTop = '9px';
+
+        toast.append(top, summaryBox);
+
+        if (details) {
+            const detailBox = document.createElement('div');
+            detailBox.textContent = details;
+
+            Object.assign(detailBox.style, {
+                marginTop: '10px',
+                padding: '10px',
+                background: '#fff',
+                borderRadius: '8px',
+                fontSize: '13px',
+                whiteSpace: 'pre-wrap'
+            });
+
+            toast.append(detailBox);
+        }
+
+        document.body.append(toast);
+    }
+
+    document.addEventListener('click', event => {
+        const button = event.target.closest(
+            'button[type="submit"], ' +
+            'input[type="submit"], ' +
+            'button:not([type])'
+        );
+
+        if (button?.form) {
+            button.form.__clickedButton = button;
+        }
+    });
+
+    document.addEventListener('submit', event => {
+        const form = event.target;
+
+        if (!(form instanceof HTMLFormElement)) {
+            return;
+        }
+
+        const action = form.getAttribute('action') || '';
+
+        /*
+         * These forms return JSON and do not reload the page.
+         */
+        if (
+            action.includes(
+                'upload_task_photo_inline_admin.php'
+            ) ||
+            action.includes('generate_ai_tasks.php')
+        ) {
+            return;
+        }
+
+        const pending = {
+            jobId: jobId,
+            action: getActionName(form),
+            previousSmsId: latestSms.id,
+            submittedAt: Date.now()
+        };
+
+        try {
+            sessionStorage.setItem(
+                storageKey,
+                JSON.stringify(pending)
+            );
+        } catch (_) {}
+    });
+
+    let pending = null;
+
+    try {
+        pending = JSON.parse(
+            sessionStorage.getItem(storageKey) || 'null'
+        );
+    } catch (_) {
+        pending = null;
+    }
+
+    if (!pending || pending.jobId !== jobId) {
+        return;
+    }
+
+    sessionStorage.removeItem(storageKey);
+
+    /*
+     * Ignore an abandoned action older than 15 minutes.
+     */
+    if (
+        !pending.submittedAt ||
+        Date.now() - pending.submittedAt >
+            15 * 60 * 1000
+    ) {
+        return;
+    }
+
+    /*
+     * Direct SMS controls already create a detailed backend
+     * confirmation containing the exact message.
+     */
+    if (existingBackendToast) {
+        return;
+    }
+
+    const actionName =
+        pending.action || 'Manage Job change';
+
+    const newSmsRecorded =
+        latestSms.id >
+        Number(pending.previousSmsId || 0);
+
+    if (!newSmsRecorded) {
+        showResultToast(
+            'none',
+            'ℹ NO SMS WAS SENT',
+            actionName + ' was saved successfully.',
+            'No new customer SMS was recorded.\n\n' +
+            'Notify the customer manually if this change ' +
+            'affects what they need to know.'
+        );
+
+        return;
+    }
+
+    const lowerStatus =
+        clean(latestSms.status).toLowerCase();
+
+    const failed =
+        lowerStatus.includes('fail') ||
+        lowerStatus.includes('error') ||
+        lowerStatus.includes('reject') ||
+        lowerStatus.includes('undeliver');
+
+    if (failed) {
+        showResultToast(
+            'failed',
+            '✕ SMS FAILED',
+            actionName + ' was saved, but the SMS failed.',
+            'MESSAGE:\n\n' +
+            (latestSms.message ||
+                '(Message content unavailable)') +
+            '\n\nGateway: ' +
+            (latestSms.status || 'Failure recorded')
+        );
+
+        return;
+    }
+
+    const metadata = [
+        latestSms.purpose
+            ? 'Type: ' +
+              latestSms.purpose.replace(/_/g, ' ')
+            : '',
+        latestSms.status
+            ? 'Gateway: ' + latestSms.status
+            : 'Recorded for dispatch'
+    ].filter(Boolean).join(' · ');
+
+    showResultToast(
+        'sent',
+        '✓ SMS SENT AND RECORDED',
+        actionName + ' was saved successfully.',
+        'MESSAGE SENT TO CUSTOMER:\n\n' +
+        (latestSms.message ||
+            '(Message content unavailable)') +
+        '\n\n' +
+        metadata +
+        '\n\nA permanent copy is in SMS history.'
+    );
+})();
+</script>
+
 </body>
 </html>
