@@ -1434,10 +1434,23 @@ Replacement seals if required"><?=wt_html($t['suggested_materials']??'')?></text
             const start = parseMysqlDate(el.dataset.start);
             if(!start || isNaN(start.getTime())) return;
             const breakSeconds = Number(el.dataset.breakSeconds || 0);
-            const sec = Math.max(
+            const calculatedSeconds = Math.max(
                 0,
                 Math.floor((Date.now()-start.getTime())/1000) - breakSeconds
             );
+
+            let sec = calculatedSeconds;
+
+            if (el.dataset.paused === '1') {
+                if (!el.dataset.frozenSeconds) {
+                    el.dataset.frozenSeconds = String(calculatedSeconds);
+                }
+
+                sec = Number(el.dataset.frozenSeconds);
+            } else {
+                delete el.dataset.frozenSeconds;
+            }
+
             const h = Math.floor(sec/3600);
             const m = Math.floor((sec%3600)/60);
             const s = sec%60;
