@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/_auth.php';
 require_once __DIR__ . '/../../includes/work_tracker.php';
+require_once __DIR__ . '/../../includes/work_approvals.php';
 
 $id = (int)($_GET['id'] ?? 0);
 if ($id <= 0) {
@@ -15,11 +16,52 @@ try {
     die('Admin job not found.');
 }
 
+/*
+ * Opening a job should affect recent-open ordering without pretending
+ * that the actual job record was edited.
+ *
+ * Explicitly assigning updated_at to itself prevents an automatic
+ * ON UPDATE timestamp from changing on databases configured that way.
+ */
+$touchJob = $pdo->prepare("
+    UPDATE work_jobs
+    SET
+        last_opened_at = NOW(),
+        updated_at = updated_at
+    WHERE id = ?
+");
+$touchJob->execute([$id]);
+
 $tot = wt_totals($pdo, $id);
 $tasks = wt_job_tasks($pdo,$id);
 $taskProgress = wt_task_progress($tasks);
 $activeTasks = array_values(array_filter($tasks, fn($t)=>!in_array($t['status'],['completed','cancelled'],true)));
 $taskById=[]; foreach($tasks as $t)$taskById[(int)$t['id']]=$t;
+
+/*
+ * One-time result from Save + SMS actions.
+ */
+$taskSmsFlash = $_SESSION['wt_sms_flash'] ?? null;
+unset($_SESSION['wt_sms_flash']);
+
+
+$approvalRequests = wt_job_approval_requests(
+    $pdo,
+    (int)$id
+);
+
+$approvalSummary = wt_job_approval_summary(
+    $pdo,
+    (int)$id
+);
+
+$approvalFlash =
+    $_SESSION['wt_approval_flash']
+    ?? null;
+
+unset(
+    $_SESSION['wt_approval_flash']
+);
 
 $changeStmt=$pdo->prepare("SELECT * FROM work_task_change_requests WHERE job_id=? ORDER BY created_at DESC,id DESC");
 $changeStmt->execute([$id]);
@@ -284,6 +326,9 @@ textarea{width:100%;box-sizing:border-box}
 </style>
 <link rel="stylesheet" href="assets/workspace_v8_3.css?v=1">
 <link rel="stylesheet" href="assets/task_photos_inline_v8_4c.css?v=1">
+
+<link rel="stylesheet" href="assets/workspace_v8_8.css">
+
 </head>
 <body>
 
@@ -1167,7 +1212,578 @@ Customer day-before confirmation:
 <button class="btn">SAVE SOURCE</button></form></div>
 
 <div class="card" id="tasks">
+
+<section
+    class="card"
+    id="customer-approvals"
+    style="border:2px solid #d6dde3"
+>
+    <h2>Customer approvals</h2>
+
+    <?php if ($approvalFlash): ?>
+        <div
+            class="<?=!empty($approvalFlash['ok'])
+                ? 'status-good'
+                : 'status-warn'?>"
+            style="margin:10px 0"
+        >
+            <?=wt_html(
+                (string)$approvalFlash['message']
+            )?>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($approvalSummary['holds'] > 0): ?>
+        <div
+            style="
+                background:#fff1cf;
+                border:2px solid #d49a19;
+                border-radius:10px;
+                padding:12px;
+                margin:12px 0;
+                font-weight:900
+            "
+        >
+            ⚠ CUSTOMER APPROVAL REQUIRED BEFORE
+            CONTINUING SOME WORK
+
+            <div
+                class="small"
+                style="margin-top:5px;font-weight:600"
+            >
+                <?=$approvalSummary['holds']?>
+                approval-required
+                item<?=$approvalSummary['holds']===1?'':'s'?>
+                currently remain<?=$approvalSummary['holds']===1?'s':''?>
+                on hold.
+            </div>
+        </div>
+    <?php endif; ?>
+
+    <div
+        class="task-summary-grid"
+        style="margin-bottom:15px"
+    >
+        <div class="task-summary-box">
+            <span class="n">
+                <?=$approvalSummary['approved']?>
+            </span>
+            Approved
+        </div>
+
+        <div class="task-summary-box">
+            <span class="n">
+                <?=$approvalSummary['awaiting']?>
+            </span>
+            Awaiting
+        </div>
+
+        <div class="task-summary-box">
+            <span class="n">
+                <?=$approvalSummary['snoozed']?>
+            </span>
+            Snoozed
+        </div>
+
+        <div class="task-summary-box">
+            <span class="n">
+                <?=$approvalSummary['declined']
+                    + $approvalSummary['expired']?>
+            </span>
+            Declined / expired
+        </div>
+    </div>
+
+
+    <?php if ($approvalRequests): ?>
+
+        <?php foreach ($approvalRequests as $ar): ?>
+
+            <?php
+            $arStatus =
+                (string)$ar['status'];
+
+            $arBlocks =
+                wt_approval_blocks_work($ar);
+            ?>
+
+            <div
+                class="task-detail-box"
+                style="<?=$arBlocks
+                    ? 'border:2px solid #d49a19;background:#fffaf0'
+                    : ''?>"
+            >
+                <div
+                    style="
+                        display:flex;
+                        justify-content:space-between;
+                        gap:12px;
+                        flex-wrap:wrap
+                    "
+                >
+                    <div>
+                        <strong>
+                            #<?=(int)$ar['id']?>
+                            —
+                            <?=wt_html(
+                                (string)$ar['subject']
+                            )?>
+                        </strong>
+
+                        <div class="small">
+                            <?=wt_html(
+                                ucwords(
+                                    str_replace(
+                                        '_',
+                                        ' ',
+                                        (string)$ar['request_type']
+                                    )
+                                )
+                            )?>
+                            ·
+                            <?=wt_html(
+                                wt_approval_status_label(
+                                    $arStatus
+                                )
+                            )?>
+                        </div>
+                    </div>
+
+                    <div>
+                        <?php if ($arStatus === 'approved'): ?>
+                            <span class="status-good">
+                                ✓ APPROVED
+                            </span>
+                        <?php elseif ($arStatus === 'snoozed'): ?>
+                            <span class="status-warn">
+                                💤 SNOOZED
+                            </span>
+                        <?php elseif ($arStatus === 'awaiting'): ?>
+                            <span class="status-warn">
+                                ⏳ AWAITING CUSTOMER
+                            </span>
+                        <?php elseif ($arStatus === 'declined'): ?>
+                            <span class="status-warn">
+                                ✕ DECLINED
+                            </span>
+                        <?php elseif ($arStatus === 'expired'): ?>
+                            <span class="status-warn">
+                                ⚠ EXPIRED
+                            </span>
+                        <?php else: ?>
+                            <span class="source-badge">
+                                <?=wt_html(
+                                    strtoupper($arStatus)
+                                )?>
+                            </span>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                <p>
+                    <?=nl2br(
+                        wt_html(
+                            (string)$ar['request_text']
+                        )
+                    )?>
+                </p>
+
+                <?php if (
+                    $ar['estimated_hours_low'] !== null
+                    || $ar['estimated_hours_high'] !== null
+                    || $ar['estimated_amount_low'] !== null
+                    || $ar['estimated_amount_high'] !== null
+                ): ?>
+                    <div class="small">
+                        <?php if (
+                            $ar['estimated_hours_low'] !== null
+                            || $ar['estimated_hours_high'] !== null
+                        ): ?>
+                            <b>Labour:</b>
+                            <?=wt_html(
+                                (string)(
+                                    $ar['estimated_hours_low']
+                                    ?? '?'
+                                )
+                            )?>
+                            –
+                            <?=wt_html(
+                                (string)(
+                                    $ar['estimated_hours_high']
+                                    ?? '?'
+                                )
+                            )?>
+                            h
+                        <?php endif; ?>
+
+                        <?php if (
+                            $ar['estimated_amount_low'] !== null
+                            || $ar['estimated_amount_high'] !== null
+                        ): ?>
+                            &nbsp;
+                            <b>Amount:</b>
+                            <?=wt_money(
+                                (float)(
+                                    $ar['estimated_amount_low']
+                                    ?? $ar['estimated_amount_high']
+                                    ?? 0
+                                )
+                            )?>
+                            –
+                            <?=wt_money(
+                                (float)(
+                                    $ar['estimated_amount_high']
+                                    ?? $ar['estimated_amount_low']
+                                    ?? 0
+                                )
+                            )?>
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
+
+                <?php if ($arBlocks): ?>
+                    <p
+                        style="
+                            font-weight:900;
+                            color:#8a5c00
+                        "
+                    >
+                        ⚠ Affected work remains on hold.
+                    </p>
+                <?php endif; ?>
+
+                <?php if (!empty($ar['approved_at'])): ?>
+                    <div class="small">
+                        Approved
+                        <?=wt_html(
+                            date(
+                                'j M Y, g:i a',
+                                strtotime(
+                                    (string)$ar['approved_at']
+                                )
+                            )
+                        )?>
+                        via
+                        <?=wt_html(
+                            strtoupper(
+                                (string)(
+                                    $ar['response_source']
+                                    ?? 'unknown'
+                                )
+                            )
+                        )?>.
+                    </div>
+                <?php endif; ?>
+
+                <?php if (!empty($ar['snoozed_until'])): ?>
+                    <div class="small">
+                        Snoozed until
+                        <?=wt_html(
+                            date(
+                                'j M Y, g:i a',
+                                strtotime(
+                                    (string)$ar['snoozed_until']
+                                )
+                            )
+                        )?>.
+                    </div>
+                <?php endif; ?>
+
+                <?php if (!empty($ar['next_reminder_at'])): ?>
+                    <div class="small">
+                        Next reminder currently scheduled for
+                        <?=wt_html(
+                            date(
+                                'j M Y, g:i a',
+                                strtotime(
+                                    (string)$ar['next_reminder_at']
+                                )
+                            )
+                        )?>.
+                        <b>
+                            Automatic reminder sending is not
+                            enabled yet.
+                        </b>
+                    </div>
+                <?php endif; ?>
+            </div>
+
+        <?php endforeach; ?>
+
+    <?php else: ?>
+
+        <p class="small">
+            No customer approval requests have been created
+            for this job yet.
+        </p>
+
+    <?php endif; ?>
+
+
+    <details
+        class="task-detail-box"
+        style="margin-top:16px"
+    >
+        <summary>
+            ➕ Create customer approval / acknowledgement
+        </summary>
+
+        <form
+            method="post"
+            action="../../api/work/create_approval_request.php"
+            style="margin-top:14px"
+        >
+            <input
+                type="hidden"
+                name="job_id"
+                value="<?=$id?>"
+            >
+
+            <div class="task-grid">
+
+                <div class="field">
+                    <label>Request type</label>
+
+                    <select name="request_type">
+                        <option value="additional_work">
+                            Additional work
+                        </option>
+
+                        <option value="variation">
+                            Variation
+                        </option>
+
+                        <option value="acknowledgement">
+                            Acknowledgement only
+                        </option>
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label>Related task</label>
+
+                    <select name="task_id">
+                        <option value="">
+                            Whole job / not assigned
+                        </option>
+
+                        <?php foreach ($tasks as $t): ?>
+                            <option
+                                value="<?=(int)$t['id']?>"
+                            >
+                                <?=wt_html(
+                                    (string)$t['title']
+                                )?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label>Urgency</label>
+
+                    <select name="urgency">
+                        <option value="normal">
+                            Normal
+                        </option>
+
+                        <option value="time_sensitive">
+                            Time-sensitive / onsite
+                        </option>
+                    </select>
+                </div>
+
+            </div>
+
+
+            <div class="field">
+                <label>Short heading</label>
+
+                <input
+                    name="subject"
+                    maxlength="255"
+                    required
+                    placeholder="e.g. Replace rotten fascia section"
+                >
+            </div>
+
+
+            <div class="field">
+                <label>
+                    Exact work / information being sent
+                </label>
+
+                <textarea
+                    name="request_text"
+                    required
+                    placeholder="Describe exactly what has changed, what work is proposed and why."
+                ></textarea>
+            </div>
+
+
+            <div
+                style="
+                    background:#eef6ff;
+                    border:1px solid #c9dff5;
+                    border-radius:10px;
+                    padding:11px 12px;
+                    margin:12px 0;
+                "
+            >
+                <b>Pricing for additional work</b>
+
+                <div class="small" style="margin-top:5px">
+                    No time estimate is required here.
+                    Approved additional work is charged using the
+                    normal agreed job rate, plus applicable
+                    materials / expenses.
+                </div>
+
+                <?php if (
+                    isset($job['agreed_hourly_rate'])
+                    && (float)$job['agreed_hourly_rate'] > 0
+                ): ?>
+                    <div style="margin-top:7px">
+                        Current agreed rate:
+                        <b>
+                            <?=wt_money(
+                                (float)$job['agreed_hourly_rate']
+                            )?>/hr
+                        </b>
+                    </div>
+                <?php endif; ?>
+            </div>
+
+            <div class="task-grid">
+
+                <div class="field">
+                    <label>Customer authority</label>
+
+                    <select
+                        name="approval_required"
+                        id="approvalRequired"
+                    >
+                        <option value="1">
+                            Written approval required
+                        </option>
+
+                        <option value="0">
+                            Information / acknowledgement only
+                        </option>
+                    </select>
+
+                    <select
+                        name="work_hold_required"
+                        style="margin-top:7px"
+                    >
+                        <option value="1">
+                            Hold affected work until approved
+                        </option>
+
+                        <option value="0">
+                            Do not automatically hold work
+                        </option>
+                    </select>
+                </div>
+
+            </div>
+
+            <div
+                style="
+                    background:#eef6ff;
+                    border:1px solid #a7c8eb;
+                    border-radius:10px;
+                    padding:12px;
+                    margin:12px 0
+                "
+            >
+                <b>What happens next</b>
+
+                <div class="small" style="margin-top:5px">
+                    The request is saved first, then sent by SMS.
+                    For approval-required work the customer can
+                    reply <b>YES request-number</b>,
+                    <b>NO request-number</b> or
+                    <b>SNOOZE request-number 20</b>.
+                    A snooze does not authorise the work.
+                </div>
+            </div>
+
+            <button
+                class="btn"
+                type="submit"
+            >
+                👀 PREVIEW APPROVAL MESSAGE
+            </button>
+
+            <div class="small" style="margin-top:7px">
+                Nothing is sent from this screen.
+                The next screen shows the exact SMS for review
+                and editing before you send it.
+            </div>
+        </form>
+    </details>
+</section>
+
 <h2>Job tasks <?php if($pendingChangeCount):?><span class="source-badge source-retro"><?=$pendingChangeCount?> customer change request<?=$pendingChangeCount===1?'':'s'?> awaiting review</span><?php endif;?></h2>
+
+<?php if(is_array($taskSmsFlash)):?>
+<?php
+$taskSmsRequested =
+    !empty($taskSmsFlash['sms_requested']);
+
+$taskSmsOk =
+    !empty($taskSmsFlash['ok']);
+
+$taskFlashBackground =
+    !$taskSmsRequested
+        ? '#eef6ff'
+        : ($taskSmsOk ? '#e7f6ec' : '#fde8e8');
+
+$taskFlashBorder =
+    !$taskSmsRequested
+        ? '#3973a8'
+        : ($taskSmsOk ? '#268447' : '#b42318');
+?>
+<div style="
+    margin:10px 0 14px;
+    padding:12px 14px;
+    background:<?=$taskFlashBackground?>;
+    border:2px solid <?=$taskFlashBorder?>;
+    border-radius:10px;
+">
+    <?php if(!$taskSmsRequested):?>
+
+        <b>✓ Task saved — no SMS sent.</b>
+
+    <?php elseif($taskSmsOk):?>
+
+        <b>✓ Task saved and SMS dispatched.</b>
+
+        <?php if(!empty($taskSmsFlash['message'])):?>
+        <div style="
+            margin-top:8px;
+            background:#fff;
+            padding:9px;
+            border-radius:7px;
+            white-space:pre-wrap;
+        "><?=wt_html((string)$taskSmsFlash['message'])?></div>
+        <?php endif;?>
+
+    <?php else:?>
+
+        <b>⚠ Task saved, but SMS was not dispatched.</b>
+
+        <?php if(!empty($taskSmsFlash['status'])):?>
+        <div class="small" style="margin-top:6px">
+            <?=wt_html((string)$taskSmsFlash['status'])?>
+        </div>
+        <?php endif;?>
+
+    <?php endif;?>
+</div>
+<?php endif;?>
+
 <p class="small">Break the job into real pieces of work. AI and Mike estimates are kept separately. Tracked time is calculated from sessions linked to each task.</p>
 <div style="margin:10px 0"><b>Approximate progress: <?=$taskProgress['percent']?>%</b><div class="progressbar"><div class="progressfill" style="width:<?=$taskProgress['percent']?>%"></div></div></div>
 <?php if(!$tasks):?><p>No tasks yet.</p><?php endif;?>
@@ -1194,7 +1810,72 @@ Replacement seals if required"><?=wt_html($t['suggested_materials']??'')?></text
 <div class="field"><label>AI reasoning</label><textarea name="ai_reasoning"><?=wt_html($t['ai_reasoning']??'')?></textarea></div>
 <div class="task-grid"><div class="field"><label>Mike estimate low (h)</label><input type="number" step="0.1" min="0" name="mike_estimate_low" value="<?=wt_html((string)($t['mike_estimate_low']??''))?>"></div><div class="field"><label>Mike estimate high (h)</label><input type="number" step="0.1" min="0" name="mike_estimate_high" value="<?=wt_html((string)($t['mike_estimate_high']??''))?>"></div><div class="field"><label>Mike best actual guess (optional)</label><input type="number" step="0.1" min="0" name="actual_adjusted_hours" value="<?=wt_html((string)($t['actual_adjusted_hours']??''))?>"></div></div>
 <div class="field"><label>Mike estimate reasoning</label><textarea name="mike_reasoning"><?=wt_html($t['mike_reasoning']??'')?></textarea></div><div class="field"><label>Actual-time reasoning / why it differed</label><textarea name="actual_reasoning"><?=wt_html($t['actual_reasoning']??'')?></textarea></div>
-<p class="checkline"><input type="checkbox" name="customer_visible" value="1" <?=$t['customer_visible']?'checked':''?>> Visible to customer</p><button class="btn">SAVE TASK</button></form>
+<p class="checkline"><input type="checkbox" name="customer_visible" value="1" <?=$t['customer_visible']?'checked':''?>> Visible to customer</p>
+
+<?php
+$taskStatusLabels = [
+    'not_started' => 'not started',
+    'in_progress' => 'in progress',
+    'blocked' => 'blocked',
+    'completed' => 'completed',
+    'cancelled' => 'cancelled',
+];
+
+$defaultTaskSms =
+    'Mike of All Trades update: "' .
+    (string)$t['title'] .
+    '" is now ' .
+    ($taskStatusLabels[$t['status']] ?? $t['status']) .
+    '. Your job record has been updated.';
+?>
+
+<details class="task-detail-box task-sms-box">
+<summary>📱 Customer SMS for this update</summary>
+
+<p class="small" style="margin-top:10px">
+Edit this message if required. Use <b>Save only</b> when the customer
+does not need an SMS, or <b>Save + SMS customer</b> when you want the
+customer notified of this specific update.
+</p>
+
+<div class="field">
+<label>SMS message</label>
+<textarea
+    name="customer_sms_message"
+    class="task-customer-sms"
+    data-auto-sms="1"
+    rows="4"
+><?=wt_html($defaultTaskSms)?></textarea>
+</div>
+
+</details>
+
+<div style="
+    display:flex;
+    gap:9px;
+    flex-wrap:wrap;
+    margin-top:12px;
+">
+    <button
+        class="btn"
+        type="submit"
+        name="save_action"
+        value="save_only"
+    >
+        SAVE ONLY
+    </button>
+
+    <button
+        class="btn sms"
+        type="submit"
+        name="save_action"
+        value="save_sms"
+    >
+        📱 SAVE + SMS CUSTOMER
+    </button>
+</div>
+
+</form>
 <?php foreach(($changesByTask[(int)$t['id']]??[]) as $cr):?>
 <div class="task-change-admin <?=$cr['status']==='awaiting_review'?'pending':''?>"><div><b>Customer change request</b> <span class="change-pill <?=wt_html($cr['status'])?>"><?=wt_html(ucwords(str_replace('_',' ',$cr['status'])))?></span></div><div class="meta"><?=wt_html(date('j M Y, g:i a',strtotime($cr['created_at'])))?> · <?=wt_html(ucwords(str_replace('_',' ',$cr['request_type'])))?></div><p><?=nl2br(wt_html($cr['customer_message']))?></p>
 <form method="post" action="../../api/work/review_task_change.php"><input type="hidden" name="job_id" value="<?=$id?>"><input type="hidden" name="request_id" value="<?=$cr['id']?>"><div class="task-grid"><div class="field"><label>Decision</label><select name="status"><?php foreach(['accepted'=>'Accept','amended'=>'Accept with amendment','question_sent'=>'Ask / clarify','declined'=>'Decline'] as $k=>$v):?><option value="<?=$k?>" <?=$cr['status']===$k?'selected':''?>><?=$v?></option><?php endforeach;?></select></div><div class="field"><label>Effect on estimate</label><select name="affects_estimate"><option value="unknown" <?=$cr['affects_estimate']==='unknown'?'selected':''?>>Not assessed</option><option value="no" <?=$cr['affects_estimate']==='no'?'selected':''?>>No material effect</option><option value="yes" <?=$cr['affects_estimate']==='yes'?'selected':''?>>May affect time/cost</option></select></div><div class="field"><label>Approx. extra hours low / high</label><div class="row"><input type="number" step="0.1" min="0" name="estimate_delta_low" value="<?=wt_html((string)($cr['estimate_delta_low']??''))?>"><input type="number" step="0.1" min="0" name="estimate_delta_high" value="<?=wt_html((string)($cr['estimate_delta_high']??''))?>"></div></div></div><div class="field"><label>Mike response / clarification</label><textarea name="mike_response" placeholder="Explain what has been accepted, changed, needs clarification, or why it cannot be done as requested."><?=wt_html($cr['mike_response']??'')?></textarea></div><button class="btn">SAVE RESPONSE &amp; NOTIFY CUSTOMER</button></form>
@@ -1978,6 +2659,84 @@ Replacement seals if required"><?=wt_html($t['suggested_materials']??'')?></text
         metadata +
         '\n\nA permanent copy is in SMS history.'
     );
+})();
+</script>
+
+
+<script src="assets/workspace_v8_8.js"></script>
+
+
+<script>
+/* V8.9 OPTIONAL PER-EDIT CUSTOMER SMS */
+(() => {
+    'use strict';
+
+    const labels = {
+        not_started: 'not started',
+        in_progress: 'in progress',
+        blocked: 'blocked',
+        completed: 'completed',
+        cancelled: 'cancelled'
+    };
+
+    function buildTaskSms(form) {
+        const title =
+            form.querySelector('[name="title"]')?.value.trim()
+            || 'Job task';
+
+        const status =
+            form.querySelector('[name="status"]')?.value
+            || 'not_started';
+
+        return (
+            'Mike of All Trades update: "' +
+            title +
+            '" is now ' +
+            (labels[status] || status) +
+            '. Your job record has been updated.'
+        );
+    }
+
+    document.querySelectorAll(
+        '#tasks form[action*="update_task.php"]'
+    ).forEach(form => {
+
+        const sms =
+            form.querySelector('.task-customer-sms');
+
+        const title =
+            form.querySelector('[name="title"]');
+
+        const status =
+            form.querySelector('[name="status"]');
+
+        if (!sms || !title || !status) {
+            return;
+        }
+
+        let manuallyEdited = false;
+
+        sms.addEventListener('input', () => {
+            manuallyEdited = true;
+            sms.dataset.autoSms = '0';
+        });
+
+        function refreshDraft() {
+            if (manuallyEdited) {
+                return;
+            }
+
+            sms.value = buildTaskSms(form);
+        }
+
+        title.addEventListener('input', refreshDraft);
+        status.addEventListener('change', refreshDraft);
+
+        /*
+         * If Mike clears the text completely, Save + SMS will still
+         * let the server generate a safe current-status message.
+         */
+    });
 })();
 </script>
 

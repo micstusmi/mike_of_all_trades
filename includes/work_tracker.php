@@ -265,3 +265,129 @@ function wt_task_progress(array $tasks): array {
 function wt_html(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }
+
+/**
+ * Optionally send a customer SMS after a Work Tracker change has
+ * successfully been saved.
+ *
+ * The database change must happen before calling this helper.
+ *
+ * Returns:
+ * [
+ *   'requested' => bool,
+ *   'sent'      => bool,
+ *   'message'   => string,
+ *   'result'    => ?array,
+ * ]
+ */
+function wt_optional_customer_sms(
+    PDO $pdo,
+    int $jobId,
+    bool $send,
+    string $purpose,
+    string $message
+): array {
+    $message = trim($message);
+
+    if (!$send) {
+        return [
+            'requested' => false,
+            'sent' => false,
+            'message' => $message,
+            'result' => null,
+        ];
+    }
+
+    if ($message === '') {
+        return [
+            'requested' => true,
+            'sent' => false,
+            'message' => '',
+            'result' => [
+                'ok' => false,
+                'error' => 'SMS message was empty.',
+            ],
+        ];
+    }
+
+    $job = wt_job($pdo, $jobId);
+
+    $phone = trim(
+        (string)($job['customer_phone'] ?? '')
+    );
+
+    if ($phone === '') {
+        return [
+            'requested' => true,
+            'sent' => false,
+            'message' => $message,
+            'result' => [
+                'ok' => false,
+                'error' => 'Customer has no phone number recorded.',
+            ],
+        ];
+    }
+
+    $result = wt_send_sms(
+        $pdo,
+        $jobId,
+        $phone,
+        $message,
+        $purpose
+    );
+
+    return [
+        'requested' => true,
+        'sent' => !empty($result['ok']),
+        'message' => $message,
+        'result' => $result,
+    ];
+}
+
+
+/**
+ * Store the result of an optional SMS in the admin session so the
+ * next admin page can display exactly what happened.
+ */
+function wt_store_sms_flash(
+    array $sms,
+    string $actionLabel = 'Update'
+): void {
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        return;
+    }
+
+    if (empty($sms['requested'])) {
+        $_SESSION['wt_sms_flash'] = [
+            'ok' => true,
+            'sms_requested' => false,
+            'action' => $actionLabel,
+            'message' => '',
+            'status' => '',
+            'purpose' => '',
+            'time' => date('Y-m-d H:i:s'),
+        ];
+
+        return;
+    }
+
+    $result = is_array($sms['result'] ?? null)
+        ? $sms['result']
+        : [];
+
+    $_SESSION['wt_sms_flash'] = [
+        'ok' => !empty($sms['sent']),
+        'sms_requested' => true,
+        'action' => $actionLabel,
+        'message' => (string)($sms['message'] ?? ''),
+        'status' =>
+            (string)(
+                $result['status']
+                ?? $result['error']
+                ?? ''
+            ),
+        'purpose' =>
+            (string)($result['purpose'] ?? ''),
+        'time' => date('Y-m-d H:i:s'),
+    ];
+}

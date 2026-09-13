@@ -1,7 +1,15 @@
 <?php
 require_once __DIR__ . '/_auth.php';
 require_once __DIR__ . '/../../includes/work_tracker.php';
-$jobs = $pdo->query("SELECT * FROM work_jobs ORDER BY FIELD(status,'active','paused','awaiting_agreement','draft','completed','cancelled'), updated_at DESC LIMIT 100")->fetchAll(PDO::FETCH_ASSOC);
+$jobs = $pdo->query("
+    SELECT *
+    FROM work_jobs
+    ORDER BY
+        (last_opened_at IS NULL) ASC,
+        last_opened_at DESC,
+        updated_at DESC
+    LIMIT 100
+")->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Work Tracker</title>

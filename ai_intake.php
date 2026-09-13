@@ -319,6 +319,7 @@ estimated_price
 service
 suburb
 quote_ready
+structured_estimate
 
 Intent must be one of:
 job_quote
@@ -362,6 +363,7 @@ Rules:
 - If the customer sounds frustrated or says “just give me the quote”, stop asking questions and provide the best indicative estimate possible.
 - For small standard jobs like fitting a supplied deadlock, replacing a handle, hanging a picture, basic patching, or simple handyman tasks, it is okay to estimate based on typical labour without asking every detail.
 - Never say the quote has been sent unless the backend confirms it.
+- CUSTOMER-FACING ESTIMATE SAFETY: Do not state labour hours, days of work, site-visit count, or a dollar estimate in the conversational reply before the backend-verified quote has been produced. When quote_ready is true, keep the reply concise and say the estimate is ready for review, then direct the customer to “Review quote form”. The structured numeric fields are for the backend, not for the chat bubble.
 - When ready, tell the customer they can press “Review quote form” to review and send the formal quote.
 - If the customer says yes after being offered the quote form, do not repeat the offer. Tell them to press the “Review quote form” button below.
 - If the customer is asking for a quote, don't mention availability unless the customer specifically asks or implies that they want to know the availability.
@@ -385,6 +387,18 @@ Rules:
 - For very small and straightforward jobs, keep incidental allowances proportionate; do not make a tiny task expensive simply because generic setup items exist.
 - If special materials, fixings or consumables may be needed but are not confirmed, either include a reasonable allowance/assumption or clearly state that supply/collection may change the final price.
 - When estimating hours for the customer, the estimated_hours field should reflect the realistic total job allowance Mike is likely to devote to the job, not merely hands-on tool time.
+- STRUCTURED ESTIMATE: When quote_ready is true, build structured_estimate before deciding the final hours. Break the work into separate practical tasks, then break each task into the labour components that genuinely apply. Use component categories such as assessment_planning, procurement_logistics, unload_setup, preparation, hands_on_work, cleanup_handover, pack_load, and uncertainty_allowance.
+- Each component must have low_hours, likely_hours and high_hours. These are TOTAL labour hours for that component, not rates or calendar duration. Keep low <= likely <= high.
+- Do not create fake components merely to make a quote look detailed. Include only work that is reasonably connected to the described job.
+- Do not hide repeated mobilisation inside hands_on_work. If the job is likely to need multiple attendances, represent repeated setup, making-safe/cleanup and pack/load labour explicitly where appropriate.
+- For larger multi-day jobs, Mike may deliberately attend on alternating days so he can continue servicing smaller handyman customers. Distinguish labour hours from elapsed calendar duration. A job can contain 150 labour hours while taking substantially more than 150/8 calendar working days to complete.
+- Long work sessions can reduce the number of mobilisations. Do not assume every 8 labour hours equals a separate site visit. Estimate expected_site_visits separately.
+- PROCUREMENT: Treat sourcing and collection as real labour where relevant. Consider product research, checking suitability, checking stock, driving, parking, locating products, checkout, loading, returning to site, and reasonable repeat procurement as work. Do not assume every receipt is a separate trip.
+- For complex renovation/property-maintenance work with many unrelated scopes, allow for staged procurement and a realistic chance that an advertised low-stock item is unavailable and requires an alternate supplier/store. Express this as reasonable labour allowance, not as a claim that a problem will definitely occur.
+- Keep reusable tools/equipment conceptually separate from customer materials. Do not simply charge the customer the purchase price of Mike's reusable tools.
+- structured_estimate.project_components contains shared project-level labour that must NOT also be duplicated inside every task, such as an overall walkthrough, broad planning, combined supplier run, final whole-project handover, or other genuinely shared overhead.
+- structured_estimate.total_low_hours, total_likely_hours and total_high_hours are model cross-checks only. The website backend will independently sum task components plus project components and overwrite the final estimated_hours with the verified likely-hours total.
+- If quote_ready is false, return empty structured_estimate task/component arrays and zero totals.
 - If painting over old paint is involved, assume that there is a percentage of preparation time needing to be added to the job including setup time, sanding, masking, possible damage, rot, weathering etc that could require minor repairs such as wood putty, spot painting undercoat, clean-up time, etc. and if the colour is changing then there is sometimes 2-3 coats of paint required to completely cover the old colour to stop the old colour from shining through and sometimes there are complications when painting acrylic paint over the top of old enamel paint.
 - When painting is involved you need to understand that undercoat takes 2-4 hours to dry before re-coating and same with top coat/s and same with plaster patch ups and same with wood putty patches so sometimes the job can't be done all in one site visit and sometimes the job needs multiple site visits if it is a small project.
 - If the customer says they want to book, lock in, reserve, schedule, proceed with a booking, or “just book it in”, use intent: booking.
@@ -417,6 +431,40 @@ foreach ($attachmentContent as $attachmentPart) {
     $userContent[] = $attachmentPart;
 }
 
+$hourComponentSchema = [
+    'type' => 'object',
+    'properties' => [
+        'category' => [
+            'type' => 'string',
+            'enum' => [
+                'assessment_planning',
+                'procurement_logistics',
+                'unload_setup',
+                'preparation',
+                'hands_on_work',
+                'cleanup_handover',
+                'pack_load',
+                'uncertainty_allowance',
+                'other'
+            ]
+        ],
+        'label' => ['type' => 'string'],
+        'explanation' => ['type' => 'string'],
+        'low_hours' => ['type' => 'number', 'minimum' => 0],
+        'likely_hours' => ['type' => 'number', 'minimum' => 0],
+        'high_hours' => ['type' => 'number', 'minimum' => 0]
+    ],
+    'required' => [
+        'category',
+        'label',
+        'explanation',
+        'low_hours',
+        'likely_hours',
+        'high_hours'
+    ],
+    'additionalProperties' => false
+];
+
 $quoteResponseSchema = [
     'type' => 'object',
     'properties' => [
@@ -438,17 +486,73 @@ $quoteResponseSchema = [
             'type' => 'array',
             'items' => ['type' => 'string']
         ],
-        'estimated_hours' => [
-            'type' => 'number',
-            'minimum' => 0
-        ],
-        'estimated_price' => [
-            'type' => 'number',
-            'minimum' => 0
-        ],
+        'estimated_hours' => ['type' => 'number', 'minimum' => 0],
+        'estimated_price' => ['type' => 'number', 'minimum' => 0],
         'service' => ['type' => 'string'],
         'suburb' => ['type' => 'string'],
-        'quote_ready' => ['type' => 'boolean']
+        'quote_ready' => ['type' => 'boolean'],
+        'structured_estimate' => [
+            'type' => 'object',
+            'properties' => [
+                'tasks' => [
+                    'type' => 'array',
+                    'items' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'title' => ['type' => 'string'],
+                            'scope' => ['type' => 'string'],
+                            'quantity' => ['type' => 'number', 'minimum' => 0],
+                            'unit' => ['type' => 'string'],
+                            'assumptions' => [
+                                'type' => 'array',
+                                'items' => ['type' => 'string']
+                            ],
+                            'components' => [
+                                'type' => 'array',
+                                'items' => $hourComponentSchema
+                            ]
+                        ],
+                        'required' => [
+                            'title',
+                            'scope',
+                            'quantity',
+                            'unit',
+                            'assumptions',
+                            'components'
+                        ],
+                        'additionalProperties' => false
+                    ]
+                ],
+                'project_components' => [
+                    'type' => 'array',
+                    'items' => $hourComponentSchema
+                ],
+                'procurement_complexity' => [
+                    'type' => 'string',
+                    'enum' => ['none', 'low', 'moderate', 'high', 'very_high']
+                ],
+                'expected_site_visits' => ['type' => 'integer', 'minimum' => 0],
+                'scheduling_pattern' => ['type' => 'string'],
+                'elapsed_duration_low_days' => ['type' => 'number', 'minimum' => 0],
+                'elapsed_duration_high_days' => ['type' => 'number', 'minimum' => 0],
+                'total_low_hours' => ['type' => 'number', 'minimum' => 0],
+                'total_likely_hours' => ['type' => 'number', 'minimum' => 0],
+                'total_high_hours' => ['type' => 'number', 'minimum' => 0]
+            ],
+            'required' => [
+                'tasks',
+                'project_components',
+                'procurement_complexity',
+                'expected_site_visits',
+                'scheduling_pattern',
+                'elapsed_duration_low_days',
+                'elapsed_duration_high_days',
+                'total_low_hours',
+                'total_likely_hours',
+                'total_high_hours'
+            ],
+            'additionalProperties' => false
+        ]
     ],
     'required' => [
         'intent',
@@ -459,14 +563,75 @@ $quoteResponseSchema = [
         'estimated_price',
         'service',
         'suburb',
-        'quote_ready'
+        'quote_ready',
+        'structured_estimate'
     ],
     'additionalProperties' => false
 ];
 
+
+$estimatorResponseSchema = [
+    'type' => 'object',
+    'properties' => [
+        'understood_job' => ['type' => 'string'],
+        'estimated_price' => ['type' => 'number', 'minimum' => 0],
+        'structured_estimate' => [
+            'type' => 'object',
+            'properties' => [
+                'tasks' => [
+                    'type' => 'array',
+                    'items' => $taskSchema
+                ],
+                'project_components' => [
+                    'type' => 'array',
+                    'items' => $hourComponentSchema
+                ],
+                'procurement_complexity' => [
+                    'type' => 'string',
+                    'enum' => ['none', 'low', 'moderate', 'high', 'very_high']
+                ],
+                'expected_site_visits' => ['type' => 'integer', 'minimum' => 0],
+                'scheduling_pattern' => ['type' => 'string'],
+                'elapsed_duration_low_days' => ['type' => 'number', 'minimum' => 0],
+                'elapsed_duration_high_days' => ['type' => 'number', 'minimum' => 0],
+                'total_low_hours' => ['type' => 'number', 'minimum' => 0],
+                'total_likely_hours' => ['type' => 'number', 'minimum' => 0],
+                'total_high_hours' => ['type' => 'number', 'minimum' => 0]
+            ],
+            'required' => [
+                'tasks',
+                'project_components',
+                'procurement_complexity',
+                'expected_site_visits',
+                'scheduling_pattern',
+                'elapsed_duration_low_days',
+                'elapsed_duration_high_days',
+                'total_low_hours',
+                'total_likely_hours',
+                'total_high_hours'
+            ],
+            'additionalProperties' => false
+        ]
+    ],
+    'required' => [
+        'understood_job',
+        'estimated_price',
+        'structured_estimate'
+    ],
+    'additionalProperties' => false
+];
+
+$aiModel = getenv('AI_INTAKE_MODEL');
+if (!is_string($aiModel) || trim($aiModel) === '') {
+    $aiModel = 'gpt-5.6-luna';
+}
+
 $payload = [
-    'model' => 'gpt-4.1-mini',
-    'instructions' => 'You are an AI intake assistant and experienced practical estimator for Mike Of All Trades in Victoria, Australia. Keep replies short, friendly and practical. Ask one useful follow-up question at a time. Help gather enough detail for a quote or booking. Use attached job photos and PDF plans/documents when available. Do not infer physical scale from a photo unless a reliable size reference is visible or stated. Use dimensions explicitly stated in PDFs when relevant, but do not invent measurements. Estimate realistic total job time rather than only hands-on tool time, including proportionate preparation, access, setup, site reassessment, cleanup and pack-up where relevant. IMPORTANT: estimated_hours and estimated_price must always be plain numeric values with no words, currency symbols, ranges or units. If your reply gives a range, use a sensible representative midpoint for estimated_hours and estimated_price. Example: reply may say 1.5 to 2 hours and $180 to $220, while estimated_hours should be 1.75 and estimated_price should be 200. If the quote is not ready yet, use 0 for those numeric fields. Do not overwhelm the customer. Avoid repeatedly saying thanks, got it, or thanks for reaching out. Return JSON only.',
+    'model' => trim($aiModel),
+    'reasoning' => [
+        'effort' => 'low'
+    ],
+    'instructions' => 'You are an AI intake assistant and experienced practical estimator for Mike Of All Trades in Victoria, Australia. Keep customer replies short, friendly and practical, but perform detailed estimating internally. For quote-ready work, decompose the job into realistic task components and project-level shared labour before giving a total. Account for assessment, procurement/logistics, repeated mobilisation when appropriate, setup, preparation, hands-on work, cleanup/handover, pack/load and reasonable uncertainty without double-counting shared overhead. Distinguish labour hours from elapsed calendar duration. estimated_hours and estimated_price must remain numeric only. The backend will verify structured labour arithmetic. Return JSON only.',
     'input' => [
         [
             'role' => 'user',
@@ -480,8 +645,7 @@ $payload = [
             'strict' => true,
             'schema' => $quoteResponseSchema
         ]
-    ],
-    'temperature' => 0.35
+    ]
 ];
 
 $ch = curl_init('https://api.openai.com/v1/responses');
@@ -550,6 +714,505 @@ if (!is_array($parsedContent)) {
         'OpenAI returned an unexpected structured response.',
         $content
     );
+}
+
+/*
+ * V3 two-pass architecture:
+ * - Fast/low-cost model handles the natural-language intake conversation.
+ * - Only when the intake says the job is quote-ready do we run a dedicated
+ *   high-reasoning estimator over the SAME full conversation and attachments.
+ * - The backend still owns the arithmetic sanity checks after this pass.
+ */
+if (!empty($parsedContent['quote_ready'])) {
+    $estimatorModel = getenv('AI_ESTIMATOR_MODEL');
+    if (!is_string($estimatorModel) || trim($estimatorModel) === '') {
+        $estimatorModel = 'gpt-5.6-sol';
+    }
+
+    $estimatorReasoning = strtolower(trim((string)(getenv('AI_ESTIMATOR_REASONING') ?: 'high')));
+    if (!in_array($estimatorReasoning, ['none', 'low', 'medium', 'high', 'xhigh', 'max'], true)) {
+        $estimatorReasoning = 'high';
+    }
+
+    $estimatorInstructions = <<<'ESTIMATOR'
+You are the dedicated second-pass estimator for Mike Of All Trades in Victoria, Australia. The intake conversation has already established that the customer wants an indicative quote. Your job is NOT to chat with the customer. Your job is to convert the complete conversation, stated measurements, photos and PDF evidence into a realistic structured labour plan.
+
+Estimate Mike's REAL business labour consumed, not idealised trade-production time. Break each scope item into practical components including assessment/planning, procurement/logistics where applicable, unload/setup, preparation, hands-on work, cleanup/handover, pack/load and reasonable uncertainty. Put truly shared project labour in project_components so it is not duplicated in every task.
+
+Important estimating behaviour:
+- Use explicit customer measurements when supplied. Do not invent missing measurements from photos.
+- Existing-property renovation and maintenance work must include preparation, access, protection, checking existing conditions, minor adjustment and cleanup that genuinely apply.
+- Painting estimates must account for preparation, masking/protection, cutting-in, rolling/brushing, likely multiple coats where appropriate, between-stage handling, and the fact that drying/curing can require return visits. Drying time itself is not labour.
+- Fascia, window-frame, deck and exterior work must include access/repositioning and preparation appropriate to the stated scope.
+- Procurement is labour when Mike is supplying materials. Multi-scope jobs may require staged collection, stock checking, loading and occasional repeat supplier visits. Do not equate receipts with trips.
+- Site visits are substantial attendances, not automatic 8-hour blocks. Long work sessions can reduce visit count, but do not compress a drying-dependent, multi-scope project into an implausibly tiny number of visits.
+- Distinguish labour hours from elapsed calendar duration.
+- Prefer a realistic low/likely/high range. The likely figure should represent a sensible working allowance, not an optimistic best case.
+- Do not inflate hours merely to hit a target. Every component must be defensible from the scope and evidence.
+- Carpet work that the customer says will be handled and quoted separately by a carpet specialist should not be included in Mike's labour or price, except for any explicit Mike coordination work requested.
+- estimated_price is the indicative total for Mike's quoted scope only. Respect any instruction that a third-party item is to be shown separately or excluded from Mike's tally.
+
+Return only the required structured JSON.
+ESTIMATOR;
+
+    $estimatorUserContent = [
+        [
+            'type' => 'input_text',
+            'text' => "Latest customer message: {$job}\n\nComplete conversation so far:\n{$history}"
+        ]
+    ];
+    foreach ($attachmentContent as $attachmentPart) {
+        $estimatorUserContent[] = $attachmentPart;
+    }
+
+    $estimatorPayload = [
+        'model' => trim($estimatorModel),
+        'reasoning' => [
+            'effort' => $estimatorReasoning
+        ],
+        'instructions' => $estimatorInstructions,
+        'input' => [
+            [
+                'role' => 'user',
+                'content' => $estimatorUserContent
+            ]
+        ],
+        'text' => [
+            'format' => [
+                'type' => 'json_schema',
+                'name' => 'mike_of_all_trades_dedicated_estimator',
+                'strict' => true,
+                'schema' => $estimatorResponseSchema
+            ]
+        ]
+    ];
+
+    try {
+        $estimatorCh = curl_init('https://api.openai.com/v1/responses');
+        curl_setopt_array($estimatorCh, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_HTTPHEADER => [
+                'Content-Type: application/json',
+                'Authorization: Bearer ' . OPENAI_API_KEY
+            ],
+            CURLOPT_POSTFIELDS => json_encode($estimatorPayload),
+            CURLOPT_CONNECTTIMEOUT => 20,
+            CURLOPT_TIMEOUT => 180
+        ]);
+
+        $estimatorResponse = curl_exec($estimatorCh);
+        if ($estimatorResponse === false) {
+            throw new RuntimeException('Dedicated estimator request failed: ' . curl_error($estimatorCh));
+        }
+
+        $estimatorHttpCode = curl_getinfo($estimatorCh, CURLINFO_HTTP_CODE);
+        curl_close($estimatorCh);
+
+        $estimatorData = json_decode($estimatorResponse, true);
+        if (!is_array($estimatorData)) {
+            throw new RuntimeException('Dedicated estimator returned invalid JSON.');
+        }
+        if (isset($estimatorData['error'])) {
+            throw new RuntimeException((string)($estimatorData['error']['message'] ?? 'Dedicated estimator API error.'));
+        }
+        if ($estimatorHttpCode < 200 || $estimatorHttpCode >= 300) {
+            throw new RuntimeException('Dedicated estimator request returned HTTP ' . $estimatorHttpCode . '.');
+        }
+
+        $estimatorContent = null;
+        foreach (($estimatorData['output'] ?? []) as $outputItem) {
+            if (($outputItem['type'] ?? '') !== 'message') continue;
+            foreach (($outputItem['content'] ?? []) as $contentItem) {
+                if (($contentItem['type'] ?? '') === 'output_text' && isset($contentItem['text'])) {
+                    $estimatorContent = $contentItem['text'];
+                    break 2;
+                }
+            }
+        }
+
+        if (!$estimatorContent) {
+            throw new RuntimeException('Dedicated estimator response contained no structured message content.');
+        }
+
+        $estimatorParsed = json_decode($estimatorContent, true);
+        if (!is_array($estimatorParsed) || !is_array($estimatorParsed['structured_estimate'] ?? null)) {
+            throw new RuntimeException('Dedicated estimator returned an unexpected structured response.');
+        }
+
+        $parsedContent['structured_estimate'] = $estimatorParsed['structured_estimate'];
+        if (is_numeric($estimatorParsed['estimated_price'] ?? null)) {
+            $parsedContent['estimated_price'] = max(0.0, (float)$estimatorParsed['estimated_price']);
+        }
+        if (trim((string)($estimatorParsed['understood_job'] ?? '')) !== '') {
+            $parsedContent['understood_job'] = trim((string)$estimatorParsed['understood_job']);
+        }
+        $parsedContent['estimator_model'] = trim($estimatorModel);
+        $parsedContent['estimator_reasoning'] = $estimatorReasoning;
+        $parsedContent['estimator_second_pass_used'] = true;
+    } catch (Throwable $e) {
+        error_log('Dedicated AI quote estimator fallback: ' . $e->getMessage());
+        $parsedContent['estimator_model'] = trim($estimatorModel);
+        $parsedContent['estimator_reasoning'] = $estimatorReasoning;
+        $parsedContent['estimator_second_pass_used'] = false;
+    }
+
+    /*
+     * Do not expose a model-authored hour/day/price guess in the chat bubble.
+     * The customer sees numbers only on the quote-review page after backend
+     * verification and benchmark normalisation have completed.
+     */
+    $parsedContent['reply'] = 'I have enough information to prepare an indicative estimate. Please press “Review quote form” below to review the detailed labour and pricing allowance before sending anything.';
+}
+
+function normaliseEstimateHours($value): float {
+    if (!is_numeric($value)) {
+        return 0.0;
+    }
+
+    return max(0.0, round((float)$value, 2));
+}
+
+function taskBenchmarkFloor(string $title, string $scope, float $quantity, string $unit): ?array {
+    $text = strtolower(trim($title . ' ' . $scope));
+    $unitText = strtolower(trim($unit));
+
+    $hasAny = static function (array $needles) use ($text): bool {
+        foreach ($needles as $needle) {
+            if ($needle !== '' && strpos($text, $needle) !== false) return true;
+        }
+        return false;
+    };
+
+    $isLinearMetres =
+        $quantity > 0 &&
+        (
+            strpos($unitText, 'lm') !== false ||
+            strpos($unitText, 'linear') !== false ||
+            strpos($unitText, 'metre') !== false ||
+            $unitText === 'm'
+        );
+
+    $isSquareMetres =
+        $quantity > 0 &&
+        (
+            strpos($unitText, 'm2') !== false ||
+            strpos($unitText, 'm²') !== false ||
+            strpos($unitText, 'sqm') !== false ||
+            strpos($unitText, 'square') !== false
+        );
+
+    if ($hasAny(['roof tile', 'roof tiles', 'tiled roof']) && $hasAny(['clean', 'wash', 'pressure'])) {
+        return ['low' => 8.0, 'likely' => 10.0, 'high' => 12.0, 'basis' => 'roof-cleaning benchmark'];
+    }
+
+    if ($hasAny(['gutter']) && $hasAny(['clean', 'clear'])) {
+        return ['low' => 2.0, 'likely' => 3.0, 'high' => 4.0, 'basis' => 'gutter-cleaning benchmark'];
+    }
+
+    if ($hasAny(['fascia']) && $hasAny(['replace', 'replacement', 'renew'])) {
+        if ($isLinearMetres) {
+            return [
+                'low' => round($quantity * 0.40, 2),
+                'likely' => round($quantity * 0.60, 2),
+                'high' => round($quantity * 0.80, 2),
+                'basis' => 'fascia replacement benchmark by stated linear metres'
+            ];
+        }
+        return ['low' => 16.0, 'likely' => 24.0, 'high' => 32.0, 'basis' => 'fascia replacement benchmark'];
+    }
+
+    if ($hasAny(['weatherboard']) && $hasAny(['paint', 'repaint', 'coat'])) {
+        return ['low' => 16.0, 'likely' => 24.0, 'high' => 32.0, 'basis' => 'weatherboard preparation/repaint benchmark'];
+    }
+
+    if ($hasAny(['vegetation', 'overgrown', 'growth']) && $hasAny(['remove', 'clear', 'cut', 'trim'])) {
+        return ['low' => 4.0, 'likely' => 8.0, 'high' => 12.0, 'basis' => 'vegetation-removal benchmark'];
+    }
+
+    if ($hasAny(['deck']) && $hasAny(['sand', 'varnish', 'recoat', 'coat', 'oil'])) {
+        if ($isSquareMetres) {
+            $fullSand = $hasAny(['sand', 'sanding']);
+            $rates = $fullSand
+                ? ['low' => 1.00, 'likely' => 1.30, 'high' => 1.60]
+                : ['low' => 0.60, 'likely' => 0.80, 'high' => 1.00];
+            return [
+                'low' => round($quantity * $rates['low'], 2),
+                'likely' => round($quantity * $rates['likely'], 2),
+                'high' => round($quantity * $rates['high'], 2),
+                'basis' => 'deck preparation/recoat benchmark by stated square metres'
+            ];
+        }
+        return ['low' => 12.0, 'likely' => 20.0, 'high' => 32.0, 'basis' => 'deck preparation/recoat benchmark'];
+    }
+
+    if (
+        $hasAny(['internal wall', 'interior wall', 'inside wall']) &&
+        $hasAny(['paint', 'repaint', 'coat'])
+    ) {
+        if ($isSquareMetres) {
+            return [
+                'low' => round($quantity * 0.11, 2),
+                'likely' => round($quantity * 0.14, 2),
+                'high' => round($quantity * 0.17, 2),
+                'basis' => 'internal wall repaint benchmark by stated paintable surface area'
+            ];
+        }
+        return ['low' => 32.0, 'likely' => 40.0, 'high' => 48.0, 'basis' => 'internal wall repaint benchmark'];
+    }
+
+    if ($hasAny(['window frame', 'window frames']) && $hasAny(['paint', 'repaint', 'coat'])) {
+        return ['low' => 16.0, 'likely' => 28.0, 'high' => 40.0, 'basis' => 'window-frame preparation/repaint benchmark'];
+    }
+
+    return null;
+}
+
+function normaliseStructuredEstimate(array $estimate, bool $quoteReady): array {
+    $tasks = [];
+    $projectComponents = [];
+    $sum = ['low' => 0.0, 'likely' => 0.0, 'high' => 0.0];
+    $categoryTotals = [];
+    $modelLikelyBeforeBackendFloors = 0.0;
+
+    $normaliseComponent = static function (array $component): array {
+        $low = normaliseEstimateHours($component['low_hours'] ?? 0);
+        $likely = normaliseEstimateHours($component['likely_hours'] ?? 0);
+        $high = normaliseEstimateHours($component['high_hours'] ?? 0);
+
+        if ($likely < $low) $likely = $low;
+        if ($high < $likely) $high = $likely;
+
+        return [
+            'category' => (string)($component['category'] ?? 'other'),
+            'label' => trim((string)($component['label'] ?? '')),
+            'explanation' => trim((string)($component['explanation'] ?? '')),
+            'low_hours' => $low,
+            'likely_hours' => $likely,
+            'high_hours' => $high
+        ];
+    };
+
+    $addComponentToTotals = static function (array $component) use (&$sum, &$categoryTotals): void {
+        $sum['low'] += (float)$component['low_hours'];
+        $sum['likely'] += (float)$component['likely_hours'];
+        $sum['high'] += (float)$component['high_hours'];
+        $category = (string)($component['category'] ?? 'other');
+        if (!isset($categoryTotals[$category])) {
+            $categoryTotals[$category] = ['low' => 0.0, 'likely' => 0.0, 'high' => 0.0];
+        }
+        $categoryTotals[$category]['low'] += (float)$component['low_hours'];
+        $categoryTotals[$category]['likely'] += (float)$component['likely_hours'];
+        $categoryTotals[$category]['high'] += (float)$component['high_hours'];
+    };
+
+    if ($quoteReady) {
+        foreach (($estimate['tasks'] ?? []) as $task) {
+            if (!is_array($task)) continue;
+
+            $title = trim((string)($task['title'] ?? 'Task'));
+            $scope = trim((string)($task['scope'] ?? ''));
+            $quantity = normaliseEstimateHours($task['quantity'] ?? 0);
+            $unit = trim((string)($task['unit'] ?? ''));
+            $components = [];
+            $taskTotals = ['low' => 0.0, 'likely' => 0.0, 'high' => 0.0];
+
+            foreach (($task['components'] ?? []) as $component) {
+                if (!is_array($component)) continue;
+                $normalised = $normaliseComponent($component);
+                $components[] = $normalised;
+                $taskTotals['low'] += $normalised['low_hours'];
+                $taskTotals['likely'] += $normalised['likely_hours'];
+                $taskTotals['high'] += $normalised['high_hours'];
+            }
+
+            $modelLikelyBeforeBackendFloors += $taskTotals['likely'];
+
+            $benchmark = taskBenchmarkFloor($title, $scope, $quantity, $unit);
+            if ($benchmark !== null) {
+                $targetLow = max($taskTotals['low'], (float)$benchmark['low']);
+                $targetLikely = max($taskTotals['likely'], (float)$benchmark['likely'], $targetLow);
+                $targetHigh = max($taskTotals['high'], (float)$benchmark['high'], $targetLikely);
+
+                $adjustLow = max(0.0, round($targetLow - $taskTotals['low'], 2));
+                $adjustLikely = max($adjustLow, round($targetLikely - $taskTotals['likely'], 2));
+                $adjustHigh = max($adjustLikely, round($targetHigh - $taskTotals['high'], 2));
+
+                $adjustment = [
+                    'category' => 'other',
+                    'label' => 'Practical productivity allowance',
+                    'explanation' => 'Backend sanity check using ' . $benchmark['basis'] . ' so the quoted task is not based on an unrealistically optimistic best-case labour rate.',
+                    'low_hours' => $adjustLow,
+                    'likely_hours' => $adjustLikely,
+                    'high_hours' => $adjustHigh
+                ];
+
+                if ($adjustLow > 0 || $adjustLikely > 0 || $adjustHigh > 0) {
+                    $components[] = $adjustment;
+                    $taskTotals['low'] += $adjustLow;
+                    $taskTotals['likely'] += $adjustLikely;
+                    $taskTotals['high'] += $adjustHigh;
+                }
+            }
+
+            foreach ($components as $component) {
+                $addComponentToTotals($component);
+            }
+
+            $tasks[] = [
+                'title' => $title,
+                'scope' => $scope,
+                'quantity' => $quantity,
+                'unit' => $unit,
+                'assumptions' => array_values(array_filter(array_map(
+                    static fn($v) => trim((string)$v),
+                    is_array($task['assumptions'] ?? null) ? $task['assumptions'] : []
+                ))),
+                'components' => $components,
+                'backend_task_low_hours' => round($taskTotals['low'], 2),
+                'backend_task_likely_hours' => round($taskTotals['likely'], 2),
+                'backend_task_high_hours' => round($taskTotals['high'], 2)
+            ];
+        }
+
+        foreach (($estimate['project_components'] ?? []) as $component) {
+            if (!is_array($component)) continue;
+            $normalised = $normaliseComponent($component);
+            $projectComponents[] = $normalised;
+            $modelLikelyBeforeBackendFloors += $normalised['likely_hours'];
+            $addComponentToTotals($normalised);
+        }
+    }
+
+    $complexityOrder = ['none' => 0, 'low' => 1, 'moderate' => 2, 'high' => 3, 'very_high' => 4];
+    $requestedComplexity = (string)($estimate['procurement_complexity'] ?? 'none');
+    if (!array_key_exists($requestedComplexity, $complexityOrder)) $requestedComplexity = 'none';
+
+    $taskCount = count($tasks);
+    $minimumComplexity = $taskCount >= 8 ? 'very_high' : ($taskCount >= 5 ? 'high' : ($taskCount >= 3 ? 'moderate' : 'low'));
+    $procurementComplexity = !$quoteReady
+        ? 'none'
+        : (
+            $complexityOrder[$minimumComplexity] > $complexityOrder[$requestedComplexity]
+                ? $minimumComplexity
+                : $requestedComplexity
+        );
+
+    $procurementFloors = [
+        'none' => ['low' => 0.0, 'likely' => 0.0, 'high' => 0.0],
+        'low' => ['low' => 0.75, 'likely' => 1.5, 'high' => 2.5],
+        'moderate' => ['low' => 1.5, 'likely' => 3.0, 'high' => 5.0],
+        'high' => ['low' => 3.0, 'likely' => 6.0, 'high' => 10.0],
+        'very_high' => ['low' => 5.0, 'likely' => 10.0, 'high' => 16.0]
+    ];
+
+    if ($quoteReady) {
+        $existingProcurement = $categoryTotals['procurement_logistics'] ?? ['low' => 0.0, 'likely' => 0.0, 'high' => 0.0];
+        $floor = $procurementFloors[$procurementComplexity];
+        $targetLow = max($existingProcurement['low'], $floor['low']);
+        $targetLikely = max($existingProcurement['likely'], $floor['likely'], $targetLow);
+        $targetHigh = max($existingProcurement['high'], $floor['high'], $targetLikely);
+        $procLow = max(0.0, round($targetLow - $existingProcurement['low'], 2));
+        $procLikely = max($procLow, round($targetLikely - $existingProcurement['likely'], 2));
+        $procHigh = max($procLikely, round($targetHigh - $existingProcurement['high'], 2));
+        $procurementAdjustment = [
+            'category' => 'procurement_logistics',
+            'label' => 'Project procurement / supplier logistics allowance',
+            'explanation' => 'Allows for realistic sourcing, stock checking, collection, loading and reasonable staged or repeat procurement for a multi-scope existing-property job.',
+            'low_hours' => $procLow,
+            'likely_hours' => $procLikely,
+            'high_hours' => $procHigh
+        ];
+        if ($procurementAdjustment['low_hours'] > 0 || $procurementAdjustment['likely_hours'] > 0 || $procurementAdjustment['high_hours'] > 0) {
+            $projectComponents[] = $procurementAdjustment;
+            $addComponentToTotals($procurementAdjustment);
+        }
+
+        $derivedVisits = 1;
+        if ($sum['likely'] > 12) {
+            $derivedVisits = max(2, (int)ceil($sum['likely'] / 14.0));
+        }
+        $modelVisits = max(0, (int)($estimate['expected_site_visits'] ?? 0));
+        $expectedSiteVisits = max($modelVisits, $derivedVisits);
+
+        if ($expectedSiteVisits > 1) {
+            $repeatVisits = $expectedSiteVisits - 1;
+            $visitAdjustment = [
+                'category' => 'other',
+                'label' => 'Repeated site attendance / mobilisation allowance',
+                'explanation' => 'Backend allowance for repeated arrival, shared setup, making-safe, end-of-session cleanup and pack/load across a deliberately intermittent multi-visit project. Task-specific setup remains separate.',
+                'low_hours' => round($repeatVisits * 0.35, 2),
+                'likely_hours' => round($repeatVisits * 0.50, 2),
+                'high_hours' => round($repeatVisits * 0.75, 2)
+            ];
+            $projectComponents[] = $visitAdjustment;
+            $addComponentToTotals($visitAdjustment);
+        }
+    } else {
+        $expectedSiteVisits = 0;
+    }
+
+    $elapsedLow = normaliseEstimateHours($estimate['elapsed_duration_low_days'] ?? 0);
+    $elapsedHigh = normaliseEstimateHours($estimate['elapsed_duration_high_days'] ?? 0);
+    $schedulingPattern = trim((string)($estimate['scheduling_pattern'] ?? ''));
+
+    if ($quoteReady && $sum['likely'] >= 60 && $expectedSiteVisits > 1) {
+        $elapsedLow = max($elapsedLow, round($expectedSiteVisits * 2.0, 1));
+        $elapsedHigh = max($elapsedHigh, round($expectedSiteVisits * 3.0, 1), $elapsedLow);
+        $schedulingPattern = 'Generally intermittent / alternate-day attendance for a larger project, with substantial work sessions where practical while preserving capacity for smaller existing-customer jobs. Weather, drying/curing, access and sequencing can alter the exact pattern.';
+    }
+
+    return [
+        'tasks' => $tasks,
+        'project_components' => $projectComponents,
+        'procurement_complexity' => $procurementComplexity,
+        'expected_site_visits' => $expectedSiteVisits,
+        'scheduling_pattern' => $schedulingPattern,
+        'elapsed_duration_low_days' => $elapsedLow,
+        'elapsed_duration_high_days' => $elapsedHigh,
+        'total_low_hours' => round($sum['low'], 2),
+        'total_likely_hours' => round($sum['likely'], 2),
+        'total_high_hours' => round($sum['high'], 2),
+        'model_likely_hours_before_backend_floors' => round($modelLikelyBeforeBackendFloors, 2),
+        'backend_verified' => true,
+        'backend_benchmarks_version' => 'v3'
+    ];
+}
+
+$quoteReady = !empty($parsedContent['quote_ready']);
+$structuredEstimate = normaliseStructuredEstimate(
+    is_array($parsedContent['structured_estimate'] ?? null)
+        ? $parsedContent['structured_estimate']
+        : [],
+    $quoteReady
+);
+
+$parsedContent['structured_estimate'] = $structuredEstimate;
+
+if ($quoteReady && $structuredEstimate['total_likely_hours'] > 0) {
+    $verifiedHours = (float)$structuredEstimate['total_likely_hours'];
+    $modelHoursBeforeFloors = (float)($structuredEstimate['model_likely_hours_before_backend_floors'] ?? 0);
+    $modelPrice = is_numeric($parsedContent['estimated_price'] ?? null)
+        ? max(0.0, (float)$parsedContent['estimated_price'])
+        : 0.0;
+
+    $parsedContent['estimated_hours'] = $verifiedHours;
+
+    /*
+     * Keep the AI's existing pricing logic/discount assumptions, but scale
+     * the price in proportion to the backend-verified labour total. This
+     * avoids silently inventing a universal hourly rate while preventing
+     * the old price from remaining attached to a much larger verified job.
+     */
+    if ($modelPrice > 0 && $modelHoursBeforeFloors > 0) {
+        $scaledPrice = $modelPrice * ($verifiedHours / $modelHoursBeforeFloors);
+        $parsedContent['estimated_price'] = max(50.0, round($scaledPrice / 50.0) * 50.0);
+    }
+}
+
+if (!$quoteReady) {
+    $parsedContent['estimated_hours'] = 0;
+    $parsedContent['estimated_price'] = 0;
 }
 
 echo json_encode([

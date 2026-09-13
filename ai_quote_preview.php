@@ -80,6 +80,20 @@ include __DIR__ . '/includes/header.php';
                     value="<?= htmlspecialchars($estimatedPrice) ?>"
                 >
 
+                <div
+                    id="structuredEstimatePanel"
+                    class="bg-dark border border-secondary rounded-3 p-3 mb-3"
+                    style="display:none;"
+                >
+                    <div class="fw-bold text-info mb-2">Detailed labour allowance</div>
+                    <div class="small text-light mb-3">
+                        This breakdown is generated from the same labour components used to calculate the estimated hours.
+                    </div>
+                    <div id="structuredEstimateSummary" class="small text-light"></div>
+                </div>
+
+                <input type="hidden" id="structuredEstimateJson" value="">
+
                 <input
                     type="hidden"
                     id="conversationToken"
@@ -316,6 +330,140 @@ function updateQuoteSendButtonState(){
     }
 }
 
+function formatEstimateHours(value){
+    const n = Number(value || 0);
+    if(!Number.isFinite(n)) return '0';
+    return n.toFixed(n % 1 === 0 ? 0 : 2).replace(/0+$/, '').replace(/\.$/, '');
+}
+
+function sumEstimateComponents(components){
+    return (Array.isArray(components) ? components : [])
+        .reduce((total, component) => total + Number(component?.likely_hours || 0), 0);
+}
+
+function loadStructuredEstimate(){
+    let intake = {};
+
+    try{
+        intake = JSON.parse(localStorage.getItem('aiJobIntake') || '{}');
+    }catch(err){
+        intake = {};
+    }
+
+    const estimate = intake.structured_estimate;
+    const hidden = document.getElementById('structuredEstimateJson');
+    const panel = document.getElementById('structuredEstimatePanel');
+    const summary = document.getElementById('structuredEstimateSummary');
+
+    if(!estimate || typeof estimate !== 'object' || !Array.isArray(estimate.tasks)){
+        if(hidden) hidden.value = '';
+        return;
+    }
+
+    if(hidden){
+        hidden.value = JSON.stringify(estimate);
+    }
+
+    if(!panel || !summary){
+        return;
+    }
+
+    summary.innerHTML = '';
+
+    const totals = document.createElement('div');
+    totals.className = 'mb-3';
+    totals.textContent =
+        'Verified labour range: ' +
+        formatEstimateHours(estimate.total_low_hours) + '–' +
+        formatEstimateHours(estimate.total_high_hours) +
+        ' hours; likely allowance ' +
+        formatEstimateHours(estimate.total_likely_hours) + ' hours.';
+    summary.appendChild(totals);
+
+    if(Number(estimate.expected_site_visits || 0) > 0){
+        const visits = document.createElement('div');
+        visits.className = 'mb-3';
+        visits.textContent =
+            'Expected site attendances: approximately ' +
+            Number(estimate.expected_site_visits) +
+            (estimate.scheduling_pattern ? '. ' + estimate.scheduling_pattern : '.');
+        summary.appendChild(visits);
+    }
+
+    estimate.tasks.forEach(task => {
+        const details = document.createElement('details');
+        details.className = 'border-top border-secondary pt-2 pb-2';
+
+        const heading = document.createElement('summary');
+        const taskHours = sumEstimateComponents(task.components);
+        heading.className = 'fw-bold';
+
+        if(Number(taskHours || 0) > 0){
+            heading.textContent =
+                (task.title || 'Task') +
+                ' — approx. ' + formatEstimateHours(taskHours) + ' labour hours';
+        }else{
+            heading.textContent =
+                (task.title || 'Task') +
+                ' — excluded from Mike\\'s labour allowance';
+        }
+
+        details.appendChild(heading);
+
+        if(task.scope){
+            const scope = document.createElement('div');
+            scope.className = 'mt-2';
+            scope.textContent = task.scope;
+            details.appendChild(scope);
+        }
+
+        const list = document.createElement('ul');
+        list.className = 'mt-2 mb-1';
+
+        (Array.isArray(task.components) ? task.components : []).forEach(component => {
+            const li = document.createElement('li');
+            li.textContent =
+                (component.label || component.category || 'Labour') +
+                ': ' + formatEstimateHours(component.likely_hours) + ' h' +
+                (component.explanation ? ' — ' + component.explanation : '');
+            list.appendChild(li);
+        });
+
+        if(list.children.length){
+            details.appendChild(list);
+        }
+
+        summary.appendChild(details);
+    });
+
+    if(Array.isArray(estimate.project_components) && estimate.project_components.length){
+        const details = document.createElement('details');
+        details.className = 'border-top border-secondary pt-2 pb-2';
+        const heading = document.createElement('summary');
+        heading.className = 'fw-bold';
+        heading.textContent =
+            'Shared project planning / logistics — approx. ' +
+            formatEstimateHours(sumEstimateComponents(estimate.project_components)) +
+            ' labour hours';
+        details.appendChild(heading);
+
+        const list = document.createElement('ul');
+        list.className = 'mt-2 mb-1';
+        estimate.project_components.forEach(component => {
+            const li = document.createElement('li');
+            li.textContent =
+                (component.label || component.category || 'Project labour') +
+                ': ' + formatEstimateHours(component.likely_hours) + ' h' +
+                (component.explanation ? ' — ' + component.explanation : '');
+            list.appendChild(li);
+        });
+        details.appendChild(list);
+        summary.appendChild(details);
+    }
+
+    panel.style.display = 'block';
+}
+
 let aiQuoteSubmissionInProgress = false;
 let aiQuoteSubmissionSucceeded = false;
 
@@ -391,6 +539,11 @@ async function sendAiQuote(){
         fd.append(
             'conversation_token',
             document.getElementById('conversationToken').value
+        );
+
+        fd.append(
+            'structured_estimate_json',
+            document.getElementById('structuredEstimateJson')?.value || ''
         );
 
         retainedFiles.forEach(item => {
@@ -499,6 +652,7 @@ document.addEventListener(
     'DOMContentLoaded',
     function(){
         renderQuoteFiles();
+        loadStructuredEstimate();
 
         const emailInput =
             document.getElementById('customerEmail');

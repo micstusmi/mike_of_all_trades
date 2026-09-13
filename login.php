@@ -9,7 +9,81 @@ require_once __DIR__ . '/includes/db.php';
 $error = '';
 
 $claimAiChat = $_POST['claim_ai_chat'] ?? $_GET['claim_ai_chat'] ?? '';
-$return = $_GET['return'] ?? $_POST['return'] ?? '';
+
+$returnTo =
+    $_POST['return_to']
+    ?? $_GET['return_to']
+    ?? $_POST['return']
+    ?? $_GET['return']
+    ?? '';
+
+function safeAdminReturnUrl(string $value): string
+{
+    $value = trim($value);
+
+    if ($value === '') {
+        return '';
+    }
+
+    /*
+     * Reject control characters, header injection,
+     * Windows-style separators and protocol-relative URLs.
+     */
+    if (
+        preg_match('/[\x00-\x1F\x7F]/', $value) ||
+        str_contains($value, "\\") ||
+        str_starts_with($value, '//')
+    ) {
+        return '';
+    }
+
+    $parts = parse_url($value);
+
+    if ($parts === false) {
+        return '';
+    }
+
+    /*
+     * Return destinations must be local URLs, never another host.
+     */
+    foreach ([
+        'scheme',
+        'host',
+        'user',
+        'pass',
+        'port'
+    ] as $forbiddenPart) {
+        if (isset($parts[$forbiddenPart])) {
+            return '';
+        }
+    }
+
+    $path = (string)($parts['path'] ?? '');
+
+    if (
+        !str_starts_with($path, '/admin/') &&
+        !str_starts_with(
+            $path,
+            '/mike_of_all_trades/admin/'
+        )
+    ) {
+        return '';
+    }
+
+    /*
+     * Reject encoded or literal path traversal.
+     */
+    $decodedPath = rawurldecode($path);
+
+    if (
+        str_contains($decodedPath, '/../') ||
+        str_ends_with($decodedPath, '/..')
+    ) {
+        return '';
+    }
+
+    return $value;
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
@@ -29,6 +103,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($user['role'] === 'admin') {
             $_SESSION['admin_logged_in'] = true;
+            $_SESSION['admin_last_activity_at'] = time();
+
+            session_regenerate_id(true);
+
+            setcookie(session_name(), session_id(), [
+                'expires' => time() + 86400,
+                'path' => '/',
+                'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+                'httponly' => true,
+                'samesite' => 'Lax',
+            ]);
         }
 
         if ($claimAiChat !== '') {
@@ -36,12 +121,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
-        if ($return === 'quotes_bookings.php') {
+        if ($returnTo === 'quotes_bookings.php') {
             header('Location: quotes_bookings.php?restore=1');
             exit;
         }
 
         if ($user['role'] === 'admin') {
+            $adminReturn = safeAdminReturnUrl($returnTo);
+
+            if ($adminReturn !== '') {
+                header('Location: ' . $adminReturn);
+                exit;
+            }
+
             header('Location: admin/dashboard.php');
             exit;
         }
@@ -83,11 +175,11 @@ include __DIR__ . '/includes/header.php';
                 >
             <?php endif; ?>
 
-            <?php if ($return !== ''): ?>
+            <?php if ($returnTo !== ''): ?>
                 <input
                     type="hidden"
-                    name="return"
-                    value="<?= htmlspecialchars($return) ?>"
+                    name="return_to"
+                    value="<?= htmlspecialchars($returnTo) ?>"
                 >
             <?php endif; ?>
 

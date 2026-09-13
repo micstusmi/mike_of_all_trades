@@ -10,6 +10,7 @@ require_once __DIR__ . '/includes/zoho_functions.php';
 const AI_QUOTE_MAX_ATTACHMENTS = 15;
 const AI_QUOTE_MAX_FILE_BYTES = 10 * 1024 * 1024;
 const AI_QUOTE_MAX_TOTAL_BYTES = 25 * 1024 * 1024;
+const AI_QUOTE_MAX_ESTIMATE_JSON_BYTES = 200 * 1024;
 
 function normaliseAiQuoteFiles(array $fileBag): array
 {
@@ -127,6 +128,115 @@ function validateAiQuoteAttachments(array $files): array
 }
 
 
+function validateStructuredEstimateJson(string $raw): array
+{
+    $raw = trim($raw);
+
+    if ($raw === '') {
+        return [];
+    }
+
+    if (strlen($raw) > AI_QUOTE_MAX_ESTIMATE_JSON_BYTES) {
+        throw new RuntimeException(
+            'The detailed estimate data is unexpectedly large. Please reopen the quote form and try again.'
+        );
+    }
+
+    $estimate = json_decode($raw, true);
+
+    if (!is_array($estimate)) {
+        throw new RuntimeException(
+            'The detailed estimate data could not be read.'
+        );
+    }
+
+    if (!isset($estimate['tasks']) || !is_array($estimate['tasks'])) {
+        throw new RuntimeException(
+            'The detailed estimate is missing its task breakdown.'
+        );
+    }
+
+    return $estimate;
+}
+
+function structuredEstimateTaskSummary(array $estimate): string
+{
+    $lines = [];
+
+    foreach (($estimate['tasks'] ?? []) as $task) {
+        if (!is_array($task)) continue;
+
+        $title = trim((string)($task['title'] ?? ''));
+        if ($title === '') continue;
+
+        $likely = 0.0;
+        foreach (($task['components'] ?? []) as $component) {
+            if (is_array($component) && is_numeric($component['likely_hours'] ?? null)) {
+                $likely += max(0, (float)$component['likely_hours']);
+            }
+        }
+
+        $lines[] = '- ' . $title . ': approx. ' . round($likely, 2) . ' labour hours';
+    }
+
+    $projectLikely = 0.0;
+    foreach (($estimate['project_components'] ?? []) as $component) {
+        if (is_array($component) && is_numeric($component['likely_hours'] ?? null)) {
+            $projectLikely += max(0, (float)$component['likely_hours']);
+        }
+    }
+
+    if ($projectLikely > 0) {
+        $lines[] = '- Shared project planning/logistics: approx. ' . round($projectLikely, 2) . ' labour hours';
+    }
+
+    return implode("\n", $lines);
+}
+
+function saveStructuredAiQuote(
+    PDO $pdo,
+    string $conversationToken,
+    array $estimate,
+    string $estimateId,
+    float $hours,
+    float $price
+): void {
+    if ($conversationToken === '' || empty($estimate)) {
+        return;
+    }
+
+    try {
+        $stmt = $pdo->prepare(
+            'SELECT id FROM ai_conversations WHERE conversation_token = ? LIMIT 1'
+        );
+        $stmt->execute([$conversationToken]);
+        $conversationId = $stmt->fetchColumn();
+
+        if (!$conversationId) {
+            return;
+        }
+
+        $package = [
+            'structured_estimate' => $estimate,
+            'formal_hours' => $hours,
+            'formal_price' => $price,
+            'saved_at' => date('c')
+        ];
+
+        $stmt = $pdo->prepare(
+            'INSERT INTO ai_quotes (conversation_id, estimate_json, zoho_estimate_id, approved) VALUES (?, ?, ?, 0)'
+        );
+        $stmt->execute([
+            (int)$conversationId,
+            json_encode($package, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+            $estimateId
+        ]);
+    } catch (Throwable $e) {
+        // Quote delivery must not fail merely because optional structured archive storage failed.
+        error_log('Structured AI quote archive skipped: ' . $e->getMessage());
+    }
+}
+
 /**
  * ---------------------------------------------------------
  * DUPLICATE QUOTE SUBMISSION PROTECTION
@@ -143,7 +253,8 @@ function buildAiQuoteSubmissionKey(
     string $notes,
     float $hours,
     float $price,
-    array $attachments
+    array $attachments,
+    string $structuredEstimateJson = ''
 ): string {
     $fileParts = [];
 
@@ -162,7 +273,8 @@ function buildAiQuoteSubmissionKey(
             $notes,
             number_format($hours, 2, '.', ''),
             number_format($price, 2, '.', ''),
-            implode(',', $fileParts)
+            implode(',', $fileParts),
+            hash('sha256', $structuredEstimateJson)
         ])
     );
 }
@@ -265,6 +377,10 @@ try {
     $price = (float)($_POST['price'] ?? 0);
     $conversationToken =
         trim($_POST['conversation_token'] ?? '');
+    $structuredEstimateRaw =
+        trim((string)($_POST['structured_estimate_json'] ?? ''));
+    $structuredEstimate =
+        validateStructuredEstimateJson($structuredEstimateRaw);
 
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         throw new Exception(
@@ -303,7 +419,8 @@ try {
             $notes,
             $hours,
             $price,
-            $attachments
+            $attachments,
+            $structuredEstimateRaw
         );
 
     $submissionLock =
@@ -350,6 +467,14 @@ try {
         "This quotation is based on the information, photographs, plans and documents supplied at the time of quotation. " .
         "Any material change to the supplied information, site conditions, scope, plans or specifications may require a revised quotation or variation.\n\n" .
         "Estimated pricing and timeframes are a guide only. Final pricing may vary depending on materials, access, existing conditions, and any unexpected issues discovered during the job.";
+
+    $taskSummary = structuredEstimateTaskSummary($structuredEstimate);
+
+    if ($taskSummary !== '') {
+        $description .=
+            "\n\nLabour planning summary:\n" .
+            $taskSummary;
+    }
 
     if (!empty($attachments)) {
         $description .=
@@ -434,6 +559,15 @@ try {
             'Please do not submit a duplicate quote yet; Mike can review the created estimate.'
         );
     }
+
+    saveStructuredAiQuote(
+        $pdo,
+        $conversationToken,
+        $structuredEstimate,
+        (string)$estimate_id,
+        $hours,
+        $price
+    );
 
     completeAiQuoteSubmissionLock(
         $submissionLockHandle,

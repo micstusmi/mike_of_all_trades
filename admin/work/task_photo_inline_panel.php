@@ -34,7 +34,7 @@ function e4c($s){return htmlspecialchars((string)$s,ENT_QUOTES,'UTF-8');}
 <input type="hidden" name="job_id" value="<?=$jobId?>">
 <input type="hidden" name="task_id" value="<?=$taskId?>">
 <input type="hidden" name="photo_type" value="<?=$type?>">
-<div><input type="file" name="photos[]" accept="image/jpeg,image/png,image/webp" capture="environment" multiple required></div>
+<div><input type="file" name="photos[]" accept="image/jpeg,image/png,image/webp" multiple required></div>
 <input type="text" name="note" placeholder="Optional note">
 <button class="wt-photo-btn <?=$type==='before'?'wt-photo-before':'wt-photo-after'?>" type="submit">+ ADD <?=$label?></button>
 </form>

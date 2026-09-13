@@ -208,6 +208,18 @@ if (session_status() === PHP_SESSION_NONE) {
             background:#3a3a3a;
         }
 
+        .attachmentButton.ai-disabled{
+            opacity:.55;
+            pointer-events:none;
+            cursor:not-allowed;
+        }
+
+        #aiSendButton:disabled,
+        #attachmentSummary:disabled{
+            opacity:.6;
+            cursor:not-allowed;
+        }
+
         .attachmentHelp{
             color:#aaa;
             font-size:12px;
@@ -941,6 +953,7 @@ if (session_status() === PHP_SESSION_NONE) {
         </div>
 
         <button
+            id="aiSendButton"
             class="primary"
             type="submit"
         >
@@ -988,6 +1001,39 @@ if (session_status() === PHP_SESSION_NONE) {
     let chatHistory = [];
 
     let lastAiData = {};
+    let aiRequestInProgress = false;
+
+    function setAiRequestBusy(isBusy){
+        aiRequestInProgress = !!isBusy;
+
+        const sendButton = document.getElementById('aiSendButton');
+        const messageInput = document.getElementById('messageInput');
+        const attachmentInput = document.getElementById('jobAttachments');
+        const attachmentSummary = document.getElementById('attachmentSummary');
+        const attachmentButton = document.querySelector('.attachmentButton');
+
+        if(sendButton){
+            sendButton.disabled = aiRequestInProgress;
+            sendButton.textContent = aiRequestInProgress ? 'Please wait…' : 'Send';
+        }
+
+        if(messageInput){
+            messageInput.disabled = aiRequestInProgress;
+        }
+
+        if(attachmentInput){
+            attachmentInput.disabled = aiRequestInProgress;
+        }
+
+        if(attachmentSummary){
+            attachmentSummary.disabled = aiRequestInProgress;
+        }
+
+        if(attachmentButton){
+            attachmentButton.classList.toggle('ai-disabled', aiRequestInProgress);
+            attachmentButton.setAttribute('aria-disabled', aiRequestInProgress ? 'true' : 'false');
+        }
+    }
 
     let isSavingConversation = false;
 
@@ -1349,12 +1395,16 @@ if (session_status() === PHP_SESSION_NONE) {
 
             e.preventDefault();
 
+            if(aiRequestInProgress){
+                return;
+            }
+
             // A fresh customer submission means they want to follow
             // the live conversation again.
             chatAutoScrollEnabled = true;
 
-            const message =
-                document.getElementById('messageInput').value.trim();
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value.trim();
 
             const attachmentsForThisMessage =
                 [...selectedAttachments];
@@ -1363,46 +1413,51 @@ if (session_status() === PHP_SESSION_NONE) {
                 return;
             }
 
-            /*
-             * Track meaningful engagement with the AI assistant.
-             *
-             * We deliberately do NOT send the actual job description
-             * or any personally identifying information to Meta.
-             */
-            if(
-                typeof fbq === 'function' &&
-                !window.motAiStartedTracked
-            ){
-                fbq('trackCustom', 'AIQuoteStarted');
+            setAiRequestBusy(true);
 
-                window.motAiStartedTracked = true;
-            }
+            let completed = false;
 
             try{
+                /*
+                 * Track meaningful engagement with the AI assistant.
+                 *
+                 * We deliberately do NOT send the actual job description
+                 * or any personally identifying information to Meta.
+                 */
+                if(
+                    typeof fbq === 'function' &&
+                    !window.motAiStartedTracked
+                ){
+                    fbq('trackCustom', 'AIQuoteStarted');
+
+                    window.motAiStartedTracked = true;
+                }
+
                 await retainAiQuoteAttachments(
                     attachmentsForThisMessage
                 );
+
+                completed = await sendMessageToAI(
+                    message,
+                    'Customer',
+                    attachmentsForThisMessage
+                );
+
+                if(completed){
+                    messageInput.value = '';
+                    selectedAttachments = [];
+                    renderAttachmentPreview();
+                    messageInput.placeholder =
+                        'Continue typing or responding to this chat...';
+                }
             }catch(err){
                 alert(
                     err.message ||
-                    'These files could not be retained for the formal quote.'
+                    'Your message could not be sent. Please try again.'
                 );
-                return;
+            }finally{
+                setAiRequestBusy(false);
             }
-
-            await sendMessageToAI(
-                message,
-                'Customer',
-                attachmentsForThisMessage
-            );
-
-            document.getElementById('messageInput').value = '';
-
-            selectedAttachments = [];
-            renderAttachmentPreview();
-
-            document.getElementById('messageInput').placeholder =
-                'Continue typing or responding to this chat...';
         });
 
 
@@ -1632,7 +1687,7 @@ if (session_status() === PHP_SESSION_NONE) {
                 '&view=' +
                 calendarView;
 
-            return;
+            return true;
         }
 
 
@@ -1695,7 +1750,7 @@ if (session_status() === PHP_SESSION_NONE) {
                 'Sorry, I had trouble contacting the AI. Please try sending your message again.'
             );
 
-            return;
+            return false;
         }
 
 
@@ -1708,7 +1763,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
             console.log(data);
 
-            return;
+            return false;
         }
 
 
@@ -1730,7 +1785,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
             console.log('Could not parse AI response:', data.raw, err);
 
-            return;
+            return false;
         }
 
 
@@ -1793,6 +1848,7 @@ if (session_status() === PHP_SESSION_NONE) {
         renderChatHistory();
 
         saveAiConversation();
+        return true;
     }
 
 
@@ -2082,7 +2138,10 @@ if (session_status() === PHP_SESSION_NONE) {
                 lastAiData.suburb || '',
 
             quote_ready:
-                lastAiData.quote_ready || false
+                lastAiData.quote_ready || false,
+
+            structured_estimate:
+                lastAiData.structured_estimate || null
         };
 
 
