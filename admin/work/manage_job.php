@@ -827,6 +827,8 @@ Customer day-before confirmation:
                 <form
                     method="post"
                     action="../../api/work/stop_session.php"
+                    enctype="multipart/form-data"
+                    data-current-task-id="<?=(int)($rs['task_id'] ?? 0)?>"
                     style="margin-top:12px"
                 >
                     <input type="hidden" name="job_id" value="<?=$id?>">
@@ -845,6 +847,11 @@ Customer day-before confirmation:
                             <option value="finish">
                                 Finish current activity
                             </option>
+                            <?php if(!empty($activeTasks)):?>
+                            <option value="finish_task_start_next">
+                                <?=!empty($rs['task_id']) ? 'Finish current task + start next task' : 'Finish current activity + start a task'?>
+                            </option>
+                            <?php endif;?>
                         </select>
                     </div>
 
@@ -929,16 +936,98 @@ Customer day-before confirmation:
                         >
                     </div>
 
-                    <button
-                        class="btn stop"
-                        style="
-                            font-size:18px;
-                            padding:15px 22px;
-                            width:100%
-                        "
-                    >
-                        SAVE CHANGE / FINISH
-                    </button>
+                    <?php if(!empty($activeTasks)):?>
+                    <div class="finish-next-fields" style="display:none">
+                        <div class="field">
+                            <label><?=!empty($rs['task_id']) ? 'Next task' : 'Task to start'?></label>
+                            <select name="next_task_id">
+                                <option value=""><?=!empty($rs['task_id']) ? 'Select next task...' : 'Select task to start...'?></option>
+                                <?php foreach($activeTasks as $nextTask):?>
+                                    <?php if(!empty($rs['task_id']) && (int)$nextTask['id'] === (int)$rs['task_id']) continue;?>
+                                    <option value="<?=$nextTask['id']?>"><?=wt_html($nextTask['title'])?></option>
+                                <?php endforeach;?>
+                            </select>
+                        </div>
+
+                        <div class="field">
+                            <label>Next location</label>
+                            <select name="next_start_location">
+                                <option value="onsite">On site</option>
+                                <option value="bunnings">Bunnings</option>
+                                <option value="supplier">Another supplier / store</option>
+                                <option value="travel_job">Travelling for this job</option>
+                                <option value="workshop_home">Workshop / home preparation</option>
+                                <option value="offsite_planning">Off-site planning / admin</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+
+                        <div class="field">
+                            <label>Next activity type</label>
+                            <select name="next_category">
+                                <option value="onsite">On-site work</option>
+                                <option value="measurement">Measurement / investigation</option>
+                                <option value="planning">Planning</option>
+                                <option value="procurement">Sourcing / procurement</option>
+                                <option value="travel">Job-specific travel</option>
+                                <option value="loading_setup">Loading / setup / pack-up</option>
+                                <option value="demolition">Demolition / removal</option>
+                                <option value="repair">Repair / preparation</option>
+                                <option value="unforeseen">Unforeseen / remedial</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+
+                        <div class="field wide">
+                            <label>What are you doing next?</label>
+                            <input
+                                name="next_notes"
+                                placeholder="e.g. begin sanding the filled section"
+                            >
+                        </div>
+                    </div>
+                    <?php endif;?>
+
+                    <div class="task-detail-box" style="border:2px solid #3973a8;background:#eef6ff">
+                        <b>📷 Add photos with this finish</b>
+                        <p class="small" style="margin:6px 0 10px">Optional. Add up to 8 photos for the completed activity or finished current task.</p>
+                        <input type="file" name="finish_photos[]" accept="image/jpeg,image/png,image/webp" multiple>
+                        <div class="field" style="margin-top:9px">
+                            <label>Photo note (optional)</label>
+                            <input name="finish_photo_note" placeholder="e.g. task complete; ready for next stage">
+                        </div>
+                    </div>
+
+                    <details class="task-detail-box task-sms-box">
+                        <summary>📱 Customer SMS for this finish</summary>
+                        <p class="small" style="margin-top:10px">
+                            Use Save only when the customer does not need an SMS, or Save + SMS customer when you want them notified of this finish.
+                        </p>
+                        <div class="field">
+                            <label>SMS message</label>
+                            <textarea name="customer_sms_message" rows="4">Mike of All Trades update: current job activity has finished. Your job record has been updated.</textarea>
+                        </div>
+                    </details>
+
+                    <div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:12px">
+                        <button
+                            class="btn stop"
+                            name="save_action"
+                            value="save_only"
+                            style="font-size:18px;padding:15px 22px"
+                        >
+                            SAVE ONLY
+                        </button>
+
+                        <button
+                            class="btn sms"
+                            name="save_action"
+                            value="save_sms"
+                            style="font-size:18px;padding:15px 22px"
+                        >
+                            📱 SAVE + SMS CUSTOMER
+                        </button>
+                    </div>
                 </form>
             </details>
         </div>
@@ -2413,7 +2502,7 @@ $taskFlashBorder =
 <div style="margin:10px 0"><b>Approximate progress: <?=$taskProgress['percent']?>%</b><div class="progressbar"><div class="progressfill" style="width:<?=$taskProgress['percent']?>%"></div></div></div>
 <?php if(!$tasks):?><p>No tasks yet.</p><?php endif;?>
 <?php foreach($tasks as $t): $cls='task-card '.(($t['status']==='completed')?'task-completed':(($t['status']==='blocked')?'task-blocked':(($t['status']==='cancelled')?'task-cancelled':'')));?>
-<div class="card <?=$cls?>" id="task-<?=$t['id']?>"><form method="post" action="../../api/work/update_task.php"><input type="hidden" name="job_id" value="<?=$id?>"><input type="hidden" name="task_id" value="<?=$t['id']?>">
+<div class="card <?=$cls?>" id="task-<?=$t['id']?>"><form method="post" action="../../api/work/update_task.php" enctype="multipart/form-data"><input type="hidden" name="job_id" value="<?=$id?>"><input type="hidden" name="task_id" value="<?=$t['id']?>">
 <div class="task-grid"><div class="field"><label>Task</label><input name="title" value="<?=wt_html($t['title'])?>" required></div><div class="field"><label>Status</label><select name="status"><?php foreach(['not_started'=>'Not started','in_progress'=>'In progress','blocked'=>'Blocked','completed'=>'Completed','cancelled'=>'Cancelled'] as $k=>$v):?><option value="<?=$k?>" <?=$t['status']===$k?'selected':''?>><?=$v?></option><?php endforeach;?></select></div><div class="field"><label>Origin</label><select name="task_origin"><?php foreach(['original'=>'Original scope','customer_requested'=>'Customer requested','mike_added'=>'Mike added','ai_suggested'=>'AI suggested','unforeseen'=>'Unforeseen / discovered'] as $k=>$v):?><option value="<?=$k?>" <?=$t['task_origin']===$k?'selected':''?>><?=$v?></option><?php endforeach;?></select></div></div>
 <div class="field"><label>Description / scope notes</label><textarea name="description"><?=wt_html($t['description']??'')?></textarea></div>
 <details class="task-detail-box"><summary>Customer explanation &amp; granular task detail</summary>
@@ -2436,6 +2525,13 @@ Replacement seals if required"><?=wt_html($t['suggested_materials']??'')?></text
 <div class="task-grid"><div class="field"><label>Mike estimate low (h)</label><input type="number" step="0.1" min="0" name="mike_estimate_low" value="<?=wt_html((string)($t['mike_estimate_low']??''))?>"></div><div class="field"><label>Mike estimate high (h)</label><input type="number" step="0.1" min="0" name="mike_estimate_high" value="<?=wt_html((string)($t['mike_estimate_high']??''))?>"></div><div class="field"><label>Mike best actual guess (optional)</label><input type="number" step="0.1" min="0" name="actual_adjusted_hours" value="<?=wt_html((string)($t['actual_adjusted_hours']??''))?>"></div></div>
 <div class="field"><label>Mike estimate reasoning</label><textarea name="mike_reasoning"><?=wt_html($t['mike_reasoning']??'')?></textarea></div><div class="field"><label>Actual-time reasoning / why it differed</label><textarea name="actual_reasoning"><?=wt_html($t['actual_reasoning']??'')?></textarea></div>
 <p class="checkline"><input type="checkbox" name="customer_visible" value="1" <?=$t['customer_visible']?'checked':''?>> Visible to customer</p>
+
+<div class="task-detail-box" style="border:2px solid #3973a8;background:#eef6ff">
+<b>📷 Add photos with this task update</b>
+<p class="small" style="margin:6px 0 10px">Optional. Add up to 8 photos whenever you save progress, mark the task waiting, or complete it. They stay attached to this task.</p>
+<input type="file" name="progress_photos[]" accept="image/jpeg,image/png,image/webp" multiple>
+<div class="field" style="margin-top:9px"><label>Photo note (optional)</label><input name="progress_photo_note" placeholder="e.g. second coat applied; ready for sanding after curing"></div>
+</div>
 
 <?php
 $taskStatusLabels = [
@@ -3217,7 +3313,7 @@ function wb_hours(float $hours): string {
 
 <div class="card">
 <h2>Start job activity</h2>
-<p class="small">Record where you are and what you are doing. One active session per worker is allowed, so repeated clicks cannot create duplicate running timers.</p>
+<p class="small">Record where you are and what you are doing. One active session per worker <b>on this job</b> is allowed, so repeated clicks cannot create duplicate timers. You can still leave this job open or waiting and work on another job concurrently.</p>
 <form method="post" action="../../api/work/start_session.php">
 <input type="hidden" name="job_id" value="<?=$id?>">
 <div class="row">
@@ -3789,15 +3885,24 @@ function wb_hours(float $hours): string {
         const form = select.closest('form');
         if (!form) return;
 
+        form.enctype = 'multipart/form-data';
+
         const fields = form.querySelector('.change-activity-fields');
+        const nextFields = form.querySelector('.finish-next-fields');
         const notes = form.querySelector('[name="notes"]');
+        const nextTask = form.querySelector('[name="next_task_id"]');
+        const nextNotes = form.querySelector('[name="next_notes"]');
 
         if (!fields || !notes) return;
 
         const changing = select.value === 'change';
+        const finishNext = select.value === 'finish_task_start_next';
 
         fields.style.display = changing ? '' : 'none';
+        if (nextFields) nextFields.style.display = finishNext ? '' : 'none';
         notes.required = changing;
+        if (nextTask) nextTask.required = finishNext;
+        if (nextNotes) nextNotes.required = finishNext;
     }
 
     document.querySelectorAll('.session-action-select').forEach(function (select) {
@@ -4227,6 +4332,36 @@ function wb_hours(float $hours): string {
 (function () {
     'use strict';
 
+    const cureTaskOptions = <?=json_encode(array_map(static fn($t) => [
+        'id' => (int)$t['id'],
+        'title' => (string)$t['title'],
+    ], $activeTasks), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)?>;
+
+    function escapeHtml(value) {
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function buildTaskOptions(currentTaskId) {
+        const current = Number(currentTaskId || 0);
+        const options = cureTaskOptions
+            .filter(task => Number(task.id) !== current)
+            .map(task => (
+                '<option value="' +
+                Number(task.id) +
+                '">' +
+                escapeHtml(task.title) +
+                '</option>'
+            ))
+            .join('');
+
+        return '<option value="">Select task to start...</option>' + options;
+    }
+
     function installCureOption(select) {
         if (!select || select.dataset.cureOptionInstalled === '1') return;
 
@@ -4250,6 +4385,7 @@ function wb_hours(float $hours): string {
         }
 
         const normalAction = form.getAttribute('action');
+        const currentTaskId = form.dataset.currentTaskId || '0';
 
         const panel = document.createElement('div');
         panel.className = 'wait-cure-fields';
@@ -4306,6 +4442,68 @@ function wb_hours(float $hours): string {
                     placeholder="e.g. Tomorrow morning / after 2–4 hours / next visit"
                 >
             </div>
+
+            <div class="field wide">
+                <label>📷 Stage photo(s) (optional)</label>
+                <input type="file" name="cure_photos[]" accept="image/jpeg,image/png,image/webp" multiple>
+                <div class="small">Attach what you just applied. Up to 8 photos; they are saved against the current task.</div>
+            </div>
+
+            <div class="field wide" style="border-top:1px solid #e1c172;padding-top:10px">
+                <label class="checkline"><input type="checkbox" name="start_next_task" value="1"> Start another task now while this dries/cures</label>
+            </div>
+
+            <div class="cure-next-task-fields" style="display:none">
+                <div class="field">
+                    <label>Task to start</label>
+                    <select name="cure_next_task_id">
+                        ${buildTaskOptions(currentTaskId)}
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label>Next location</label>
+                    <select name="cure_next_start_location">
+                        <option value="onsite">On site</option>
+                        <option value="bunnings">Bunnings</option>
+                        <option value="supplier">Another supplier / store</option>
+                        <option value="travel_job">Travelling for this job</option>
+                        <option value="workshop_home">Workshop / home preparation</option>
+                        <option value="offsite_planning">Off-site planning / admin</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label>Next activity type</label>
+                    <select name="cure_next_category">
+                        <option value="onsite">On-site work</option>
+                        <option value="measurement">Measurement / investigation</option>
+                        <option value="planning">Planning</option>
+                        <option value="procurement">Sourcing / procurement</option>
+                        <option value="travel">Job-specific travel</option>
+                        <option value="loading_setup">Loading / setup / pack-up</option>
+                        <option value="demolition">Demolition / removal</option>
+                        <option value="repair">Repair / preparation</option>
+                        <option value="unforeseen">Unforeseen / remedial</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+
+                <div class="field wide">
+                    <label>What are you doing next?</label>
+                    <input
+                        name="cure_next_notes"
+                        placeholder="e.g. sanding the door frame while plaster dries"
+                    >
+                </div>
+            </div>
+
+            <div class="field wide" style="border-top:1px solid #e1c172;padding-top:10px">
+                <label>Customer update</label>
+                <label class="checkline"><input type="radio" name="notify_customer" value="0" checked> Save only — do not SMS</label>
+                <label class="checkline"><input type="radio" name="notify_customer" value="1"> Save + SMS customer</label>
+            </div>
         `;
 
         select.closest('.field')?.parentNode?.appendChild(panel);
@@ -4323,9 +4521,17 @@ function wb_hours(float $hours): string {
 
             const material = panel.querySelector('[name="cure_material"]');
             const note = panel.querySelector('[name="cure_note"]');
+            const startNext = panel.querySelector('[name="start_next_task"]');
+            const nextFields = panel.querySelector('.cure-next-task-fields');
+            const nextTask = panel.querySelector('[name="cure_next_task_id"]');
+            const nextNotes = panel.querySelector('[name="cure_next_notes"]');
+            const startingNext = waiting && !!startNext?.checked;
 
             if (material) material.required = waiting;
             if (note) note.required = waiting;
+            if (nextFields) nextFields.style.display = startingNext ? '' : 'none';
+            if (nextTask) nextTask.required = startingNext;
+            if (nextNotes) nextNotes.required = startingNext;
 
             /*
              * Existing Change Activity fields must not remain required while
@@ -4357,6 +4563,8 @@ function wb_hours(float $hours): string {
             }
         }
 
+        panel.querySelector('[name="start_next_task"]')?.addEventListener('change', update);
+
         select.addEventListener('change', function () {
             /*
              * Allow the existing change-activity script to run first, then
@@ -4364,6 +4572,22 @@ function wb_hours(float $hours): string {
              */
             setTimeout(update, 0);
         });
+
+        const details = form.closest('details.stop-panel');
+        if (details && !details.previousElementSibling?.classList.contains('wait-cure-quick-button')) {
+            const quick = document.createElement('button');
+            quick.type = 'button';
+            quick.className = 'btn wait-cure-quick-button';
+            quick.style.cssText = 'width:100%;margin:10px 0;background:#d28a00;color:#fff;font-size:18px;padding:15px 18px';
+            quick.textContent = '🕒 WAITING FOR DRYING / CURING';
+            quick.addEventListener('click', function () {
+                details.open = true;
+                select.value = 'wait_cure';
+                select.dispatchEvent(new Event('change', {bubbles:true}));
+                setTimeout(function () { panel.scrollIntoView({behavior:'smooth', block:'center'}); }, 30);
+            });
+            details.insertAdjacentElement('beforebegin', quick);
+        }
 
         update();
     }

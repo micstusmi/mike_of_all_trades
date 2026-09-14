@@ -35,6 +35,42 @@ $note = trim((string)($_POST['cure_note'] ?? ''));
 $expectedReturn = trim(
     (string)($_POST['cure_expected_return'] ?? '')
 );
+$startNextTask = (string)($_POST['start_next_task'] ?? '0') === '1';
+$nextTaskId = (int)($_POST['cure_next_task_id'] ?? 0);
+$nextLocation = (string)($_POST['cure_next_start_location'] ?? 'onsite');
+$nextCategory = (string)($_POST['cure_next_category'] ?? 'onsite');
+$nextNotes = trim((string)($_POST['cure_next_notes'] ?? ''));
+
+$allowedLocations = [
+    'onsite',
+    'bunnings',
+    'supplier',
+    'travel_job',
+    'workshop_home',
+    'offsite_planning',
+    'other',
+];
+
+$allowedCategories = [
+    'onsite',
+    'measurement',
+    'planning',
+    'procurement',
+    'travel',
+    'loading_setup',
+    'demolition',
+    'repair',
+    'unforeseen',
+    'other',
+];
+
+if (!in_array($nextLocation, $allowedLocations, true)) {
+    $nextLocation = 'other';
+}
+
+if (!in_array($nextCategory, $allowedCategories, true)) {
+    $nextCategory = 'other';
+}
 
 if ($material === '') {
     http_response_code(400);
@@ -44,6 +80,11 @@ if ($material === '') {
 if ($note === '') {
     http_response_code(400);
     exit('Please describe what is drying / curing and what happens next.');
+}
+
+if ($startNextTask && ($nextTaskId <= 0 || $nextNotes === '')) {
+    http_response_code(400);
+    exit('Choose the next task and describe the next activity.');
 }
 
 /*
@@ -75,6 +116,10 @@ if (!$session) {
 }
 
 $sessionId = (int)$session['id'];
+$taskId = (int)($session['task_id'] ?? 0);
+$workerId = $session['worker_id'] === null
+    ? null
+    : (int)$session['worker_id'];
 
 /*
  * If the session happened to have an open personal-break record,
@@ -119,6 +164,116 @@ $stmt->execute([
     $jobId,
 ]);
 
+if ($taskId > 0) {
+    $waitingText = $stopNote . ($expectedReturn !== '' ? "\nExpected return / next stage: ".$expectedReturn : '');
+    $pdo->prepare("
+        UPDATE work_tasks
+        SET status='blocked',
+            waiting_curing_notes=CASE
+                WHEN waiting_curing_notes IS NULL OR waiting_curing_notes='' THEN ?
+                ELSE CONCAT(waiting_curing_notes, '\n', ?)
+            END
+        WHERE id=? AND job_id=? AND status NOT IN ('completed','cancelled')
+    ")->execute([$waitingText,$waitingText,$taskId,$jobId]);
+}
+
+if ($startNextTask) {
+    $taskStmt = $pdo->prepare("
+        SELECT title
+        FROM work_tasks
+        WHERE id=?
+          AND job_id=?
+          AND status NOT IN ('completed','cancelled')
+        LIMIT 1
+    ");
+    $taskStmt->execute([$nextTaskId, $jobId]);
+    $nextTaskTitle = (string)$taskStmt->fetchColumn();
+
+    if ($nextTaskTitle === '' || ($taskId > 0 && $nextTaskId === $taskId)) {
+        http_response_code(400);
+        exit('Choose a valid next task.');
+    }
+
+    if ($workerId === null) {
+        $dup = $pdo->prepare("
+            SELECT id
+            FROM work_sessions
+            WHERE job_id=?
+              AND worker_id IS NULL
+              AND ended_at IS NULL
+            LIMIT 1
+        ");
+        $dup->execute([$jobId]);
+    } else {
+        $dup = $pdo->prepare("
+            SELECT id
+            FROM work_sessions
+            WHERE job_id=?
+              AND worker_id=?
+              AND ended_at IS NULL
+            LIMIT 1
+        ");
+        $dup->execute([$jobId, $workerId]);
+    }
+
+    if ($dup->fetchColumn()) {
+        http_response_code(409);
+        exit('That worker still has a running session.');
+    }
+
+    $insert = $pdo->prepare("
+        INSERT INTO work_sessions
+        (job_id,session_source,worker_id,task_id,started_at,category,start_location,location_detail,billable,notes)
+        VALUES(?,'live',?,?,UTC_TIMESTAMP(),?,?,?,?,?)
+    ");
+
+    $insert->execute([
+        $jobId,
+        $workerId,
+        $nextTaskId,
+        $nextCategory,
+        $nextLocation,
+        null,
+        1,
+        $nextNotes,
+    ]);
+
+    $pdo->prepare("
+        UPDATE work_tasks
+        SET status=IF(status IN ('not_started','blocked'),'in_progress',status)
+        WHERE id=? AND job_id=?
+    ")->execute([$nextTaskId, $jobId]);
+}
+
+/* Save optional stage photos against the activity's current task. */
+$files = $_FILES['cure_photos'] ?? null;
+if ($files && $taskId > 0 && isset($files['name'])) {
+    $names = is_array($files['name']) ? $files['name'] : [$files['name']];
+    $tmps = is_array($files['tmp_name']) ? $files['tmp_name'] : [$files['tmp_name']];
+    $errors = is_array($files['error']) ? $files['error'] : [$files['error']];
+    $sizes = is_array($files['size']) ? $files['size'] : [$files['size']];
+    if (count($names) > 8) die('Please upload no more than 8 photos at once.');
+    $allowed = ['image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp'];
+    $base = wt_env('WORKTRACKER_PRIVATE_UPLOAD_DIR', dirname(__DIR__, 2).'/storage/private/job_intake');
+    $dir = dirname(rtrim($base, '/')).'/task_photos/job_'.$jobId.'/task_'.$taskId;
+    if (!is_dir($dir) && !mkdir($dir, 0770, true) && !is_dir($dir)) die('Private task photo folder could not be created.');
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    $ins = $pdo->prepare("INSERT INTO work_task_photos(job_id,task_id,photo_type,uploader_type,original_name,stored_name,relative_path,mime_type,file_size,sha256,note,keep_permanent,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,NOW())");
+    foreach ($names as $i => $original) {
+        if (($errors[$i] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) continue;
+        if (($errors[$i] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) die('One selected photo could not be uploaded.');
+        $size = (int)($sizes[$i] ?? 0);
+        if ($size <= 0 || $size > 12*1024*1024) die('Each photo must be no larger than 12 MB.');
+        $mime = $finfo->file($tmps[$i]);
+        if (!isset($allowed[$mime])) die('Photos must be JPG, PNG or WEBP.');
+        $stored = 'progress_'.date('Ymd_His').'_'.bin2hex(random_bytes(5)).'.'.$allowed[$mime];
+        $dest = $dir.'/'.$stored;
+        if (!move_uploaded_file($tmps[$i], $dest)) die('A selected photo could not be saved.');
+        $relative = 'job_'.$jobId.'/task_'.$taskId.'/'.$stored;
+        $ins->execute([$jobId,$taskId,'progress','mike',(string)$original,$stored,$relative,$mime,$size,hash_file('sha256',$dest),$stopNote,0]);
+    }
+}
+
 /*
  * Leave the job OPEN.
  *
@@ -152,13 +307,7 @@ $pdo->prepare("
  * drying/curing is a genuine job-status explanation, not an unrelated
  * personal interruption.
  */
-$mode = $job['customer_update_mode'] ?? 'full_transparency';
-
-$sendSms = in_array(
-    $mode,
-    ['full_transparency', 'important_only'],
-    true
-);
+$sendSms = (string)($_POST['notify_customer'] ?? '0') === '1';
 
 if (
     $sendSms &&
@@ -207,7 +356,9 @@ if (
 header(
     'Location: ../../admin/work/manage_job.php?id=' .
     $jobId .
-    '&waiting_cure=1#live-timer'
+    '&waiting_cure=1' .
+    ($startNextTask ? '&started=1' : '') .
+    '#live-timer'
 );
 
 exit;
