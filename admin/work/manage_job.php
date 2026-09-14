@@ -191,7 +191,77 @@ $freeStmt->execute([$id]);
 $complimentaryItems = $freeStmt->fetchAll(PDO::FETCH_ASSOC);
 
 $complimentaryTotal = 0.0;
-foreach ($complimentaryItems as $ci) $complimentaryTotal += (float)$ci['estimated_value'];
+
+$noChargeTotals = [
+    'goodwill' => [
+        'hours' => 0.0,
+        'labour' => 0.0,
+        'materials' => 0.0,
+        'unallocated' => 0.0,
+        'total' => 0.0,
+    ],
+    'rectification' => [
+        'hours' => 0.0,
+        'labour' => 0.0,
+        'materials' => 0.0,
+        'unallocated' => 0.0,
+        'total' => 0.0,
+    ],
+    'other' => [
+        'hours' => 0.0,
+        'labour' => 0.0,
+        'materials' => 0.0,
+        'unallocated' => 0.0,
+        'total' => 0.0,
+    ],
+    'unclassified' => [
+        'hours' => 0.0,
+        'labour' => 0.0,
+        'materials' => 0.0,
+        'unallocated' => 0.0,
+        'total' => 0.0,
+    ],
+];
+
+foreach ($complimentaryItems as $ci) {
+    $reason = (string)($ci['no_charge_reason'] ?? 'unclassified');
+
+    if (!isset($noChargeTotals[$reason])) {
+        $reason = 'unclassified';
+    }
+
+    $hours = (float)($ci['labour_hours'] ?? 0);
+    $labour = (float)($ci['labour_value'] ?? 0);
+    $materialsValue = (float)($ci['material_value'] ?? 0);
+    $legacyTotal = (float)($ci['estimated_value'] ?? 0);
+
+    $allocated = $labour + $materialsValue;
+    $unallocated = max(0, $legacyTotal - $allocated);
+
+    $rowTotal = $allocated + $unallocated;
+
+    $noChargeTotals[$reason]['hours'] += $hours;
+    $noChargeTotals[$reason]['labour'] += $labour;
+    $noChargeTotals[$reason]['materials'] += $materialsValue;
+    $noChargeTotals[$reason]['unallocated'] += $unallocated;
+    $noChargeTotals[$reason]['total'] += $rowTotal;
+
+    $complimentaryTotal += $rowTotal;
+}
+
+$noChargeGrand = [
+    'hours' => 0.0,
+    'labour' => 0.0,
+    'materials' => 0.0,
+    'unallocated' => 0.0,
+    'total' => 0.0,
+];
+
+foreach ($noChargeTotals as $bucket) {
+    foreach ($noChargeGrand as $key => $unused) {
+        $noChargeGrand[$key] += (float)$bucket[$key];
+    }
+}
 
 $timeBreakdown = [
     'onsite' => 0,
@@ -1022,114 +1092,461 @@ Customer day-before confirmation:
 <div class="card notice-good"><b>✓ COMPLIMENTARY VALUE RECORDED.</b> It is visible to the customer but is not added to the billable job total.</div>
 <?php endif;?>
 
-<div class="card free-card">
-<h2>Complimentary extras / value provided at no charge</h2>
-<p class="small">Use this whenever you provide extra labour, materials, repairs or improvements as a goodwill gesture. These items are shown separately and are <b>not charged</b>.</p>
+<div class="card free-card" id="no-charge-work">
+
+<h2>No-charge work / materials</h2>
+
+<p class="small">
+Record anything the customer is not being charged for.
+Keep <b>goodwill / free extras</b> separate from
+<b>rectification / rework</b>, and record labour and materials separately.
+</p>
 
 <form method="post" action="../../api/work/add_complimentary_item.php">
+
 <input type="hidden" name="job_id" value="<?=$id?>">
+
 <div class="row">
-    <select name="item_type">
-        <option value="labour">Free labour</option>
-        <option value="material">Free material</option>
-        <option value="repair">Free repair / fix</option>
-        <option value="improvement">Free improvement / upgrade</option>
-        <option value="other">Other goodwill extra</option>
-    </select>
-    <input name="description" placeholder="What did you provide for free?" required>
-    <input type="number" step=".01" min="0" name="estimated_value" placeholder="Approx value $">
-    <input name="note" placeholder="Why / context (optional)">
-    <button class="btn">Add free extra</button>
+
+    <div class="field">
+        <label>Why is this not being charged?</label>
+        <select name="no_charge_reason" required>
+            <option value="goodwill">Goodwill / love job / free extra</option>
+            <option value="rectification">Rectification / correcting my own work</option>
+            <option value="other">Other no-charge work</option>
+        </select>
+    </div>
+
+    <div class="field">
+        <label>Type</label>
+        <select name="item_type">
+            <option value="labour">Labour</option>
+            <option value="material">Materials</option>
+            <option value="repair">Repair / rectification</option>
+            <option value="improvement">Improvement / upgrade</option>
+            <option value="other">Other / mixed</option>
+        </select>
+    </div>
+
 </div>
+
+<div class="field wide">
+    <label>Description</label>
+    <textarea
+        name="description"
+        placeholder="What was done or supplied?"
+        required
+    ></textarea>
+</div>
+
+<div class="row">
+
+    <div class="field">
+        <label>Labour hours</label>
+        <input
+            name="labour_hours"
+            type="number"
+            step=".01"
+            min="0"
+            placeholder="e.g. 4"
+        >
+    </div>
+
+    <div class="field">
+        <label>Labour value $</label>
+        <input
+            name="labour_value"
+            type="number"
+            step=".01"
+            min="0"
+            placeholder="e.g. 280"
+        >
+    </div>
+
+    <div class="field">
+        <label>Materials value $</label>
+        <input
+            name="material_value"
+            type="number"
+            step=".01"
+            min="0"
+            placeholder="e.g. 45"
+        >
+    </div>
+
+</div>
+
+<div class="field wide">
+    <label>Materials used / supplied</label>
+    <textarea
+        name="material_details"
+        placeholder="e.g. filler, timber, screws, paint, adhesive..."
+    ></textarea>
+</div>
+
+<div class="field wide">
+    <label>Explanation / context</label>
+    <textarea
+        name="note"
+        placeholder="Why was this not charged?"
+    ></textarea>
+</div>
+
+<button class="btn" type="submit">
+    ADD NO-CHARGE ITEM
+</button>
+
 </form>
 
 <?php if($complimentaryItems):?>
-<p class="free-total">Complimentary value recorded: <?=wt_money($complimentaryTotal)?></p>
 
-<?php foreach($complimentaryItems as $ci):?>
+<h3 style="margin-top:24px">No-charge tallies</h3>
+
+<div style="overflow-x:auto">
+
+<table style="width:100%;border-collapse:collapse">
+
+<thead>
+<tr>
+    <th style="text-align:left;padding:8px">Category</th>
+    <th style="text-align:right;padding:8px">Labour hours</th>
+    <th style="text-align:right;padding:8px">Labour</th>
+    <th style="text-align:right;padding:8px">Materials</th>
+    <th style="text-align:right;padding:8px">Unallocated</th>
+    <th style="text-align:right;padding:8px">Total</th>
+</tr>
+</thead>
+
+<tbody>
+
+<?php
+$reasonLabels = [
+    'goodwill' => 'Goodwill / free extras',
+    'rectification' => 'Rectification / rework',
+    'other' => 'Other no-charge',
+    'unclassified' => 'Unclassified — review required',
+];
+
+foreach ($reasonLabels as $reasonKey=>$reasonLabel):
+    $bucket = $noChargeTotals[$reasonKey];
+?>
+
+<tr>
+    <td style="padding:8px;border-top:1px solid #ddd">
+        <b><?=wt_html($reasonLabel)?></b>
+    </td>
+
+    <td style="padding:8px;border-top:1px solid #ddd;text-align:right">
+        <?=number_format((float)$bucket['hours'],2)?> h
+    </td>
+
+    <td style="padding:8px;border-top:1px solid #ddd;text-align:right">
+        <?=wt_money((float)$bucket['labour'])?>
+    </td>
+
+    <td style="padding:8px;border-top:1px solid #ddd;text-align:right">
+        <?=wt_money((float)$bucket['materials'])?>
+    </td>
+
+    <td style="padding:8px;border-top:1px solid #ddd;text-align:right">
+        <?=wt_money((float)$bucket['unallocated'])?>
+    </td>
+
+    <td style="padding:8px;border-top:1px solid #ddd;text-align:right">
+        <b><?=wt_money((float)$bucket['total'])?></b>
+    </td>
+</tr>
+
+<?php endforeach;?>
+
+<tr>
+    <td style="padding:10px 8px;border-top:3px solid #333">
+        <b>ALL NO-CHARGE WORK</b>
+    </td>
+
+    <td style="padding:10px 8px;border-top:3px solid #333;text-align:right">
+        <b><?=number_format((float)$noChargeGrand['hours'],2)?> h</b>
+    </td>
+
+    <td style="padding:10px 8px;border-top:3px solid #333;text-align:right">
+        <b><?=wt_money((float)$noChargeGrand['labour'])?></b>
+    </td>
+
+    <td style="padding:10px 8px;border-top:3px solid #333;text-align:right">
+        <b><?=wt_money((float)$noChargeGrand['materials'])?></b>
+    </td>
+
+    <td style="padding:10px 8px;border-top:3px solid #333;text-align:right">
+        <b><?=wt_money((float)$noChargeGrand['unallocated'])?></b>
+    </td>
+
+    <td style="padding:10px 8px;border-top:3px solid #333;text-align:right">
+        <b><?=wt_money((float)$noChargeGrand['total'])?></b>
+    </td>
+</tr>
+
+</tbody>
+</table>
+
+</div>
+
+<p class="small" style="margin-top:8px">
+<b>Unallocated</b> means an older record still contains a value that has not
+yet been split between labour and materials. Edit the item to classify it.
+</p>
+
+<h3 style="margin-top:24px">Items</h3>
+
+<?php foreach($complimentaryItems as $ci):
+
+    $reason = (string)($ci['no_charge_reason'] ?? 'unclassified');
+
+    $displayReason = [
+        'goodwill' => 'Goodwill / free extra',
+        'rectification' => 'Rectification / rework',
+        'other' => 'Other no-charge',
+        'unclassified' => 'Unclassified — review required',
+    ][$reason] ?? 'Unclassified — review required';
+
+    $labourHours = (float)($ci['labour_hours'] ?? 0);
+    $labourValue = (float)($ci['labour_value'] ?? 0);
+    $materialValue = (float)($ci['material_value'] ?? 0);
+    $legacyTotal = (float)($ci['estimated_value'] ?? 0);
+
+    $unallocated = max(
+        0,
+        $legacyTotal - $labourValue - $materialValue
+    );
+
+?>
+
 <details
     id="complimentary-<?=$ci['id']?>"
-    style="border-top:1px solid #d9e9d2;padding:10px 0"
+    style="
+        border-top:1px solid #d9e9d2;
+        padding:12px 0
+    "
 >
-    <summary style="cursor:pointer">
-        <b><?=wt_html(ucwords(str_replace('_',' ',$ci['item_type'])))?>:</b>
-        <?=wt_html($ci['description'])?>
-        <?php if((float)$ci['estimated_value']>0):?>
-            — <b>Approx. value <?=wt_money((float)$ci['estimated_value'])?></b>
-        <?php endif;?>
-        <span class="small"> · Edit</span>
-    </summary>
 
-    <?php if(!empty($ci['note'])):?>
-        <div class="small" style="margin:7px 0">
-            <?=wt_html($ci['note'])?>
-        </div>
+<summary style="cursor:pointer">
+
+    <b><?=wt_html($displayReason)?></b> —
+    <?=wt_html($ci['description'])?>
+
+    <?php if($labourValue > 0):?>
+        · Labour <?=wt_money($labourValue)?>
     <?php endif;?>
 
-    <form
-        method="post"
-        action="../../api/work/update_complimentary_item.php"
-        style="margin-top:12px"
-    >
-        <input type="hidden" name="job_id" value="<?=$id?>">
-        <input type="hidden" name="item_id" value="<?=$ci['id']?>">
+    <?php if($materialValue > 0):?>
+        · Materials <?=wt_money($materialValue)?>
+    <?php endif;?>
 
-        <div class="field">
-            <label>Type</label>
-            <select name="item_type">
-                <?php foreach([
-                    'labour'=>'Free labour',
-                    'material'=>'Free material',
-                    'repair'=>'Free repair / fix',
-                    'improvement'=>'Free improvement / upgrade',
-                    'other'=>'Other goodwill extra'
-                ] as $freeType=>$freeLabel):?>
-                    <option
-                        value="<?=wt_html($freeType)?>"
-                        <?=($ci['item_type']??'')===$freeType?'selected':''?>
-                    >
-                        <?=wt_html($freeLabel)?>
-                    </option>
-                <?php endforeach;?>
-            </select>
-        </div>
+    <?php if($unallocated > 0):?>
+        · Unallocated <?=wt_money($unallocated)?>
+    <?php endif;?>
 
-        <div class="field wide">
-            <label>Description</label>
-            <input
-                name="description"
-                value="<?=wt_html($ci['description']??'')?>"
-                required
+    <span class="small"> · Edit</span>
+
+</summary>
+
+<?php if($labourHours > 0):?>
+<p class="small">
+<b>Labour time:</b>
+<?=number_format($labourHours,2)?> hours
+</p>
+<?php endif;?>
+
+<?php if(!empty($ci['material_details'])):?>
+<p class="small">
+<b>Materials:</b>
+<?=nl2br(wt_html($ci['material_details']))?>
+</p>
+<?php endif;?>
+
+<?php if(!empty($ci['note'])):?>
+<p class="small">
+<?=nl2br(wt_html($ci['note']))?>
+</p>
+<?php endif;?>
+
+<form
+    method="post"
+    action="../../api/work/update_complimentary_item.php"
+    style="margin-top:12px"
+>
+
+<input type="hidden" name="job_id" value="<?=$id?>">
+<input type="hidden" name="item_id" value="<?=$ci['id']?>">
+
+<div class="row">
+
+    <div class="field">
+        <label>Why is this not charged?</label>
+        <select name="no_charge_reason" required>
+
+            <?php foreach([
+                'unclassified'=>'Unclassified — review this',
+                'goodwill'=>'Goodwill / love job / free extra',
+                'rectification'=>'Rectification / correcting my own work',
+                'other'=>'Other no-charge work',
+            ] as $key=>$label):?>
+
+            <option
+                value="<?=wt_html($key)?>"
+                <?=$reason===$key?'selected':''?>
             >
-        </div>
+                <?=wt_html($label)?>
+            </option>
 
-        <div class="field">
-            <label>Unpaid / complimentary value $</label>
-            <input
-                type="number"
-                step=".01"
-                min="0"
-                name="estimated_value"
-                value="<?=wt_html((string)($ci['estimated_value']??'0'))?>"
+            <?php endforeach;?>
+
+        </select>
+    </div>
+
+    <div class="field">
+        <label>Type</label>
+        <select name="item_type">
+
+            <?php foreach([
+                'labour'=>'Labour',
+                'material'=>'Materials',
+                'repair'=>'Repair / rectification',
+                'improvement'=>'Improvement / upgrade',
+                'other'=>'Other / mixed',
+            ] as $key=>$label):?>
+
+            <option
+                value="<?=wt_html($key)?>"
+                <?=($ci['item_type']??'other')===$key?'selected':''?>
             >
-        </div>
+                <?=wt_html($label)?>
+            </option>
 
-        <div class="field wide">
-            <label>Explanation / context</label>
-            <textarea
-                name="note"
-                placeholder="e.g. 12 hours total; 8 hours already paid, remaining 4 hours provided at no charge."
-            ><?=wt_html($ci['note']??'')?></textarea>
-        </div>
+            <?php endforeach;?>
 
-        <button class="btn" type="submit">SAVE CHANGES</button>
-    </form>
+        </select>
+    </div>
+
+</div>
+
+<div class="field wide">
+
+<label>Description</label>
+
+<textarea
+    name="description"
+    required
+><?=wt_html($ci['description']??'')?></textarea>
+
+</div>
+
+<div class="row">
+
+<div class="field">
+
+<label>Labour hours</label>
+
+<input
+    name="labour_hours"
+    type="number"
+    step=".01"
+    min="0"
+    value="<?=wt_html((string)($ci['labour_hours']??''))?>"
+>
+
+</div>
+
+<div class="field">
+
+<label>Labour value $</label>
+
+<input
+    name="labour_value"
+    type="number"
+    step=".01"
+    min="0"
+    value="<?=wt_html((string)($ci['labour_value']??'0'))?>"
+>
+
+</div>
+
+<div class="field">
+
+<label>Materials value $</label>
+
+<input
+    name="material_value"
+    type="number"
+    step=".01"
+    min="0"
+    value="<?=wt_html((string)($ci['material_value']??'0'))?>"
+>
+
+</div>
+
+</div>
+
+<?php if($unallocated > 0):?>
+
+<div
+    style="
+        margin:10px 0;
+        padding:10px;
+        border:2px solid #e3b23c;
+        border-radius:10px;
+        background:#fff8dc
+    "
+>
+
+<b>Older unallocated value: <?=wt_money($unallocated)?></b><br>
+
+<span class="small">
+This was recorded before labour/material splitting existed.
+Allocate it above before saving if you know the breakdown.
+</span>
+
+</div>
+
+<?php endif;?>
+
+<div class="field wide">
+
+<label>Materials used / supplied</label>
+
+<textarea
+    name="material_details"
+><?=wt_html($ci['material_details']??'')?></textarea>
+
+</div>
+
+<div class="field wide">
+
+<label>Explanation / context</label>
+
+<textarea
+    name="note"
+><?=wt_html($ci['note']??'')?></textarea>
+
+</div>
+
+<button class="btn" type="submit">
+SAVE CHANGES
+</button>
+
+</form>
+
 </details>
+
 <?php endforeach;?>
 
 <?php else:?>
-<p class="small">No complimentary extras recorded yet.</p>
+
+<p class="small">
+No no-charge items recorded yet.
+</p>
+
 <?php endif;?>
+
 </div>
 
 

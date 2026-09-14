@@ -1,31 +1,116 @@
 <?php
+declare(strict_types=1);
+
 require_once __DIR__ . '/_admin_auth.php';
 require_once __DIR__ . '/../../includes/work_tracker.php';
 
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    exit('POST required.');
+}
+
 $jobId = (int)($_POST['job_id'] ?? 0);
-$job = wt_job($pdo, $jobId);
 
-$allowed = ['labour','material','repair','improvement','other'];
-$type = $_POST['item_type'] ?? 'other';
-if (!in_array($type, $allowed, true)) $type = 'other';
+if ($jobId <= 0) {
+    http_response_code(400);
+    exit('Invalid job.');
+}
 
-$description = trim($_POST['description'] ?? '');
-$value = (float)($_POST['estimated_value'] ?? 0);
-$note = trim($_POST['note'] ?? '');
+$reason = trim((string)($_POST['no_charge_reason'] ?? 'unclassified'));
+
+$allowedReasons = [
+    'unclassified',
+    'goodwill',
+    'rectification',
+    'other',
+];
+
+if (!in_array($reason, $allowedReasons, true)) {
+    $reason = 'unclassified';
+}
+
+$itemType = trim((string)($_POST['item_type'] ?? 'other'));
+
+$allowedTypes = [
+    'labour',
+    'material',
+    'repair',
+    'improvement',
+    'other',
+];
+
+if (!in_array($itemType, $allowedTypes, true)) {
+    $itemType = 'other';
+}
+
+$description = trim((string)($_POST['description'] ?? ''));
+$note = trim((string)($_POST['note'] ?? ''));
+$materialDetails = trim((string)($_POST['material_details'] ?? ''));
+
+$hoursRaw = trim((string)($_POST['labour_hours'] ?? ''));
+$labourRaw = trim((string)($_POST['labour_value'] ?? ''));
+$materialRaw = trim((string)($_POST['material_value'] ?? ''));
+
+$labourHours =
+    $hoursRaw !== '' && is_numeric($hoursRaw)
+        ? max(0, (float)$hoursRaw)
+        : null;
+
+$labourValue =
+    $labourRaw !== '' && is_numeric($labourRaw)
+        ? max(0, (float)$labourRaw)
+        : 0.0;
+
+$materialValue =
+    $materialRaw !== '' && is_numeric($materialRaw)
+        ? max(0, (float)$materialRaw)
+        : 0.0;
 
 if ($description === '') {
-    die('Please describe the complimentary item.');
+    http_response_code(400);
+    exit('Description is required.');
 }
+
+$totalValue = $labourValue + $materialValue;
 
 $stmt = $pdo->prepare("
     INSERT INTO work_complimentary_items
-    (job_id, item_type, description, estimated_value, note)
-    VALUES (?,?,?,?,?)
+    (
+        job_id,
+        item_type,
+        no_charge_reason,
+        labour_hours,
+        labour_value,
+        material_value,
+        material_details,
+        description,
+        estimated_value,
+        note,
+        updated_at
+    )
+    VALUES
+    (
+        ?,?,?,?,?,?,?,?,?,?,NOW()
+    )
 ");
+
 $stmt->execute([
-    $jobId, $type, $description, max(0, $value),
-    $note !== '' ? $note : null
+    $jobId,
+    $itemType,
+    $reason,
+    $labourHours,
+    $labourValue,
+    $materialValue,
+    $materialDetails !== '' ? $materialDetails : null,
+    $description,
+    $totalValue,
+    $note !== '' ? $note : null,
 ]);
 
-header("Location: ../../admin/work/job.php?id=".$jobId."&free_added=1");
+header(
+    'Location: ../../admin/work/manage_job.php?id=' .
+    $jobId .
+    '&free_added=1#no-charge-work'
+);
+
 exit;

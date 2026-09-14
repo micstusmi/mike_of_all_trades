@@ -14,7 +14,20 @@ $itemId = (int)($_POST['item_id'] ?? 0);
 
 if ($jobId <= 0 || $itemId <= 0) {
     http_response_code(400);
-    exit('Invalid job or complimentary item.');
+    exit('Invalid job or item.');
+}
+
+$reason = trim((string)($_POST['no_charge_reason'] ?? 'unclassified'));
+
+$allowedReasons = [
+    'unclassified',
+    'goodwill',
+    'rectification',
+    'other',
+];
+
+if (!in_array($reason, $allowedReasons, true)) {
+    $reason = 'unclassified';
 }
 
 $itemType = trim((string)($_POST['item_type'] ?? 'other'));
@@ -33,36 +46,60 @@ if (!in_array($itemType, $allowedTypes, true)) {
 
 $description = trim((string)($_POST['description'] ?? ''));
 $note = trim((string)($_POST['note'] ?? ''));
+$materialDetails = trim((string)($_POST['material_details'] ?? ''));
 
-$valueRaw = trim((string)($_POST['estimated_value'] ?? '0'));
-$estimatedValue = is_numeric($valueRaw)
-    ? max(0, (float)$valueRaw)
-    : 0.0;
+$hoursRaw = trim((string)($_POST['labour_hours'] ?? ''));
+$labourRaw = trim((string)($_POST['labour_value'] ?? ''));
+$materialRaw = trim((string)($_POST['material_value'] ?? ''));
+
+$labourHours =
+    $hoursRaw !== '' && is_numeric($hoursRaw)
+        ? max(0, (float)$hoursRaw)
+        : null;
+
+$labourValue =
+    $labourRaw !== '' && is_numeric($labourRaw)
+        ? max(0, (float)$labourRaw)
+        : 0.0;
+
+$materialValue =
+    $materialRaw !== '' && is_numeric($materialRaw)
+        ? max(0, (float)$materialRaw)
+        : 0.0;
 
 if ($description === '') {
     http_response_code(400);
     exit('Description is required.');
 }
 
-/*
- * job_id is included in the WHERE clause deliberately:
- * an item can only be edited from the job that owns it.
- */
+$totalValue = $labourValue + $materialValue;
+
 $stmt = $pdo->prepare("
     UPDATE work_complimentary_items
     SET
         item_type = ?,
+        no_charge_reason = ?,
+        labour_hours = ?,
+        labour_value = ?,
+        material_value = ?,
+        material_details = ?,
         description = ?,
         estimated_value = ?,
-        note = ?
+        note = ?,
+        updated_at = NOW()
     WHERE id = ?
       AND job_id = ?
 ");
 
 $stmt->execute([
     $itemType,
+    $reason,
+    $labourHours,
+    $labourValue,
+    $materialValue,
+    $materialDetails !== '' ? $materialDetails : null,
     $description,
-    $estimatedValue,
+    $totalValue,
     $note !== '' ? $note : null,
     $itemId,
     $jobId,
