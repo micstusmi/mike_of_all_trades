@@ -2609,6 +2609,94 @@ customer notified of this specific update.
             </button>
         </form>
     </details>
+
+    <?php if(($s['session_source']??'')==='retrospective'):?>
+    <details style="margin-top:8px">
+        <summary style="cursor:pointer">
+            <b>✂️ Split recorded work</b>
+        </summary>
+
+        <form
+            method="post"
+            action="../../api/work/split_recorded_session.php"
+            style="margin-top:10px;padding:12px;background:#fff8e8;border:1px solid #ead39a;border-radius:10px"
+        >
+            <input type="hidden" name="job_id" value="<?=$id?>">
+            <input type="hidden" name="session_id" value="<?=(int)$s['id']?>">
+
+            <p class="small">
+                Use this when one past-work entry contains both paid time
+                and time you are not charging for.
+            </p>
+
+            <div class="row">
+
+                <div class="field">
+                    <label>Billable hours</label>
+                    <input
+                        type="number"
+                        name="billable_hours"
+                        min="0.01"
+                        step="0.01"
+                        required
+                    >
+                </div>
+
+                <div class="field">
+                    <label>No-charge hours</label>
+                    <input
+                        type="number"
+                        name="free_hours"
+                        min="0.01"
+                        step="0.01"
+                        required
+                    >
+                </div>
+
+                <div class="field">
+                    <label>No-charge reason</label>
+                    <select name="free_reason">
+                        <option value="goodwill">
+                            Goodwill / free extra
+                        </option>
+
+                        <option value="rectification">
+                            Rectification / correcting my own work
+                        </option>
+
+                        <option value="other">
+                            Other no-charge work
+                        </option>
+                    </select>
+                </div>
+
+                <div class="field wide">
+                    <label>Explanation</label>
+                    <input
+                        name="free_note"
+                        placeholder="e.g. 8 hours paid, remaining 4 hours supplied free"
+                    >
+                </div>
+
+            </div>
+
+            <p class="small">
+                The two amounts must equal the original recorded hours.
+                The overall job-time total will stay unchanged.
+            </p>
+
+            <button
+                class="btn"
+                type="submit"
+                onclick="return confirm('Split this historical work record into separate billable and no-charge records?');"
+            >
+                ✂️ SPLIT RECORDED WORK
+            </button>
+
+        </form>
+    </details>
+    <?php endif;?>
+
     <?php endif;?>
 
 </div>
