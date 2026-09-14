@@ -2419,6 +2419,643 @@ customer notified of this specific update.
 <?php endif; endforeach;?>
 </div>
 
+<?php
+/*
+ * V9 WORK / FINANCIAL BREAKDOWN OVERVIEW
+ *
+ * Read-only overview. This does not alter job records.
+ * It deliberately keeps:
+ *   - actual recorded time
+ *   - customer-billable time
+ *   - goodwill
+ *   - rectification
+ *   - other / unclassified no-charge work
+ * visibly separate.
+ */
+
+$wbTimeStmt = $pdo->prepare("
+    SELECT
+        COALESCE(SUM(
+            CASE
+                WHEN s.ended_at IS NULL THEN 0
+                WHEN s.session_source='retrospective'
+                     AND s.retrospective_hours IS NOT NULL
+                    THEN s.retrospective_hours
+                ELSE
+                    GREATEST(
+                        0,
+                        TIMESTAMPDIFF(
+                            SECOND,
+                            s.started_at,
+                            s.ended_at
+                        )
+                        -
+                        COALESCE(
+                            (
+                                SELECT SUM(
+                                    TIMESTAMPDIFF(
+                                        SECOND,
+                                        b.started_at,
+                                        COALESCE(
+                                            b.ended_at,
+                                            s.ended_at
+                                        )
+                                    )
+                                )
+                                FROM work_session_breaks b
+                                WHERE b.session_id=s.id
+                            ),
+                            0
+                        )
+                    ) / 3600
+            END
+        ),0) AS actual_hours,
+
+        COALESCE(SUM(
+            CASE
+                WHEN s.billable=1
+                     AND s.ended_at IS NOT NULL
+                THEN
+                    CASE
+                        WHEN s.session_source='retrospective'
+                             AND s.retrospective_hours IS NOT NULL
+                            THEN s.retrospective_hours
+                        ELSE
+                            GREATEST(
+                                0,
+                                TIMESTAMPDIFF(
+                                    SECOND,
+                                    s.started_at,
+                                    s.ended_at
+                                )
+                                -
+                                COALESCE(
+                                    (
+                                        SELECT SUM(
+                                            TIMESTAMPDIFF(
+                                                SECOND,
+                                                b2.started_at,
+                                                COALESCE(
+                                                    b2.ended_at,
+                                                    s.ended_at
+                                                )
+                                            )
+                                        )
+                                        FROM work_session_breaks b2
+                                        WHERE b2.session_id=s.id
+                                    ),
+                                    0
+                                )
+                            ) / 3600
+                    END
+                ELSE 0
+            END
+        ),0) AS billable_hours,
+
+        COALESCE(SUM(
+            CASE
+                WHEN s.billable=0
+                     AND s.ended_at IS NOT NULL
+                THEN
+                    CASE
+                        WHEN s.session_source='retrospective'
+                             AND s.retrospective_hours IS NOT NULL
+                            THEN s.retrospective_hours
+                        ELSE
+                            GREATEST(
+                                0,
+                                TIMESTAMPDIFF(
+                                    SECOND,
+                                    s.started_at,
+                                    s.ended_at
+                                )
+                                -
+                                COALESCE(
+                                    (
+                                        SELECT SUM(
+                                            TIMESTAMPDIFF(
+                                                SECOND,
+                                                b3.started_at,
+                                                COALESCE(
+                                                    b3.ended_at,
+                                                    s.ended_at
+                                                )
+                                            )
+                                        )
+                                        FROM work_session_breaks b3
+                                        WHERE b3.session_id=s.id
+                                    ),
+                                    0
+                                )
+                            ) / 3600
+                    END
+                ELSE 0
+            END
+        ),0) AS nonbillable_session_hours
+    FROM work_sessions s
+    WHERE s.job_id=?
+");
+
+$wbTimeStmt->execute([$id]);
+$wbTime = $wbTimeStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+$wbActualHours =
+    round((float)($wbTime['actual_hours'] ?? 0), 2);
+
+$wbBillableHours =
+    round((float)($wbTime['billable_hours'] ?? 0), 2);
+
+$wbNonbillableSessionHours =
+    round((float)($wbTime['nonbillable_session_hours'] ?? 0), 2);
+
+
+$wbNoChargeStmt = $pdo->prepare("
+    SELECT *
+    FROM work_complimentary_items
+    WHERE job_id=?
+    ORDER BY
+        CASE no_charge_reason
+            WHEN 'unclassified' THEN 0
+            WHEN 'rectification' THEN 1
+            WHEN 'goodwill' THEN 2
+            ELSE 3
+        END,
+        id
+");
+
+$wbNoChargeStmt->execute([$id]);
+
+$wbNoChargeItems =
+    $wbNoChargeStmt->fetchAll(PDO::FETCH_ASSOC);
+
+
+$wbGroups = [
+    'goodwill' => [
+        'hours' => 0.0,
+        'labour' => 0.0,
+        'materials' => 0.0,
+        'unallocated' => 0.0,
+        'items' => [],
+    ],
+    'rectification' => [
+        'hours' => 0.0,
+        'labour' => 0.0,
+        'materials' => 0.0,
+        'unallocated' => 0.0,
+        'items' => [],
+    ],
+    'other' => [
+        'hours' => 0.0,
+        'labour' => 0.0,
+        'materials' => 0.0,
+        'unallocated' => 0.0,
+        'items' => [],
+    ],
+    'unclassified' => [
+        'hours' => 0.0,
+        'labour' => 0.0,
+        'materials' => 0.0,
+        'unallocated' => 0.0,
+        'items' => [],
+    ],
+];
+
+foreach ($wbNoChargeItems as $wbItem) {
+
+    $wbReason =
+        (string)($wbItem['no_charge_reason'] ?? 'unclassified');
+
+    if (!isset($wbGroups[$wbReason])) {
+        $wbReason = 'other';
+    }
+
+    $wbHours =
+        (float)($wbItem['labour_hours'] ?? 0);
+
+    $wbLabour =
+        (float)($wbItem['labour_value'] ?? 0);
+
+    $wbMaterials =
+        (float)($wbItem['material_value'] ?? 0);
+
+    $wbLegacy =
+        (float)($wbItem['estimated_value'] ?? 0);
+
+    $wbAllocated =
+        $wbLabour + $wbMaterials;
+
+    $wbUnallocated =
+        max(0, $wbLegacy - $wbAllocated);
+
+    $wbGroups[$wbReason]['hours'] += $wbHours;
+    $wbGroups[$wbReason]['labour'] += $wbLabour;
+    $wbGroups[$wbReason]['materials'] += $wbMaterials;
+    $wbGroups[$wbReason]['unallocated'] += $wbUnallocated;
+    $wbGroups[$wbReason]['items'][] = $wbItem;
+}
+
+foreach ($wbGroups as &$wbGroup) {
+    $wbGroup['hours'] =
+        round($wbGroup['hours'], 2);
+
+    $wbGroup['labour'] =
+        round($wbGroup['labour'], 2);
+
+    $wbGroup['materials'] =
+        round($wbGroup['materials'], 2);
+
+    $wbGroup['unallocated'] =
+        round($wbGroup['unallocated'], 2);
+
+    $wbGroup['total'] =
+        round(
+            $wbGroup['labour']
+            +
+            $wbGroup['materials']
+            +
+            $wbGroup['unallocated'],
+            2
+        );
+}
+unset($wbGroup);
+
+$wbClassifiedNoChargeHours =
+    $wbGroups['goodwill']['hours']
+    +
+    $wbGroups['rectification']['hours']
+    +
+    $wbGroups['other']['hours'];
+
+$wbUnclassifiedHours =
+    max(
+        0,
+        $wbNonbillableSessionHours
+        -
+        $wbClassifiedNoChargeHours
+    );
+
+$wbNeedsAttention =
+    count($wbGroups['unclassified']['items'])
+    +
+    ($wbUnclassifiedHours > 0.01 ? 1 : 0);
+
+function wb_hours(float $hours): string {
+    return number_format($hours, 2);
+}
+?>
+
+<div
+    class="card"
+    id="work-breakdown-overview"
+    style="
+        border:2px solid #44515d;
+        background:#f8fafb;
+    "
+>
+
+<h2 style="margin-bottom:4px">
+    📊 Job work &amp; financial breakdown
+</h2>
+
+<p class="small" style="margin-top:0">
+    One place to see what has already been classified.
+    <b>Actual time worked stays separate from what the customer is charged.</b>
+</p>
+
+<?php if($wbNeedsAttention > 0):?>
+<div
+    style="
+        background:#fff3cd;
+        border:1px solid #e1c15b;
+        padding:12px;
+        border-radius:10px;
+        margin:12px 0;
+    "
+>
+    <b>⚠ Needs review:</b>
+
+    <?php if(count($wbGroups['unclassified']['items']) > 0):?>
+        <?=count($wbGroups['unclassified']['items'])?>
+        old no-charge
+        <?=count($wbGroups['unclassified']['items'])===1?'item':'items'?>
+        still
+        <?=count($wbGroups['unclassified']['items'])===1?'has':'have'?>
+        no goodwill / rectification classification.
+    <?php endif;?>
+
+    <?php if($wbUnclassifiedHours > 0.01):?>
+        There are also approximately
+        <b><?=wb_hours($wbUnclassifiedHours)?> hrs</b>
+        of non-billable session time not yet matched to a classified
+        no-charge labour record.
+    <?php endif;?>
+</div>
+<?php endif;?>
+
+
+<div
+    style="
+        display:grid;
+        grid-template-columns:repeat(auto-fit,minmax(170px,1fr));
+        gap:10px;
+        margin:14px 0;
+    "
+>
+
+    <div
+        style="
+            background:#eef3f7;
+            border:1px solid #c8d2da;
+            border-radius:10px;
+            padding:13px;
+        "
+    >
+        <div class="small"><b>ACTUAL JOB TIME</b></div>
+        <div style="font-size:25px;font-weight:900">
+            <?=wb_hours($wbActualHours)?> hrs
+        </div>
+        <div class="small">
+            All completed recorded work
+        </div>
+    </div>
+
+
+    <div
+        style="
+            background:#edf8f0;
+            border:1px solid #abd2b3;
+            border-radius:10px;
+            padding:13px;
+        "
+    >
+        <div class="small"><b>💵 BILLABLE / PAID</b></div>
+        <div style="font-size:25px;font-weight:900">
+            <?=wb_hours($wbBillableHours)?> hrs
+        </div>
+        <div class="small">
+            Customer-chargeable recorded time
+        </div>
+    </div>
+
+
+    <div
+        style="
+            background:#eef6ff;
+            border:1px solid #a8c9e8;
+            border-radius:10px;
+            padding:13px;
+        "
+    >
+        <div class="small"><b>🎁 GOODWILL / FREE EXTRA</b></div>
+        <div style="font-size:25px;font-weight:900">
+            <?=wb_hours($wbGroups['goodwill']['hours'])?> hrs
+        </div>
+
+        <div class="small">
+            Labour <?=wt_money($wbGroups['goodwill']['labour'])?><br>
+            Materials <?=wt_money($wbGroups['goodwill']['materials'])?><br>
+            <b>Total <?=wt_money($wbGroups['goodwill']['total'])?></b>
+        </div>
+    </div>
+
+
+    <div
+        style="
+            background:#fff0f0;
+            border:1px solid #e4aaaa;
+            border-radius:10px;
+            padding:13px;
+        "
+    >
+        <div class="small"><b>🛠 RECTIFICATION / REWORK</b></div>
+        <div style="font-size:25px;font-weight:900">
+            <?=wb_hours($wbGroups['rectification']['hours'])?> hrs
+        </div>
+
+        <div class="small">
+            Labour <?=wt_money($wbGroups['rectification']['labour'])?><br>
+            Materials <?=wt_money($wbGroups['rectification']['materials'])?><br>
+            <b>Total <?=wt_money($wbGroups['rectification']['total'])?></b>
+        </div>
+    </div>
+
+
+    <div
+        style="
+            background:#f7f2ff;
+            border:1px solid #cab7e1;
+            border-radius:10px;
+            padding:13px;
+        "
+    >
+        <div class="small"><b>OTHER NO-CHARGE</b></div>
+        <div style="font-size:25px;font-weight:900">
+            <?=wb_hours($wbGroups['other']['hours'])?> hrs
+        </div>
+
+        <div class="small">
+            Total <?=wt_money($wbGroups['other']['total'])?>
+        </div>
+    </div>
+
+
+    <div
+        style="
+            background:#fff8df;
+            border:1px solid #e2c760;
+            border-radius:10px;
+            padding:13px;
+        "
+    >
+        <div class="small"><b>⚠ UNCLASSIFIED</b></div>
+
+        <div style="font-size:25px;font-weight:900">
+            <?=count($wbGroups['unclassified']['items'])?>
+            <?=count($wbGroups['unclassified']['items'])===1?'item':'items'?>
+        </div>
+
+        <div class="small">
+            <?=$wbUnclassifiedHours > 0.01
+                ? wb_hours($wbUnclassifiedHours).' hrs unmatched'
+                : 'No unmatched session hours'?>
+        </div>
+    </div>
+
+</div>
+
+
+<details open style="margin-top:14px">
+<summary style="cursor:pointer;font-weight:900">
+    🎁 Goodwill / free-extra records
+    (<?=count($wbGroups['goodwill']['items'])?>)
+</summary>
+
+<?php if(!$wbGroups['goodwill']['items']):?>
+<p class="small">No goodwill records classified yet.</p>
+<?php endif;?>
+
+<?php foreach($wbGroups['goodwill']['items'] as $wbItem):?>
+<div
+    style="
+        border-top:1px solid #d8e2e8;
+        padding:10px 0;
+    "
+>
+    <b>#<?=(int)$wbItem['id']?> —
+        <?=wt_html((string)$wbItem['description'])?>
+    </b>
+
+    <div class="small">
+        <?=number_format((float)($wbItem['labour_hours'] ?? 0),2)?> hrs
+        · labour <?=wt_money((float)($wbItem['labour_value'] ?? 0))?>
+        · materials <?=wt_money((float)($wbItem['material_value'] ?? 0))?>
+    </div>
+
+    <?php if(!empty($wbItem['note'])):?>
+    <div class="small">
+        <?=wt_html((string)$wbItem['note'])?>
+    </div>
+    <?php endif;?>
+
+    <a
+        href="#complimentary-<?=(int)$wbItem['id']?>"
+        style="font-weight:800"
+    >
+        Edit this record ↓
+    </a>
+</div>
+<?php endforeach;?>
+</details>
+
+
+<details style="margin-top:12px">
+<summary style="cursor:pointer;font-weight:900">
+    🛠 Rectification / rework records
+    (<?=count($wbGroups['rectification']['items'])?>)
+</summary>
+
+<?php if(!$wbGroups['rectification']['items']):?>
+<p class="small">No rectification records classified yet.</p>
+<?php endif;?>
+
+<?php foreach($wbGroups['rectification']['items'] as $wbItem):?>
+<div
+    style="
+        border-top:1px solid #ead1d1;
+        padding:10px 0;
+    "
+>
+    <b>#<?=(int)$wbItem['id']?> —
+        <?=wt_html((string)$wbItem['description'])?>
+    </b>
+
+    <div class="small">
+        <?=number_format((float)($wbItem['labour_hours'] ?? 0),2)?> hrs
+        · labour <?=wt_money((float)($wbItem['labour_value'] ?? 0))?>
+        · materials <?=wt_money((float)($wbItem['material_value'] ?? 0))?>
+    </div>
+
+    <?php if(!empty($wbItem['note'])):?>
+    <div class="small">
+        <?=wt_html((string)$wbItem['note'])?>
+    </div>
+    <?php endif;?>
+
+    <a
+        href="#complimentary-<?=(int)$wbItem['id']?>"
+        style="font-weight:800"
+    >
+        Edit this record ↓
+    </a>
+</div>
+<?php endforeach;?>
+</details>
+
+
+<?php if(
+    $wbGroups['other']['items']
+    ||
+    $wbGroups['unclassified']['items']
+):?>
+
+<details
+    <?=$wbNeedsAttention > 0 ? 'open' : ''?>
+    style="margin-top:12px"
+>
+<summary style="cursor:pointer;font-weight:900">
+    ⚠ Other / unclassified no-charge records
+    (
+        <?=count($wbGroups['other']['items'])
+          + count($wbGroups['unclassified']['items'])?>
+    )
+</summary>
+
+<?php foreach(
+    array_merge(
+        $wbGroups['unclassified']['items'],
+        $wbGroups['other']['items']
+    )
+    as $wbItem
+):?>
+
+<div
+    style="
+        border-top:1px solid #e5d69c;
+        padding:10px 0;
+    "
+>
+    <?php
+    $wbReason =
+        (string)($wbItem['no_charge_reason'] ?? 'unclassified');
+    ?>
+
+    <b>
+        <?=$wbReason==='unclassified' ? '⚠ ' : ''?>
+        #<?=(int)$wbItem['id']?> —
+        <?=wt_html((string)$wbItem['description'])?>
+    </b>
+
+    <div class="small">
+        Classification:
+        <b><?=wt_html(ucfirst($wbReason))?></b>
+        ·
+        <?=number_format((float)($wbItem['labour_hours'] ?? 0),2)?> hrs
+        · labour <?=wt_money((float)($wbItem['labour_value'] ?? 0))?>
+        · materials <?=wt_money((float)($wbItem['material_value'] ?? 0))?>
+    </div>
+
+    <a
+        href="#complimentary-<?=(int)$wbItem['id']?>"
+        style="font-weight:900"
+    >
+        Review / classify this record ↓
+    </a>
+</div>
+
+<?php endforeach;?>
+</details>
+
+<?php endif;?>
+
+
+<div
+    class="small"
+    style="
+        margin-top:14px;
+        padding-top:10px;
+        border-top:1px solid #d7dde2;
+    "
+>
+    <b>How to read this:</b>
+    billable time comes from recorded work sessions.
+    Goodwill and rectification values come from the separate
+    no-charge ledger so they are not added to the customer amount.
+    Historical items marked <b>Unclassified</b> still need you to decide
+    what they really were.
+</div>
+
+</div>
+
 <div class="card retro-card">
 <h2>🕘 Add previously completed work</h2>
 <p class="small"><b>Retrospective entry.</b> Use this for legitimate work already completed before it was entered into the tracker. For complicated days, simply enter the total job hours after excluding breaks, unrelated calls, errands and other customers. No fake historical SMS is sent.</p>
