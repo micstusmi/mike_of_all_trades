@@ -1045,14 +1045,88 @@ Customer day-before confirmation:
 
 <?php if($complimentaryItems):?>
 <p class="free-total">Complimentary value recorded: <?=wt_money($complimentaryTotal)?></p>
+
 <?php foreach($complimentaryItems as $ci):?>
-<div style="border-top:1px solid #d9e9d2;padding:10px 0">
-    <b><?=wt_html(ucwords(str_replace('_',' ',$ci['item_type'])))?>:</b>
-    <?=wt_html($ci['description'])?>
-    <?php if((float)$ci['estimated_value']>0):?> — <b>Approx. value <?=wt_money((float)$ci['estimated_value'])?></b><?php endif;?>
-    <?php if(!empty($ci['note'])):?><br><span class="small"><?=wt_html($ci['note'])?></span><?php endif;?>
-</div>
+<details
+    id="complimentary-<?=$ci['id']?>"
+    style="border-top:1px solid #d9e9d2;padding:10px 0"
+>
+    <summary style="cursor:pointer">
+        <b><?=wt_html(ucwords(str_replace('_',' ',$ci['item_type'])))?>:</b>
+        <?=wt_html($ci['description'])?>
+        <?php if((float)$ci['estimated_value']>0):?>
+            — <b>Approx. value <?=wt_money((float)$ci['estimated_value'])?></b>
+        <?php endif;?>
+        <span class="small"> · Edit</span>
+    </summary>
+
+    <?php if(!empty($ci['note'])):?>
+        <div class="small" style="margin:7px 0">
+            <?=wt_html($ci['note'])?>
+        </div>
+    <?php endif;?>
+
+    <form
+        method="post"
+        action="../../api/work/update_complimentary_item.php"
+        style="margin-top:12px"
+    >
+        <input type="hidden" name="job_id" value="<?=$id?>">
+        <input type="hidden" name="item_id" value="<?=$ci['id']?>">
+
+        <div class="field">
+            <label>Type</label>
+            <select name="item_type">
+                <?php foreach([
+                    'labour'=>'Free labour',
+                    'material'=>'Free material',
+                    'repair'=>'Free repair / fix',
+                    'improvement'=>'Free improvement / upgrade',
+                    'other'=>'Other goodwill extra'
+                ] as $freeType=>$freeLabel):?>
+                    <option
+                        value="<?=wt_html($freeType)?>"
+                        <?=($ci['item_type']??'')===$freeType?'selected':''?>
+                    >
+                        <?=wt_html($freeLabel)?>
+                    </option>
+                <?php endforeach;?>
+            </select>
+        </div>
+
+        <div class="field wide">
+            <label>Description</label>
+            <input
+                name="description"
+                value="<?=wt_html($ci['description']??'')?>"
+                required
+            >
+        </div>
+
+        <div class="field">
+            <label>Unpaid / complimentary value $</label>
+            <input
+                type="number"
+                step=".01"
+                min="0"
+                name="estimated_value"
+                value="<?=wt_html((string)($ci['estimated_value']??'0'))?>"
+            >
+        </div>
+
+        <div class="field wide">
+            <label>Explanation / context</label>
+            <textarea
+                name="note"
+                placeholder="e.g. 12 hours total; 8 hours already paid, remaining 4 hours provided at no charge."
+            ><?=wt_html($ci['note']??'')?></textarea>
+        </div>
+
+        <button class="btn" type="submit">SAVE CHANGES</button>
+    </form>
+</details>
 <?php endforeach;?>
+
 <?php else:?>
 <p class="small">No complimentary extras recorded yet.</p>
 <?php endif;?>
@@ -2737,6 +2811,166 @@ customer notified of this specific update.
          * let the server generate a safe current-status message.
          */
     });
+})();
+</script>
+
+
+<script>
+/* V8.9 WAITING FOR DRYING / CURING */
+(function () {
+    'use strict';
+
+    function installCureOption(select) {
+        if (!select || select.dataset.cureOptionInstalled === '1') return;
+
+        const form = select.closest('form');
+        if (!form) return;
+
+        select.dataset.cureOptionInstalled = '1';
+
+        const option = document.createElement('option');
+        option.value = 'wait_cure';
+        option.textContent =
+            'Waiting for drying / curing / setting — leave job open';
+
+        /*
+         * Put this directly underneath "Change activity" where possible.
+         */
+        if (select.options.length > 0) {
+            select.insertBefore(option, select.options[1] || null);
+        } else {
+            select.appendChild(option);
+        }
+
+        const normalAction = form.getAttribute('action');
+
+        const panel = document.createElement('div');
+        panel.className = 'wait-cure-fields';
+        panel.style.display = 'none';
+        panel.style.marginTop = '14px';
+        panel.style.padding = '14px';
+        panel.style.border = '2px solid #d29a31';
+        panel.style.borderRadius = '12px';
+        panel.style.background = '#fff8e9';
+
+        panel.innerHTML = `
+            <div style="font-weight:900;font-size:18px;margin-bottom:8px">
+                🕒 Waiting for material to dry / cure / set
+            </div>
+
+            <div class="small" style="margin-bottom:12px">
+                This stops chargeable work on this job but keeps the job open
+                so you can work elsewhere while the applied material dries,
+                cures or sets.
+            </div>
+
+            <div class="field">
+                <label>What was applied?</label>
+                <select name="cure_material">
+                    <option value="">Select...</option>
+                    <option value="Paint / coating">Paint / coating</option>
+                    <option value="Primer / undercoat">Primer / undercoat</option>
+                    <option value="Plaster / joint compound">Plaster / joint compound</option>
+                    <option value="Builders bog">Builders bog</option>
+                    <option value="Wood filler / putty">Wood filler / putty</option>
+                    <option value="Adhesive / glue">Adhesive / glue</option>
+                    <option value="Tile adhesive">Tile adhesive</option>
+                    <option value="Grout">Grout</option>
+                    <option value="Silicone / sealant">Silicone / sealant</option>
+                    <option value="Waterproofing membrane">Waterproofing membrane</option>
+                    <option value="Concrete / patching compound">Concrete / patching compound</option>
+                    <option value="Multiple applications">Multiple applications</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+
+            <div class="field wide">
+                <label>What was applied / what needs to happen next?</label>
+                <textarea
+                    name="cure_note"
+                    placeholder="e.g. Plaster applied over wall-anchor holes. Needs to dry before sanding and applying the next coat."
+                ></textarea>
+            </div>
+
+            <div class="field wide">
+                <label>Expected return / next attendance</label>
+                <input
+                    name="cure_expected_return"
+                    placeholder="e.g. Tomorrow morning / after 2–4 hours / next visit"
+                >
+            </div>
+        `;
+
+        select.closest('.field')?.parentNode?.appendChild(panel);
+
+        const submit =
+            form.querySelector('button[type="submit"]') ||
+            form.querySelector('button:not([type])');
+
+        const normalButtonText = submit ? submit.textContent : '';
+
+        function update() {
+            const waiting = select.value === 'wait_cure';
+
+            panel.style.display = waiting ? '' : 'none';
+
+            const material = panel.querySelector('[name="cure_material"]');
+            const note = panel.querySelector('[name="cure_note"]');
+
+            if (material) material.required = waiting;
+            if (note) note.required = waiting;
+
+            /*
+             * Existing Change Activity fields must not remain required while
+             * this new action is selected.
+             */
+            form.querySelectorAll('.change-activity-fields input, .change-activity-fields select, .change-activity-fields textarea')
+                .forEach(function (el) {
+                    if (waiting) {
+                        if (el.required) el.dataset.wasRequired = '1';
+                        el.required = false;
+                    } else if (el.dataset.wasRequired === '1') {
+                        el.required = true;
+                        delete el.dataset.wasRequired;
+                    }
+                });
+
+            if (waiting) {
+                form.action = '../../api/work/wait_for_cure.php';
+
+                if (submit) {
+                    submit.textContent = '🕒 SAVE — WAITING TO DRY / CURE';
+                }
+            } else {
+                form.action = normalAction;
+
+                if (submit) {
+                    submit.textContent = normalButtonText;
+                }
+            }
+        }
+
+        select.addEventListener('change', function () {
+            /*
+             * Allow the existing change-activity script to run first, then
+             * apply our waiting/cure state.
+             */
+            setTimeout(update, 0);
+        });
+
+        update();
+    }
+
+    function install() {
+        document
+            .querySelectorAll('.session-action-select')
+            .forEach(installCureOption);
+    }
+
+    document.addEventListener('DOMContentLoaded', install);
+    window.addEventListener('load', install);
+
+    setTimeout(install, 500);
 })();
 </script>
 
