@@ -2540,6 +2540,77 @@ customer notified of this specific update.
             <?php if(!empty($s['expected_return'])):?><b>Expected return / next attendance:</b> <?=wt_html($s['expected_return'])?><br><?php endif;?>
         <?php endif;?>
     </div>
+
+    <?php if(!empty($s['ended_at'])):?>
+    <details style="margin-top:10px">
+        <summary style="cursor:pointer"><b>✏️ Edit recorded work</b></summary>
+
+        <form
+            method="post"
+            action="../../api/work/update_recorded_session.php"
+            style="margin-top:10px;padding:12px;background:#f7f9fb;border:1px solid #d8e0e8;border-radius:10px"
+        >
+            <input type="hidden" name="job_id" value="<?=$id?>">
+            <input type="hidden" name="session_id" value="<?=(int)$s['id']?>">
+
+            <div class="row">
+
+                <div class="field">
+                    <label>Start date / time</label>
+                    <input
+                        type="datetime-local"
+                        name="started_at"
+                        value="<?=wt_html(date('Y-m-d\\TH:i', strtotime($s['started_at'])))?>"
+                        required
+                    >
+                </div>
+
+                <div class="field">
+                    <label>Finish date / time</label>
+                    <input
+                        type="datetime-local"
+                        name="ended_at"
+                        value="<?=wt_html(date('Y-m-d\\TH:i', strtotime($s['ended_at'])))?>"
+                        required
+                    >
+                </div>
+
+                <div class="field">
+                    <label>Charge treatment</label>
+                    <select name="charge_treatment">
+                        <option value="billable">Billable</option>
+                        <option value="no_charge_labour">No-charge labour / goodwill</option>
+                        <option value="no_charge_rectification">No-charge rectification</option>
+                    </select>
+                </div>
+
+                <div class="field wide">
+                    <label>Start note / work performed</label>
+                    <textarea name="notes"><?=wt_html((string)($s['notes'] ?? ''))?></textarea>
+                </div>
+
+                <div class="field wide">
+                    <label>Stop note</label>
+                    <input
+                        name="stop_note"
+                        value="<?=wt_html((string)($s['stop_note'] ?? ''))?>"
+                    >
+                </div>
+
+            </div>
+
+            <p class="small" style="margin-top:8px">
+                Use this to correct historical entries, descriptions or recorded
+                start/finish times. Changes affect the recorded job-time totals.
+            </p>
+
+            <button class="btn">
+                💾 SAVE CHANGES
+            </button>
+        </form>
+    </details>
+    <?php endif;?>
+
 </div>
 <?php endforeach;?>
 </div>
