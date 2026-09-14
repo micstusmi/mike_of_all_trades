@@ -178,6 +178,11 @@
 
     const scheduleCard=document.getElementById('customer-schedule');
     const taskCard=document.getElementById('customer-tasks');
+    const noChargeSummary=document.getElementById('customer-no-charge-summary');
+
+    if(noChargeSummary){
+      noChargeSummary.dataset.cw86KeepOpen='1';
+    }
 
     if(scheduleCard){
       scheduleCard.dataset.cw86KeepOpen='1';

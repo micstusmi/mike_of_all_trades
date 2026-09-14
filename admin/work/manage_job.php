@@ -3346,14 +3346,66 @@ function wb_hours(float $hours): string {
                     >
                 </div>
 
-                <div class="field">
-                    <label>Charge treatment</label>
-                    <select name="charge_treatment">
-                        <option value="billable">Billable</option>
-                        <option value="no_charge_labour">No-charge labour / goodwill</option>
-                        <option value="no_charge_rectification">No-charge rectification</option>
-                    </select>
-                </div>
+                <?php
+    /*
+     * Reload the true saved treatment.
+     * billable=1 means charged.
+     * Non-billable sessions use their linked ledger entry to distinguish
+     * goodwill from rectification.
+     */
+    $sessionChargeTreatment =
+        ((int)($s['billable'] ?? 1) === 1)
+            ? 'billable'
+            : 'no_charge_labour';
+
+    $sessionMarker = '[session:' . (int)$s['id'] . ']';
+
+    foreach ($complimentaryItems as $linkedChargeItem) {
+        $linkedNote = (string)($linkedChargeItem['note'] ?? '');
+
+        if (strpos($linkedNote, $sessionMarker) === false) {
+            continue;
+        }
+
+        $linkedReason =
+            (string)($linkedChargeItem['no_charge_reason'] ?? '');
+
+        if ($linkedReason === 'rectification') {
+            $sessionChargeTreatment = 'no_charge_rectification';
+        } elseif ($linkedReason === 'goodwill') {
+            $sessionChargeTreatment = 'no_charge_labour';
+        }
+
+        break;
+    }
+?>
+
+<div class="field">
+    <label>Charge treatment</label>
+
+    <select name="charge_treatment">
+        <option
+            value="billable"
+            <?=$sessionChargeTreatment === 'billable' ? 'selected' : ''?>
+        >
+            Billable
+        </option>
+
+        <option
+            value="no_charge_labour"
+            <?=$sessionChargeTreatment === 'no_charge_labour' ? 'selected' : ''?>
+        >
+            No-charge labour / goodwill
+        </option>
+
+        <option
+            value="no_charge_rectification"
+            <?=$sessionChargeTreatment === 'no_charge_rectification' ? 'selected' : ''?>
+        >
+            No-charge rectification
+        </option>
+    </select>
+</div>
 
                 <div class="field wide">
                     <label>Start note / work performed</label>
@@ -3487,6 +3539,14 @@ function wb_hours(float $hours): string {
         <option value="customer">Paid by customer</option>
         <option value="other">Other</option>
     </select>
+
+    <select name="financial_treatment">
+        <option value="charge_customer">Charge customer</option>
+        <option value="included_in_price">Included in agreed price</option>
+        <option value="goodwill">Goodwill — no charge</option>
+        <option value="rectification">Rectification — Mike absorbs cost</option>
+    </select>
+
     <button class="btn">Add</button>
 </div>
 </form>
@@ -3719,7 +3779,7 @@ function wb_hours(float $hours): string {
 })();
 </script>
 
-<script src="assets/workspace_v8_3.js?v=1" defer></script>
+<script src="assets/workspace_v8_3.js?v=4" defer></script>
 <script src="assets/workspace_v8_4b.js?v=1" defer></script>
 <script src="assets/task_photos_inline_v8_4c.js?v=1" defer></script>
 
@@ -4323,3 +4383,133 @@ function wb_hours(float $hours): string {
 
 </body>
 </html>
+
+<script>
+/*
+ * Work Tracker:
+ * Reliable editing from the financial reconciliation dashboard.
+ *
+ * Clicking an Edit / Review link opens the exact complimentary-item
+ * editor, opens any collapsed workspace container, scrolls to it,
+ * and briefly highlights the editor.
+ */
+(() => {
+    'use strict';
+
+    function openComplimentaryEditor(hash) {
+        if (!hash || !hash.startsWith('#complimentary-')) {
+            return;
+        }
+
+        const id = hash.substring(1);
+        const target = document.getElementById(id);
+
+        if (!target) {
+            console.warn('Complimentary editor not found:', id);
+            return;
+        }
+
+        /*
+         * First open any ordinary <details> ancestors in case the
+         * editor sits inside another collapsible block.
+         */
+        let parent = target.parentElement;
+
+        while (parent) {
+            if (parent.tagName === 'DETAILS') {
+                parent.open = true;
+            }
+
+            parent = parent.parentElement;
+        }
+
+        /*
+         * Open the Work Tracker workspace section containing the editor.
+         */
+        const workspaceSection = target.closest('.wt83-section');
+
+        if (
+            workspaceSection &&
+            workspaceSection.dataset.wt83Open !== '1'
+        ) {
+            const toggle = workspaceSection.querySelector(
+                ':scope > .wt83-section-toggle'
+            );
+
+            if (toggle) {
+                toggle.click();
+            }
+        }
+
+        /*
+         * Open the actual complimentary-item editor.
+         */
+        if (target.tagName === 'DETAILS') {
+            target.open = true;
+        }
+
+        /*
+         * Make the selected record visually obvious.
+         */
+        const oldOutline = target.style.outline;
+        const oldOutlineOffset = target.style.outlineOffset;
+        const oldBackground = target.style.background;
+
+        target.style.outline = '3px solid #2f7fca';
+        target.style.outlineOffset = '4px';
+        target.style.background = '#f3f8ff';
+
+        window.setTimeout(() => {
+            target.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+        }, 150);
+
+        window.setTimeout(() => {
+            target.style.outline = oldOutline;
+            target.style.outlineOffset = oldOutlineOffset;
+            target.style.background = oldBackground;
+        }, 2500);
+    }
+
+    document.addEventListener('click', event => {
+        const link = event.target.closest(
+            'a[href^="#complimentary-"], a[href*="#complimentary-"]'
+        );
+
+        if (!link) {
+            return;
+        }
+
+        const url = new URL(
+            link.getAttribute('href'),
+            window.location.href
+        );
+
+        if (!url.hash.startsWith('#complimentary-')) {
+            return;
+        }
+
+        event.preventDefault();
+
+        history.replaceState(
+            null,
+            '',
+            window.location.pathname +
+            window.location.search +
+            url.hash
+        );
+
+        openComplimentaryEditor(url.hash);
+    });
+
+    window.addEventListener('load', () => {
+        openComplimentaryEditor(window.location.hash);
+    });
+
+    window.addEventListener('hashchange', () => {
+        openComplimentaryEditor(window.location.hash);
+    });
+})();
+</script>

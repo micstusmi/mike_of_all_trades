@@ -178,10 +178,22 @@
     el.id = 'wt83-' + slug;
     el.classList.add('wt83-section');
 
-    // Default: Customer request and current work open. Everything else compact.
+    // Keep the financial reconciliation dashboard visible whenever this page loads.
+    // Other sections continue to remember their normal open/closed state.
+    const forceOpen =
+      /job work.*financial breakdown|work.*financial breakdown/i.test(originalTitle);
+
     const defaultOpen =
+      forceOpen ||
       /customer request|intake|current work|start work/i.test(originalTitle);
-    const open = Object.prototype.hasOwnProperty.call(state, slug) ? !!state[slug] : defaultOpen;
+
+    const open = forceOpen
+      ? true
+      : (
+          Object.prototype.hasOwnProperty.call(state, slug)
+            ? !!state[slug]
+            : defaultOpen
+        );
 
     el.dataset.wt83Open = open ? '1' : '0';
     button.setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -325,4 +337,106 @@
 
     window.setTimeout(positionTimerControls, 100);
   });
+})();
+
+
+/* WORK TRACKER: PUT NO-CHARGE CARD IN FINANCIAL BREAKDOWN */
+(() => {
+  'use strict';
+
+  function norm(value) {
+    return (value || '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+  }
+
+  const noChargeCard =
+    document.getElementById('no-charge-work');
+
+  if (!noChargeCard) {
+    return;
+  }
+
+  const financialSection = Array.from(
+    document.querySelectorAll('.wt83-section')
+  ).find(section => {
+    const heading =
+      section.querySelector('.wt83-section-title') ||
+      section.querySelector('.wt83-original-heading') ||
+      section.querySelector('h2, h3');
+
+    const title = norm(
+      heading ? heading.textContent : ''
+    );
+
+    return (
+      title.includes('financial breakdown') ||
+      title.includes('job work & financial') ||
+      title.includes('job work and financial')
+    );
+  });
+
+  if (!financialSection) {
+    return;
+  }
+
+  const financialBody = financialSection.querySelector(
+    ':scope > .wt83-section-body'
+  );
+
+  if (!financialBody) {
+    return;
+  }
+
+  /*
+   * Remove the old shortcut button if it exists.
+   */
+  const oldShortcut =
+    document.getElementById('wt-add-no-charge-shortcut');
+
+  if (oldShortcut) {
+    const wrapper = oldShortcut.parentElement;
+    if (wrapper) {
+      wrapper.remove();
+    } else {
+      oldShortcut.remove();
+    }
+  }
+
+  /*
+   * Move the REAL no-charge card into the financial section.
+   * This is the existing PHP form, not a copy.
+   */
+  financialBody.insertBefore(
+    noChargeCard,
+    financialBody.firstChild
+  );
+
+  /*
+   * Make sure the card itself is plainly visible.
+   */
+  noChargeCard.style.display = 'block';
+  noChargeCard.style.margin = '14px 0 22px';
+
+  /*
+   * Force the financial section open.
+   */
+  if (financialSection.dataset.wt83Open !== '1') {
+    const toggle = financialSection.querySelector(
+      ':scope > .wt83-section-toggle'
+    );
+
+    if (toggle) {
+      toggle.click();
+    }
+  }
+
+  /*
+   * If the card happens to be inside native details markup,
+   * open it.
+   */
+  if (noChargeCard.tagName === 'DETAILS') {
+    noChargeCard.open = true;
+  }
 })();

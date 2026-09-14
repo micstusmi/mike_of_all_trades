@@ -236,6 +236,16 @@ It is not GST added by Mike Of All Trades to the customer's charge.
 <?php endforeach;?>
 </select>
 </div>
+
+<div>
+<label>Financial treatment</label>
+<select name="financial_treatment">
+<option value="charge_customer">Charge customer</option>
+<option value="included_in_price">Included in agreed price</option>
+<option value="goodwill">Goodwill — supplied at no charge</option>
+<option value="rectification">Rectification — absorbed by Mike</option>
+</select>
+</div>
 </div>
 
 <br>
@@ -416,6 +426,31 @@ value="<?=$v?>"
 <?=wt_html($l)?>
 </option>
 <?php endforeach;?>
+</select>
+</div>
+
+<div>
+<label>Financial treatment</label>
+<select name="financial_treatment">
+<option
+value="charge_customer"
+<?=($m['financial_treatment']??'charge_customer')==='charge_customer'?'selected':''?>
+>Charge customer</option>
+
+<option
+value="included_in_price"
+<?=($m['financial_treatment']??'')==='included_in_price'?'selected':''?>
+>Included in agreed price</option>
+
+<option
+value="goodwill"
+<?=($m['financial_treatment']??'')==='goodwill'?'selected':''?>
+>Goodwill — supplied at no charge</option>
+
+<option
+value="rectification"
+<?=($m['financial_treatment']??'')==='rectification'?'selected':''?>
+>Rectification — absorbed by Mike</option>
 </select>
 </div>
 </div>

@@ -71,6 +71,18 @@ if (!in_array($reimb, $reimbs, true)) {
     $reimb = 'not_applicable';
 }
 
+$financialTreatment =
+    (string)($_POST['financial_treatment'] ?? 'charge_customer');
+
+if (!in_array($financialTreatment, [
+    'charge_customer',
+    'included_in_price',
+    'goodwill',
+    'rectification',
+], true)) {
+    $financialTreatment = 'charge_customer';
+}
+
 $receiptGst = ($_POST['receipt_gst_amount'] ?? '') !== ''
     ? (float)$_POST['receipt_gst_amount']
     : null;
@@ -91,50 +103,116 @@ $notes = trim((string)($_POST['notes'] ?? ''));
 
 $legacyCost = $actual ?? 0.0;
 
-$st = $pdo->prepare("
-    INSERT INTO work_materials
-    (
-        job_id,
-        task_id,
-        description,
-        material_status,
-        supplier,
-        estimated_cost,
-        actual_cost,
-        cost,
-        source_type,
-        paid_by,
-        reimbursement_status,
-        receipt_gst_amount,
-        receipt_number,
-        purchase_date,
-        notes,
-        purchased_at,
-        updated_at
-    )
-    VALUES
-    (
-        ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW(),NOW()
-    )
-");
+$pdo->beginTransaction();
 
-$st->execute([
-    $jobId,
-    $taskId,
-    $description,
-    $status,
-    $supplier !== '' ? $supplier : null,
-    $est,
-    $actual,
-    $legacyCost,
-    $source,
-    $paid,
-    $reimb,
-    $receiptGst,
-    $receiptNumber !== '' ? $receiptNumber : null,
-    $purchaseDate,
-    $notes !== '' ? $notes : null,
-]);
+try {
+    $st = $pdo->prepare("
+        INSERT INTO work_materials
+        (
+            job_id,
+            task_id,
+            description,
+            material_status,
+            supplier,
+            estimated_cost,
+            actual_cost,
+            cost,
+            source_type,
+            paid_by,
+            reimbursement_status,
+            financial_treatment,
+            receipt_gst_amount,
+            receipt_number,
+            purchase_date,
+            notes,
+            purchased_at,
+            updated_at
+        )
+        VALUES
+        (
+            ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW(),NOW()
+        )
+    ");
+
+    $st->execute([
+        $jobId,
+        $taskId,
+        $description,
+        $status,
+        $supplier !== '' ? $supplier : null,
+        $est,
+        $actual,
+        $legacyCost,
+        $source,
+        $paid,
+        $reimb,
+        $financialTreatment,
+        $receiptGst,
+        $receiptNumber !== '' ? $receiptNumber : null,
+        $purchaseDate,
+        $notes !== '' ? $notes : null,
+    ]);
+
+    $mid = (int)$pdo->lastInsertId();
+
+    if (in_array(
+        $financialTreatment,
+        ['goodwill','rectification'],
+        true
+    )) {
+        $materialValue = (float)($actual ?? $est ?? 0.0);
+
+        $noCharge = $pdo->prepare("
+            INSERT INTO work_complimentary_items
+            (
+                job_id,
+                item_type,
+                description,
+                estimated_value,
+                note,
+                no_charge_reason,
+                labour_hours,
+                labour_value,
+                material_value,
+                material_details,
+                updated_at
+            )
+            VALUES
+            (
+                ?,
+                'material',
+                ?,
+                ?,
+                ?,
+                ?,
+                NULL,
+                0,
+                ?,
+                ?,
+                NOW()
+            )
+        ");
+
+        $noCharge->execute([
+            $jobId,
+            $description,
+            $materialValue,
+            '[material:' . $mid . '] Automatically linked from materials ledger.',
+            $financialTreatment,
+            $materialValue,
+            $description,
+        ]);
+    }
+
+    $pdo->commit();
+
+} catch (Throwable $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+
+    throw $e;
+}
 
 header(
     'Location: ../../admin/work/materials.php?id=' .

@@ -61,8 +61,67 @@ $freeStmt=$pdo->prepare("SELECT * FROM work_complimentary_items WHERE job_id=? O
 $freeStmt->execute([$job['id']]);
 $complimentaryItems=$freeStmt->fetchAll(PDO::FETCH_ASSOC);
 
-$complimentaryTotal=0.0;
-foreach($complimentaryItems as $ci) $complimentaryTotal+=(float)$ci['estimated_value'];
+/*
+ * Customer-safe no-charge reconciliation.
+ *
+ * Unclassified/internal-review records are deliberately excluded from
+ * the customer-facing totals until Mike has classified them.
+ */
+$customerNoCharge = [
+    'goodwill' => [
+        'hours' => 0.0,
+        'labour' => 0.0,
+        'materials' => 0.0,
+        'other_value' => 0.0,
+        'total' => 0.0,
+        'items' => [],
+    ],
+    'rectification' => [
+        'hours' => 0.0,
+        'labour' => 0.0,
+        'materials' => 0.0,
+        'other_value' => 0.0,
+        'total' => 0.0,
+        'items' => [],
+    ],
+    'other' => [
+        'hours' => 0.0,
+        'labour' => 0.0,
+        'materials' => 0.0,
+        'other_value' => 0.0,
+        'total' => 0.0,
+        'items' => [],
+    ],
+];
+
+foreach($complimentaryItems as $ci){
+    $reason = (string)($ci['no_charge_reason'] ?? 'unclassified');
+
+    if(!isset($customerNoCharge[$reason])){
+        continue;
+    }
+
+    $hours = (float)($ci['labour_hours'] ?? 0);
+    $labour = (float)($ci['labour_value'] ?? 0);
+    $materials = (float)($ci['material_value'] ?? 0);
+    $legacyTotal = (float)($ci['estimated_value'] ?? 0);
+
+    $allocated = $labour + $materials;
+    $otherValue = max(0, $legacyTotal - $allocated);
+    $total = $allocated + $otherValue;
+
+    $customerNoCharge[$reason]['hours'] += $hours;
+    $customerNoCharge[$reason]['labour'] += $labour;
+    $customerNoCharge[$reason]['materials'] += $materials;
+    $customerNoCharge[$reason]['other_value'] += $otherValue;
+    $customerNoCharge[$reason]['total'] += $total;
+    $customerNoCharge[$reason]['items'][] = $ci;
+}
+
+$customerNoChargeTotal =
+    $customerNoCharge['goodwill']['total']
+    + $customerNoCharge['rectification']['total']
+    + $customerNoCharge['other']['total'];
 
 $timeBreakdown=['onsite'=>0,'supplier'=>0,'travel'=>0,'offsite'=>0,'other'=>0];
 foreach($sessions as $s){
@@ -285,6 +344,83 @@ textarea,input{box-sizing:border-box;width:100%;padding:11px;border:1px solid #c
     </div>
 </div>
 <div class="wrap">
+
+<?php if($customerNoChargeTotal > 0):?>
+<div
+    class="card"
+    id="customer-no-charge-summary"
+    style="
+        border:2px solid #b8c7d1;
+        background:#f8fafc;
+    "
+>
+<h2>Job value &amp; no-charge work</h2>
+
+<p class="muted">
+    This summary separates additional value provided at no charge from
+    rectification/rework. These amounts are recorded for transparency
+    and are <b>not added to the amount payable.</b>
+</p>
+
+<div
+    style="
+        display:grid;
+        grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+        gap:10px;
+        margin-top:12px;
+    "
+>
+
+<?php if($customerNoCharge['goodwill']['total'] > 0):?>
+<div style="border:1px solid #b9d8b2;border-radius:10px;padding:12px;background:#f4fbf2">
+    <b>Additional value provided at no charge</b><br>
+    <?=number_format($customerNoCharge['goodwill']['hours'],2)?> labour hrs<br>
+    Labour <?=wt_money($customerNoCharge['goodwill']['labour'])?><br>
+    Materials <?=wt_money($customerNoCharge['goodwill']['materials'])?>
+    <?php if($customerNoCharge['goodwill']['other_value'] > 0):?>
+        <br>Other no-charge value <?=wt_money($customerNoCharge['goodwill']['other_value'])?>
+    <?php endif;?>
+    <br><b>Total <?=wt_money($customerNoCharge['goodwill']['total'])?></b>
+</div>
+<?php endif;?>
+
+<?php if($customerNoCharge['rectification']['total'] > 0):?>
+<div style="border:1px solid #e0bd86;border-radius:10px;padding:12px;background:#fffaf1">
+    <b>Rectification / rework completed at no charge</b><br>
+    <?=number_format($customerNoCharge['rectification']['hours'],2)?> labour hrs<br>
+    Labour <?=wt_money($customerNoCharge['rectification']['labour'])?><br>
+    Materials <?=wt_money($customerNoCharge['rectification']['materials'])?>
+    <?php if($customerNoCharge['rectification']['other_value'] > 0):?>
+        <br>Other no-charge value <?=wt_money($customerNoCharge['rectification']['other_value'])?>
+    <?php endif;?>
+    <br><b>Total <?=wt_money($customerNoCharge['rectification']['total'])?></b>
+</div>
+<?php endif;?>
+
+<?php if($customerNoCharge['other']['total'] > 0):?>
+<div style="border:1px solid #cbd5e1;border-radius:10px;padding:12px;background:#f8fafc">
+    <b>Other work provided at no charge</b><br>
+    <?=number_format($customerNoCharge['other']['hours'],2)?> labour hrs<br>
+    Labour <?=wt_money($customerNoCharge['other']['labour'])?><br>
+    Materials <?=wt_money($customerNoCharge['other']['materials'])?>
+    <?php if($customerNoCharge['other']['other_value'] > 0):?>
+        <br>Other no-charge value <?=wt_money($customerNoCharge['other']['other_value'])?>
+    <?php endif;?>
+    <br><b>Total <?=wt_money($customerNoCharge['other']['total'])?></b>
+</div>
+<?php endif;?>
+
+</div>
+
+<div style="margin-top:12px;font-size:17px">
+    <b>Total recorded value not charged:
+    <?=wt_money($customerNoChargeTotal)?></b>
+</div>
+
+</div>
+<?php endif;?>
+
+
 <div class="brand">Mike of All Trades</div>
 <h2>Current Job Record & Agreement</h2>
 
@@ -328,6 +464,7 @@ textarea,input{box-sizing:border-box;width:100%;padding:11px;border:1px solid #c
 </div>
 <?php endif;?>
 </div>
+
 
 <div class="card request-editor" id="customer-request">
 <h2>Your requested work</h2>
@@ -717,22 +854,133 @@ The Terms &amp; Conditions do not exclude rights or remedies that cannot lawfull
 </div>
 </div>
 
-<?php if($complimentaryItems):?>
+<?php if($customerNoChargeTotal > 0):?>
 <div class="card goodwill">
-<h2>Complimentary extras provided at no charge</h2>
-<p>Mike has provided the following extras as goodwill. They are recorded so the additional value is transparent, but <b>they are not added to the amount payable.</b></p>
-<div class="goodwill-total">Approx. complimentary value: <?=wt_money($complimentaryTotal)?></div>
-<?php foreach($complimentaryItems as $ci):?>
+
+<h2>No-charge work and materials</h2>
+
+<p>
+    The items below are recorded separately from the amount payable.
+    Unclassified internal records are not shown here until they have
+    been reviewed and classified.
+</p>
+
+<?php if($customerNoCharge['goodwill']['items']):?>
+<h3>Additional value provided at no charge</h3>
+
+<?php foreach($customerNoCharge['goodwill']['items'] as $ci):
+    $labour = (float)($ci['labour_value'] ?? 0);
+    $materials = (float)($ci['material_value'] ?? 0);
+    $legacy = (float)($ci['estimated_value'] ?? 0);
+    $itemTotal = max($legacy, $labour + $materials);
+?>
 <div style="border-top:1px solid #d9e9d2;padding:11px 0">
-    <b><?=wt_html(ucwords(str_replace('_',' ',$ci['item_type'])))?>:</b>
-    <?=wt_html($ci['description'])?>
-    <?php if((float)$ci['estimated_value']>0):?> — approx. value <b><?=wt_money((float)$ci['estimated_value'])?></b><?php endif;?>
-    <?php if(!empty($ci['note'])):?><br><span class="muted"><?=wt_html($ci['note'])?></span><?php endif;?>
+    <b><?=wt_html($ci['description'])?></b>
+
+    <?php if((float)($ci['labour_hours'] ?? 0) > 0):?>
+        <br><?=number_format((float)$ci['labour_hours'],2)?> labour hrs
+    <?php endif;?>
+
+    <?php if($labour > 0):?>
+        · Labour <?=wt_money($labour)?>
+    <?php endif;?>
+
+    <?php if($materials > 0):?>
+        · Materials <?=wt_money($materials)?>
+    <?php endif;?>
+
+    <?php if($itemTotal > 0):?>
+        · <b>Total <?=wt_money($itemTotal)?></b>
+    <?php endif;?>
+
+    <?php if(!empty($ci['material_details'])):?>
+        <br><span class="muted">
+            Materials: <?=nl2br(wt_html($ci['material_details']))?>
+        </span>
+    <?php endif;?>
+
+    <?php if(!empty($ci['note']) && strpos((string)$ci['note'],'[session:') !== 0):?>
+        <br><span class="muted"><?=wt_html($ci['note'])?></span>
+    <?php endif;?>
 </div>
 <?php endforeach;?>
+
+<div class="goodwill-total">
+    Total additional value provided at no charge:
+    <?=wt_money($customerNoCharge['goodwill']['total'])?>
 </div>
 <?php endif;?>
 
+
+<?php if($customerNoCharge['rectification']['items']):?>
+<h3 style="margin-top:22px">
+    Rectification / rework completed at no charge
+</h3>
+
+<p class="muted">
+    This is shown separately from complimentary goodwill work.
+</p>
+
+<?php foreach($customerNoCharge['rectification']['items'] as $ci):
+    $labour = (float)($ci['labour_value'] ?? 0);
+    $materials = (float)($ci['material_value'] ?? 0);
+    $legacy = (float)($ci['estimated_value'] ?? 0);
+    $itemTotal = max($legacy, $labour + $materials);
+?>
+<div style="border-top:1px solid #ead8bb;padding:11px 0">
+    <b><?=wt_html($ci['description'])?></b>
+
+    <?php if((float)($ci['labour_hours'] ?? 0) > 0):?>
+        <br><?=number_format((float)$ci['labour_hours'],2)?> labour hrs
+    <?php endif;?>
+
+    <?php if($labour > 0):?>
+        · Labour <?=wt_money($labour)?>
+    <?php endif;?>
+
+    <?php if($materials > 0):?>
+        · Materials <?=wt_money($materials)?>
+    <?php endif;?>
+
+    <?php if($itemTotal > 0):?>
+        · <b>Total <?=wt_money($itemTotal)?></b>
+    <?php endif;?>
+
+    <?php if(!empty($ci['material_details'])):?>
+        <br><span class="muted">
+            Materials: <?=nl2br(wt_html($ci['material_details']))?>
+        </span>
+    <?php endif;?>
+</div>
+<?php endforeach;?>
+
+<div class="goodwill-total">
+    Total rectification / rework absorbed:
+    <?=wt_money($customerNoCharge['rectification']['total'])?>
+</div>
+<?php endif;?>
+
+
+<?php if($customerNoCharge['other']['items']):?>
+<h3 style="margin-top:22px">Other work provided at no charge</h3>
+
+<?php foreach($customerNoCharge['other']['items'] as $ci):
+    $labour = (float)($ci['labour_value'] ?? 0);
+    $materials = (float)($ci['material_value'] ?? 0);
+    $legacy = (float)($ci['estimated_value'] ?? 0);
+    $itemTotal = max($legacy, $labour + $materials);
+?>
+<div style="border-top:1px solid #d9e0e6;padding:11px 0">
+    <b><?=wt_html($ci['description'])?></b>
+    <?php if($itemTotal > 0):?>
+        — <b><?=wt_money($itemTotal)?></b>
+    <?php endif;?>
+</div>
+<?php endforeach;?>
+<?php endif;?>
+
+</div>
+<?php endif;?>
 
 <div class="card">
 <h2>Job activity history</h2>
@@ -859,6 +1107,6 @@ if(c){
  }
 }
 </script>
-<script src="assets/customer_workspace_v8_6.js?v=1"></script>
+<script src="assets/customer_workspace_v8_6.js?v=2"></script>
 </body>
 </html>

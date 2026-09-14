@@ -70,6 +70,18 @@ if (!in_array($reimb, [
     $reimb = 'not_applicable';
 }
 
+$financialTreatment =
+    (string)($_POST['financial_treatment'] ?? 'charge_customer');
+
+if (!in_array($financialTreatment, [
+    'charge_customer',
+    'included_in_price',
+    'goodwill',
+    'rectification',
+], true)) {
+    $financialTreatment = 'charge_customer';
+}
+
 $receiptGst = ($_POST['receipt_gst_amount'] ?? '') !== ''
     ? (float)$_POST['receipt_gst_amount']
     : null;
@@ -90,43 +102,121 @@ $notes = trim((string)($_POST['notes'] ?? ''));
 
 $legacyCost = $actual ?? 0.0;
 
-$st = $pdo->prepare("
-    UPDATE work_materials
-    SET
-        task_id=?,
-        material_status=?,
-        supplier=?,
-        estimated_cost=?,
-        actual_cost=?,
-        cost=?,
-        source_type=?,
-        paid_by=?,
-        reimbursement_status=?,
-        receipt_gst_amount=?,
-        receipt_number=?,
-        purchase_date=?,
-        notes=?,
-        updated_at=NOW()
-    WHERE id=? AND job_id=?
-");
+$pdo->beginTransaction();
 
-$st->execute([
-    $taskId,
-    $status,
-    $supplier !== '' ? $supplier : null,
-    $est,
-    $actual,
-    $legacyCost,
-    $source,
-    $paid,
-    $reimb,
-    $receiptGst,
-    $receiptNumber !== '' ? $receiptNumber : null,
-    $purchaseDate,
-    $notes !== '' ? $notes : null,
-    $mid,
-    $jobId,
-]);
+try {
+    $st = $pdo->prepare("
+        UPDATE work_materials
+        SET
+            task_id=?,
+            material_status=?,
+            supplier=?,
+            estimated_cost=?,
+            actual_cost=?,
+            cost=?,
+            source_type=?,
+            paid_by=?,
+            reimbursement_status=?,
+            financial_treatment=?,
+            receipt_gst_amount=?,
+            receipt_number=?,
+            purchase_date=?,
+            notes=?,
+            updated_at=NOW()
+        WHERE id=? AND job_id=?
+    ");
+
+    $st->execute([
+        $taskId,
+        $status,
+        $supplier !== '' ? $supplier : null,
+        $est,
+        $actual,
+        $legacyCost,
+        $source,
+        $paid,
+        $reimb,
+        $financialTreatment,
+        $receiptGst,
+        $receiptNumber !== '' ? $receiptNumber : null,
+        $purchaseDate,
+        $notes !== '' ? $notes : null,
+        $mid,
+        $jobId,
+    ]);
+
+    /*
+     * Keep exactly one linked no-charge ledger row per material.
+     */
+    $deleteLinked = $pdo->prepare("
+        DELETE FROM work_complimentary_items
+        WHERE job_id=?
+          AND note LIKE ?
+    ");
+
+    $deleteLinked->execute([
+        $jobId,
+        '[material:' . $mid . ']%'
+    ]);
+
+    if (in_array(
+        $financialTreatment,
+        ['goodwill','rectification'],
+        true
+    )) {
+        $materialValue = (float)($actual ?? $est ?? 0.0);
+
+        $noCharge = $pdo->prepare("
+            INSERT INTO work_complimentary_items
+            (
+                job_id,
+                item_type,
+                description,
+                estimated_value,
+                note,
+                no_charge_reason,
+                labour_hours,
+                labour_value,
+                material_value,
+                material_details,
+                updated_at
+            )
+            VALUES
+            (
+                ?,
+                'material',
+                ?,
+                ?,
+                ?,
+                ?,
+                NULL,
+                0,
+                ?,
+                ?,
+                NOW()
+            )
+        ");
+
+        $noCharge->execute([
+            $jobId,
+            $description,
+            $materialValue,
+            '[material:' . $mid . '] Automatically linked from materials ledger.',
+            $financialTreatment,
+            $materialValue,
+            $description,
+        ]);
+    }
+
+    $pdo->commit();
+
+} catch (Throwable $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+
+    throw $e;
+}
 
 header(
     'Location: ../../admin/work/materials.php?id=' .
