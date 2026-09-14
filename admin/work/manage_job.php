@@ -1295,9 +1295,139 @@ foreach ($reasonLabels as $reasonKey=>$reasonLabel):
 yet been split between labour and materials. Edit the item to classify it.
 </p>
 
-<h3 style="margin-top:24px">Items</h3>
+<h3 style="margin-top:24px">Manage no-charge records</h3>
 
-<?php foreach($complimentaryItems as $ci):
+<p class="small">
+Classify records here. Once an item is classified it moves out of
+<b>Needs review</b> and into its correct section below.
+</p>
+
+<?php
+
+$noChargeEditorGroups = [
+    'unclassified' => [],
+    'goodwill' => [],
+    'rectification' => [],
+    'other' => [],
+];
+
+foreach ($complimentaryItems as $editorItem) {
+    $editorReason =
+        (string)($editorItem['no_charge_reason'] ?? 'unclassified');
+
+    if (!isset($noChargeEditorGroups[$editorReason])) {
+        $editorReason = 'unclassified';
+    }
+
+    $noChargeEditorGroups[$editorReason][] = $editorItem;
+}
+
+$noChargeEditorMeta = [
+    'unclassified' => [
+        'title' => '⚠ Needs review',
+        'description' => 'These records still need you to decide what they really were.',
+        'border' => '#e2c760',
+        'background' => '#fff8df',
+    ],
+    'goodwill' => [
+        'title' => '🎁 Goodwill / complimentary',
+        'description' => 'Extra labour or materials deliberately provided to the customer at no charge.',
+        'border' => '#abd49b',
+        'background' => '#f4fbf1',
+    ],
+    'rectification' => [
+        'title' => '🛠 Rectification / rework',
+        'description' => 'Work absorbed by Mike to correct or rework previous work. Kept separate from goodwill.',
+        'border' => '#dfb4b4',
+        'background' => '#fff6f6',
+    ],
+    'other' => [
+        'title' => '📋 Other no-charge',
+        'description' => 'Other work or materials that were not charged to the customer.',
+        'border' => '#c8d3da',
+        'background' => '#f7f9fa',
+    ],
+];
+
+foreach (
+    ['unclassified', 'goodwill', 'rectification', 'other']
+    as $editorGroupKey
+):
+
+    $editorGroupItems = $noChargeEditorGroups[$editorGroupKey];
+    $editorMeta = $noChargeEditorMeta[$editorGroupKey];
+    $editorTotals = $noChargeTotals[$editorGroupKey];
+
+?>
+
+<div
+    id="no-charge-group-<?=wt_html($editorGroupKey)?>"
+    style="
+        margin-top:18px;
+        padding:14px;
+        border:2px solid <?=wt_html($editorMeta['border'])?>;
+        border-radius:12px;
+        background:<?=wt_html($editorMeta['background'])?>;
+    "
+>
+
+<div
+    style="
+        display:flex;
+        justify-content:space-between;
+        gap:12px;
+        align-items:flex-start;
+        flex-wrap:wrap;
+    "
+>
+    <div>
+        <h3 style="margin:0 0 4px">
+            <?=wt_html($editorMeta['title'])?>
+            (<?=count($editorGroupItems)?>)
+        </h3>
+
+        <div class="small">
+            <?=wt_html($editorMeta['description'])?>
+        </div>
+    </div>
+
+    <div
+        style="
+            text-align:right;
+            font-weight:800;
+            line-height:1.55;
+        "
+    >
+        <?php if((float)$editorTotals['hours'] > 0):?>
+            <?=number_format((float)$editorTotals['hours'],2)?> hrs<br>
+        <?php endif;?>
+
+        Labour <?=wt_money((float)$editorTotals['labour'])?><br>
+        Materials <?=wt_money((float)$editorTotals['materials'])?>
+
+        <?php if((float)$editorTotals['unallocated'] > 0):?>
+            <br>
+            Unallocated <?=wt_money((float)$editorTotals['unallocated'])?>
+        <?php endif;?>
+
+        <br>
+        <span style="font-size:1.12em">
+            Total <?=wt_money((float)$editorTotals['total'])?>
+        </span>
+    </div>
+</div>
+
+<?php if(!$editorGroupItems):?>
+
+<p class="small" style="margin:12px 0 0">
+    <?=$editorGroupKey === 'unclassified'
+        ? '✓ Nothing currently needs review.'
+        : 'No records in this category yet.'?>
+</p>
+
+<?php endif;?>
+
+<?php foreach($editorGroupItems as $ci):
 
     $reason = (string)($ci['no_charge_reason'] ?? 'unclassified');
 
@@ -1536,6 +1666,10 @@ SAVE CHANGES
 </form>
 
 </details>
+
+<?php endforeach;?>
+
+</div>
 
 <?php endforeach;?>
 
