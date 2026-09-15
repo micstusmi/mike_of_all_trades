@@ -55,11 +55,12 @@ footer{border-top:1px solid #282828;padding:28px 22px 50px;text-align:center;col
 <div class="eyebrow">Mike Of All Trades</div>
 <h1>Terms &amp; Conditions</h1>
 <p class="intro">These Terms &amp; Conditions apply to quotations, bookings, handyman services, property maintenance and related work supplied by Mike Of All Trades in Victoria, Australia, unless a separate written contract states otherwise.</p>
+<p class="small">Version 15 September 2026</p>
 <div class="notice"><strong>Important:</strong> These terms are intended to clearly define the scope of work, assumptions, customer responsibilities and how unexpected conditions are handled. Nothing in these terms excludes, restricts or modifies rights or remedies that cannot lawfully be excluded under the Australian Consumer Law or other applicable legislation.</div>
 </div>
 
 <main class="terms">
-<div class="toc"><strong>Contents:</strong> Acceptance · Quotes and scope · Estimates · Variations · Access and working time · Materials · Existing conditions · Excavation and underground services · Customer-supplied information · Licensed/regulated work · Safety · Painting · Plaster · Fixings · Water damage · Demolition · Cleaning · Waste · Parking/travel · Delays · Cancellations · Payment · Authority · Occupants/pets · Photos and records · Customer-supplied goods · Hidden defects · Liability · Consumer law · Disputes · Domestic building work · Severability · Updates.</div>
+<div class="toc"><strong>Contents:</strong> Acceptance · Quotes and scope · Estimates · Variations · Access and working time · Materials · Existing conditions · Excavation and underground services · Customer-supplied information · Licensed/regulated work · Safety · Painting · Plaster · Fixings · Water damage · Demolition · Cleaning · Waste · Parking/travel · Scheduling and delays · Occupied premises and temporary security · Rates and accelerated work · Communication and conduct · Suspension · Cancellations · Payment · Authority · Photos and records · Customer-supplied goods · Hidden defects · Liability · Consumer law · Disputes · Domestic building work · Severability · Updates.</div>
 
 <section><h2>1. Acceptance of these Terms</h2>
 <p>By accepting a quotation, approving work, making a booking, instructing Mike Of All Trades to commence work, paying a deposit or otherwise proceeding with a service, the customer agrees to the quotation, any written scope supplied with it, and these Terms &amp; Conditions.</p>
@@ -140,58 +141,94 @@ footer{border-top:1px solid #282828;padding:28px 22px 50px;text-align:center;col
 <section><h2>19. Parking, Tolls, Travel and Site Logistics</h2>
 <p>Quoted pricing may assume ordinary vehicle access and parking. Paid parking, loading-zone restrictions, tolls, long carrying distances, multiple trips, difficult access or unusual site logistics may affect price where not reasonably known at quotation time.</p></section>
 
-<section><h2>20. Delays and Rescheduling</h2>
-<p>Dates and arrival windows are estimates unless expressly guaranteed. Delays may arise from weather, traffic, illness, supplier delays, preceding jobs, site-access issues, hidden conditions, drying/curing time or events outside reasonable control.</p>
-<p>Mike Of All Trades will use reasonable efforts to communicate material delays and arrange an alternative time where necessary.</p></section>
+<section><h2>20. Scheduling, Completion Times and Legitimate Delays</h2>
+<p>Unless a fixed completion date is expressly agreed in writing, any stated commencement date, duration, arrival window or completion date is an estimate only. Mike Of All Trades will use reasonable care and diligence to progress the work and will advise the customer within a reasonable time if a material delay or revised completion estimate becomes apparent.</p>
+<p>The customer acknowledges that Mike Of All Trades is ordinarily operated by a sole trader who may reasonably allocate time between existing bookings, urgent work, job-specific purchasing, administration and other business obligations. Work will not necessarily occur continuously on every calendar day. This does not permit unreasonable delay or displace any statutory obligation to complete services within an applicable reasonable time.</p>
+<p>Timeframes may reasonably change because of weather, traffic, illness, emergency, supplier delays, unavailable materials, preceding jobs, site-access restrictions, customer changes, other contractors, hidden or pre-existing conditions, incomplete or inaccurate information, additional preparation or rectification, or circumstances outside reasonable control.</p>
+<p>Paint, fillers, plaster compounds, adhesives, sealants, concrete, waterproofing products and similar materials may require manufacturer-specified or otherwise reasonable drying, curing, setting or ventilation periods. Mike Of All Trades is not required to continue a stage prematurely where doing so may compromise safety, workmanship, product performance or the completed result.</p>
+<p>If concealed conditions, additional requests or other discoveries substantially increase the required work, the job may take materially longer than first estimated, including several times the preliminary estimate in exceptional cases. Where reasonably practicable, Mike Of All Trades will explain the changed circumstances and provide an updated indication of scope, cost and timing before undertaking substantial additional work.</p></section>
 
-<section><h2>21. Cancellation and Aborted Attendance</h2>
+<section><h2>21. Occupied Premises, Work Areas and Temporary Security</h2>
+<p>Repair, maintenance and renovation work may involve open walls, removed doors or windows, unset plaster, wet coatings, adhesives, sealants, temporary coverings, tools, materials, dust, trip hazards, noise, odours and periods when an area cannot reasonably be used, touched, secured, locked, cleaned, sanded, painted, reassembled or made child-safe or pet-safe.</p>
+<p>If the customer chooses to live in, occupy or continue using the premises during the work, the customer must make reasonable arrangements for occupants, children, pets, visitors, belongings, access and alternative accommodation where required. This may include staying elsewhere, limiting access to work zones, keeping children and animals away from hazards, or accepting that parts of the premises will be temporarily unavailable.</p>
+<p>Temporary coverings, barriers, hoarding, taped areas, partial closures and temporary fixings are risk-reduction measures only. Unless expressly agreed in writing, they do not provide the same security, weatherproofing, privacy, pet containment, child safety, dust control or access control as a completed permanent door, wall, window, lock or installation.</p>
+<p>Where temporary security, after-hours attendance, make-safe work, temporary doors, specialist barriers, supervision or repeated setup and dismantling is requested or reasonably required because the premises remain occupied, that work may require a variation, additional labour or an appropriately qualified third party. The customer is responsible for arranging and paying for their own temporary accommodation unless Mike Of All Trades has expressly agreed otherwise in writing or applicable law requires a different result.</p>
+<p>Mike Of All Trades will take reasonable care in relation to the work area but cannot guarantee that a partially completed renovation will provide the same amenity or security as the completed premises. Nothing in this clause excludes responsibility arising from a failure to exercise the legally required level of care and skill.</p></section>
+
+<section><h2>22. Agreed Rates, Required Quality and Accelerated Work</h2>
+<p>An agreed or negotiated hourly rate determines the price basis for labour; it does not reduce the care and skill legally required, and it does not convert a sole-worker engagement into a guaranteed accelerated or multi-trade service.</p>
+<p>A reduced rate does not include unlimited labour, additional workers, specialist trades, after-hours work, temporary security, repeated daily setup and make-safe work, expedited procurement, priority over existing commitments or an assurance that the premises will remain fully usable throughout the work unless expressly included in writing.</p>
+<p>The customer must not require Mike Of All Trades to work at an unsafe or technically unsound pace, disregard drying or curing periods, or omit reasonably necessary preparation merely to meet an unagreed deadline. If accelerated completion is requested, Mike Of All Trades may propose additional labour, specialist or licensed trades, extended hours, changed sequencing, temporary works, revised rates or a revised scope as a variation.</p>
+<p>Rework made necessary by changed customer instructions, interference with incomplete work, premature use of a work area, failure to follow reasonable protection or curing directions, work by others, or conditions outside Mike Of All Trades' reasonable control may be chargeable, subject to applicable law. This does not make the customer responsible for rectification that Mike Of All Trades is legally required to provide because the original service was not performed with due care and skill.</p></section>
+
+<section><h2>23. Reasonable Communication and Customer Conduct</h2>
+<p>Mike Of All Trades will provide reasonable progress information appropriate to the nature and duration of the work. Unless there is an urgent safety concern, active property damage or another genuine emergency, the customer should consolidate routine enquiries and allow a reasonable time for a response.</p>
+<p>Repeated calls or messages at very short intervals do not accelerate physical work and may reduce the time available to perform it. Where communication becomes excessive, repetitive or disruptive, Mike Of All Trades may nominate a reasonable update schedule or require routine communications to occur in writing.</p>
+<p>Both parties must communicate honestly and respectfully. The customer must not threaten, intimidate, abuse, discriminate against, personally attack or deliberately harass Mike Of All Trades or any worker or subcontractor. Disagreement, criticism, negotiation or making a genuine complaint does not by itself constitute harassment or misconduct.</p>
+<p>Where reasonably practicable, Mike Of All Trades will identify conduct of concern and provide a reasonable opportunity for it to stop or be corrected. Nothing in this section prevents the customer from reporting urgent damage, raising a genuine concern, requesting information or exercising a legal right.</p>
+<p>If damage or defective work is alleged, the customer should notify Mike Of All Trades promptly, provide reasonable details and supporting information, preserve the affected area where practicable, and allow a reasonable opportunity to inspect and respond before another person alters or repairs it, except where urgent action is reasonably required to prevent injury or further damage.</p></section>
+
+<section><h2>24. Suspension, Make-safe Work and Termination</h2>
+<p>Mike Of All Trades may temporarily suspend work, restrict routine communication to writing, leave an unsafe situation, or require written agreement on revised scope, timing, rates, variations, access, temporary works, alternative accommodation or additional trades before work continues where:</p>
+<ul>
+<li>the site or requested work is unsafe or unlawful;</li>
+<li>necessary access, instructions, approvals, payments or reasonable site conditions are not provided;</li>
+<li>the customer repeatedly pressures Mike Of All Trades to disregard safety, drying, curing, manufacturer or technical requirements;</li>
+<li>abusive, threatening or intimidating conduct continues after reasonable warning, or immediate action is required to protect health or safety; or</li>
+<li>changed circumstances make it unreasonable or impracticable to continue under the existing scope or arrangements.</li>
+</ul>
+<p>Where work is paused, Mike Of All Trades will take reasonable steps within the agreed scope and the circumstances to leave the immediate work area in an appropriate temporary condition. Any additional temporary security, weatherproofing, protection, attendance or make-safe work may be treated as a variation where permitted by law.</p>
+<p>If the customer does not agree to the applicable terms, updated scope, lawful safety requirements, payment basis or reasonable site conditions, further work may remain suspended until agreement is reached. Any suspension or termination will be exercised reasonably and subject to applicable law.</p>
+<p>Suspension or termination does not remove the customer's responsibility to pay amounts lawfully owing for properly authorised work, materials, expenses, attendance, variations or make-safe work already performed or incurred. It does not remove either party's non-excludable statutory rights or remedies.</p></section>
+
+<section><h2>25. Cancellation and Aborted Attendance</h2>
 <p>If the customer cancels, postpones or prevents access after Mike Of All Trades has reasonably committed time, purchased non-returnable materials or travelled to the site, reasonable costs actually incurred may be payable, subject to applicable law and any cancellation policy stated in the quotation or booking confirmation.</p></section>
 
-<section><h2>22. Invoices, Payment and Deposits</h2>
+<section><h2>26. Invoices, Payment and Deposits</h2>
 <p>Payment terms are those stated on the quotation or invoice. The customer must raise disputed invoice items promptly and pay any undisputed amount by the due date.</p>
 <p>Materials specially purchased for a customer may require prepayment or a deposit. Any statutory limits applying to deposits or progress payments take precedence over these general terms.</p></section>
 
-<section><h2>23. Authority to Authorise Work</h2>
+<section><h2>27. Authority to Authorise Work</h2>
 <p>The person requesting the work represents that they own the property or have sufficient authority from the owner, landlord, property manager, occupier or other relevant party to authorise the work and access to the property.</p></section>
 
-<section><h2>24. Occupants, Children and Pets</h2>
-<p>The customer must keep children, pets and other occupants safely away from tools, ladders, work areas, wet coatings, adhesives, sharp objects, dust and other hazards while work is underway.</p></section>
-
-<section><h2>25. Photos, Records and Job Documentation</h2>
+<section><h2>28. Photos, Records and Job Documentation</h2>
 <p>Mike Of All Trades may take reasonable photographs of the work area before, during and after the job for estimating, job records, quality control, dispute resolution and internal business records. Images containing personal information will be handled in accordance with applicable law.</p>
 <p>Marketing use of identifiable customer information or private areas should not occur without appropriate permission.</p></section>
 
-<section><h2>26. Customer-Supplied Products and Materials</h2>
+<section><h2>29. Customer-Supplied Products and Materials</h2>
 <p>Mike Of All Trades is not the manufacturer or seller of customer-supplied products and does not warrant their quality, fitness, completeness or compatibility. Labour required because a customer-supplied item is defective, incomplete, incorrectly sized or incompatible may be chargeable.</p>
 <p>This does not affect responsibility for damage caused by installation work not carried out with the legally required level of care and skill.</p></section>
 
-<section><h2>27. Hidden Defects and Unforeseen Conditions</h2>
+<section><h2>30. Hidden Defects and Unforeseen Conditions</h2>
 <p>Quotes are normally based on conditions reasonably observable before work begins. Concealed rot, termites, corrosion, mould, water damage, asbestos, inadequate framing, damaged wiring, hidden plumbing, failed waterproofing, poor previous workmanship and similar hidden conditions are not included unless specifically stated.</p>
 <p>If such conditions are discovered, Mike Of All Trades may pause work and discuss the appropriate next step, including a variation, specialist contractor or revised method.</p></section>
 
-<section><h2>28. Damage, Liability and Consequential Loss</h2>
+<section><h2>31. Damage, Liability and Consequential Loss</h2>
 <p>Mike Of All Trades will exercise reasonable care and skill when performing services. The customer must also take reasonable steps to protect valuables and disclose known hazards, concealed services and fragile conditions relevant to the work.</p>
 <p>To the extent permitted by law, Mike Of All Trades is not responsible for loss caused by inaccurate or incomplete information supplied by the customer or third parties, pre-existing defects, concealed conditions that could not reasonably have been identified, failure of customer-supplied products, or events outside reasonable control.</p>
 <p>Nothing in these terms excludes or restricts liability where doing so would be unlawful.</p></section>
 
-<section><h2>29. Australian Consumer Law and Non-Excludable Rights</h2>
+<section><h2>32. Australian Consumer Law and Non-Excludable Rights</h2>
 <p>These Terms &amp; Conditions are subject to the Australian Consumer Law and other applicable laws. Services supplied to consumers may come with statutory guarantees, including guarantees that services will be provided with due care and skill and, where applicable, will be fit for a disclosed purpose and supplied within a reasonable time.</p>
 <p>Nothing in these Terms &amp; Conditions is intended to exclude, restrict or modify any consumer guarantee, implied warranty, right or remedy that cannot lawfully be excluded, restricted or modified.</p></section>
 
-<section><h2>30. Questions, Complaints and Disputes</h2>
+<section><h2>33. Questions, Complaints and Disputes</h2>
 <p>If the customer believes the work does not match the agreed scope or has a defect, they should notify Mike Of All Trades promptly and provide reasonable details and access so the issue can be inspected and, where appropriate, remedied.</p>
 <p>Both parties should first attempt to resolve concerns directly and reasonably before escalating the matter, without limiting either party's legal rights.</p></section>
 
-<section><h2>31. Domestic Building Work and Separate Statutory Requirements</h2>
+<section><h2>34. Domestic Building Work and Separate Statutory Requirements</h2>
 <p>Some residential work in Victoria is regulated as domestic building work and may require a specific written building contract, practitioner registration, Home Warranty insurance, permits, certificates or other statutory documents depending on the nature and value of the work.</p>
 <p>These website Terms &amp; Conditions do not replace any contract, insurance, disclosure, registration, permit or certificate required by law. If a mandatory statutory contract applies, that contract and the legislation take precedence to the extent of any inconsistency.</p></section>
 
-<section><h2>32. Severability and Interpretation</h2>
+<section><h2>35. Severability and Interpretation</h2>
 <p>If any part of these terms is found to be invalid, unlawful or unenforceable, it should be read down to the extent necessary and, if that is not possible, severed without affecting the remainder.</p>
 <p>Headings are for convenience only. “Customer” includes the person or entity requesting or authorising the work. “Mike Of All Trades” refers to the business supplying the quoted service.</p></section>
 
-<section><h2>33. Changes to these Terms</h2>
-<p>These Terms &amp; Conditions may be updated from time to time. The version that applies to a job is ordinarily the version made available to the customer when the quote or booking is accepted, unless the parties agree otherwise or the law requires a different result.</p>
+<section><h2>36. Changes to these Terms</h2>
+<p>These Terms &amp; Conditions may be reviewed and updated from time to time to reflect changes to services, business practices, safety requirements or applicable law. Customers should review the version displayed on this website before accepting a new quotation, booking, variation or separate stage of work.</p>
+<p>The version that ordinarily applies to an existing job is the version provided or made available when the relevant quotation or booking was accepted. Merely publishing a later version on the website does not, by itself, retrospectively alter an existing agreement or impose a material new obligation on the customer.</p>
+<p>If a material update is proposed for ongoing work, Mike Of All Trades will give reasonable notice of the proposed change and explain its practical effect. The updated term will apply to that ongoing work only where the customer agrees, where it forms part of an agreed variation or new stage of work, or where the change is required by applicable law.</p>
+<p>Administrative changes that do not materially reduce either party's rights or materially increase either party's obligations may be made without a new acceptance. Nothing in this section permits an unfair contract term or limits a right or remedy that cannot lawfully be excluded.</p>
 <p class="small">Suggested public URL: https://www.mikeofalltrades.com.au/terms</p></section>
 
 </main>
