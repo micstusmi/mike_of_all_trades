@@ -15,4 +15,18 @@ $num=function($k){$v=trim((string)($_POST[$k]??''));return $v===''?null:max(0,(f
 $q=$pdo->prepare("SELECT COALESCE(MAX(task_order),0)+10 FROM work_tasks WHERE job_id=?");$q->execute([$id]);$order=(int)$q->fetchColumn();
 $q=$pdo->prepare("INSERT INTO work_tasks(job_id,task_order,title,description,customer_summary,detailed_procedure,time_drivers,waiting_curing_notes,suggested_materials,task_origin,ai_estimate_low,ai_estimate_high,ai_reasoning,mike_estimate_low,mike_estimate_high,mike_reasoning,customer_visible) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
 $q->execute([$id,$order,$title,$desc?:null,$customerSummary?:null,$detailedProcedure?:null,$timeDrivers?:null,$waitingCuringNotes?:null,$suggestedMaterials?:null,$origin,$num('ai_estimate_low'),$num('ai_estimate_high'),trim($_POST['ai_reasoning']??'')?:null,$num('mike_estimate_low'),$num('mike_estimate_high'),trim($_POST['mike_reasoning']??'')?:null,isset($_POST['customer_visible'])?1:0]);
-header("Location: ../../admin/work/manage_job.php?id=$id&task_added=1#tasks");exit;
+$taskId=(int)$pdo->lastInsertId();
+$beforePhotosAdded=0;
+$beforePhotoError=false;
+if(wt_upload_field_has_files('before_photos')){
+    try{
+        $beforePhotosAdded=wt_save_task_photo_upload_field($pdo,$id,$taskId,'before_photos','before','',20);
+        if($beforePhotosAdded<1)$beforePhotoError=true;
+    }catch(Throwable $e){
+        $beforePhotoError=true;
+        error_log('Task '.$taskId.' was created but its before-photo upload failed: '.$e->getMessage());
+    }
+}
+$location="../../admin/work/manage_job.php?id=$id&task_added=1&before_photos_added=$beforePhotosAdded";
+if($beforePhotoError)$location.='&before_photo_error=1';
+header('Location: '.$location.'#tasks');exit;
