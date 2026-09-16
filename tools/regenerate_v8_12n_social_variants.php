@@ -6,34 +6,6 @@ require_once __DIR__ . '/../includes/work_tracker.php';
 $jobId = (int)($argv[1] ?? 0);
 $verbose = in_array('--verbose', $argv, true);
 
-function regen_find_photo_by_basename(string $relativePath): string
-{
-    $basename = basename($relativePath);
-    if ($basename === '' || $basename === '.' || $basename === '..') {
-        return '';
-    }
-
-    $baseDir = wt_task_photo_base_dir();
-    if (!is_dir($baseDir)) {
-        return '';
-    }
-
-    try {
-        $iterator = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($baseDir, FilesystemIterator::SKIP_DOTS)
-        );
-        foreach ($iterator as $file) {
-            if ($file->isFile() && $file->getFilename() === $basename) {
-                return substr($file->getPathname(), strlen(rtrim($baseDir, '/')) + 1);
-            }
-        }
-    } catch (Throwable $e) {
-        return '';
-    }
-
-    return '';
-}
-
 $where = $jobId > 0 ? 'WHERE job_id=?' : '';
 $params = $jobId > 0 ? [$jobId] : [];
 
@@ -63,39 +35,16 @@ $missingExamples = [];
 
 foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $photo) {
     $outputRelative = (string)($photo['relative_path'] ?? '');
-    $sourceRelative = '';
-    $sourceMime = '';
-    $missingTried = [];
+    // Platform and legacy social copies may already contain white padding,
+    // labels or logos. Never feed one branded derivative into another. Only
+    // the clean stored source is valid input for a fresh platform crop.
+    $sourceRelative = trim((string)($photo['relative_path'] ?? ''));
+    $sourceMime = trim((string)($photo['mime_type'] ?? '')) ?: 'image/jpeg';
 
-    $candidates = [
-        [(string)($photo['relative_path'] ?? ''), (string)($photo['mime_type'] ?? '')],
-        [(string)($photo['social_relative_path'] ?? ''), (string)($photo['social_mime_type'] ?? 'image/jpeg')],
-        [(string)($photo['facebook_relative_path'] ?? ''), (string)($photo['facebook_mime_type'] ?? 'image/jpeg')],
-        [(string)($photo['instagram_relative_path'] ?? ''), (string)($photo['instagram_mime_type'] ?? 'image/jpeg')],
-        [(string)($photo['tiktok_relative_path'] ?? ''), (string)($photo['tiktok_mime_type'] ?? 'image/jpeg')],
-    ];
-
-    foreach ($candidates as [$candidateRelative, $candidateMime]) {
-        if ($candidateRelative !== '' && is_file(wt_task_photo_path($candidateRelative))) {
-            $sourceRelative = $candidateRelative;
-            $sourceMime = $candidateMime !== '' ? $candidateMime : 'image/jpeg';
-            break;
-        }
-        if ($candidateRelative !== '') {
-            $foundRelative = regen_find_photo_by_basename($candidateRelative);
-            if ($foundRelative !== '' && is_file(wt_task_photo_path($foundRelative))) {
-                $sourceRelative = $foundRelative;
-                $sourceMime = $candidateMime !== '' ? $candidateMime : 'image/jpeg';
-                break;
-            }
-            $missingTried[] = $candidateRelative;
-        }
-    }
-
-    if ($sourceRelative === '') {
+    if ($sourceRelative === '' || !is_file(wt_task_photo_path($sourceRelative))) {
         $skipped++;
         if (count($missingExamples) < 8) {
-            $missingExamples[] = '#' . (int)$photo['id'] . ' tried: ' . implode(', ', array_slice($missingTried, 0, 4));
+            $missingExamples[] = '#' . (int)$photo['id'] . ': clean stored source is unavailable; existing variants were left unchanged';
         }
         continue;
     }

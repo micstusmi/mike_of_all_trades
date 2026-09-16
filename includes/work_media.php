@@ -581,11 +581,11 @@ function wt_platform_photo_specs(): array
             'quality' => 91,
             'fit' => 'cover',
             'shape' => 'instagram',
-            'tag_position' => 'top-left',
+            'tag_position' => 'top-centre',
             'logo_position' => 'bottom-right',
-            'label_top_ratio' => 0.04,
-            'logo_right_ratio' => 0.05,
-            'logo_bottom_ratio' => 0.05,
+            'label_top_ratio' => 0.035,
+            'logo_right_ratio' => 0.035,
+            'logo_bottom_ratio' => 0.035,
             'logo_alpha' => 38,
         ],
         'tiktok' => [
@@ -595,11 +595,11 @@ function wt_platform_photo_specs(): array
             'quality' => 84,
             'fit' => 'cover',
             'shape' => 'portrait',
-            'tag_position' => 'top-left',
+            'tag_position' => 'top-centre',
             'logo_position' => 'bottom-right',
             'label_top_ratio' => 0.04,
-            'logo_right_ratio' => 0.06,
-            'logo_bottom_ratio' => 0.08,
+            'logo_right_ratio' => 0.045,
+            'logo_bottom_ratio' => 0.045,
             'logo_alpha' => 38,
         ],
         'facebook' => [
@@ -609,11 +609,11 @@ function wt_platform_photo_specs(): array
             'quality' => 86,
             'fit' => 'cover',
             'shape' => 'source',
-            'tag_position' => 'top-left',
+            'tag_position' => 'top-centre',
             'logo_position' => 'bottom-right',
             'label_top_ratio' => 0.04,
-            'logo_right_ratio' => 0.04,
-            'logo_bottom_ratio' => 0.04,
+            'logo_right_ratio' => 0.035,
+            'logo_bottom_ratio' => 0.035,
             'logo_alpha' => 36,
         ],
     ];
@@ -710,7 +710,9 @@ function wt_draw_social_photo_marks($canvas, int $outW, int $outH, string $photo
 {
     $label = wt_photo_stage_label($photoType);
     $font = wt_social_photo_font();
-    $pad = max(34, (int)round(min($outW, $outH) * 0.04));
+    // All coordinates below are relative to the final cropped bitmap. They are
+    // deliberately independent of the HTML preview/card dimensions.
+    $pad = max(28, (int)round(min($outW, $outH) * 0.032));
     $fontSize = max(28, (int)round(min($outW, $outH) * 0.038));
     $white = imagecolorallocate($canvas, 255, 255, 255);
     $shadow = imagecolorallocatealpha($canvas, 0, 0, 0, 46);
@@ -756,14 +758,13 @@ function wt_draw_social_photo_marks($canvas, int $outW, int $outH, string $photo
         return;
     }
 
-    // Keep the complete tall wireframe logo inside a generous social-media
-    // safe area. Its aspect ratio is preserved and its height is capped so it
-    // can never run through the bottom edge on landscape or square variants.
-    $safeX = max(48, (int)round($outW * (float)($spec['logo_right_ratio'] ?? $spec['logo_left_ratio'] ?? 0.06)));
-    $safeY = max(48, (int)round($outH * (float)($spec['logo_bottom_ratio'] ?? 0.08)));
-    $targetW = max(82, (int)round($outW * 0.12));
+    // Anchor the complete wireframe mark to the bottom-right of the final
+    // cropped bitmap. Preserve its aspect ratio and keep every pixel inside.
+    $safeX = max(28, (int)round($outW * (float)($spec['logo_right_ratio'] ?? $spec['logo_left_ratio'] ?? 0.035)));
+    $safeY = max(28, (int)round($outH * (float)($spec['logo_bottom_ratio'] ?? 0.035)));
+    $targetW = max(76, (int)round($outW * 0.105));
     $targetH = max(1, (int)round($targetW * $logoH / $logoW));
-    $maxLogoH = max(100, (int)round($outH * 0.22));
+    $maxLogoH = max(100, (int)round($outH * 0.18));
     if ($targetH > $maxLogoH) {
         $targetH = $maxLogoH;
         $targetW = max(1, (int)round($targetH * $logoW / $logoH));
