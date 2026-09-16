@@ -131,8 +131,15 @@ function wt_save_heic_as_task_jpeg(
             if (method_exists($image, 'setImageBackgroundColor')) {
                 $image->setImageBackgroundColor('white');
             }
+            if (method_exists($image, 'autoOrientImage')) {
+                $image->autoOrientImage();
+            }
             if (method_exists($image, 'thumbnailImage')) {
-                $image->thumbnailImage($maxSide, $maxSide, true, true);
+                // Preserve the photo's real aspect ratio. The fourth Imagick
+                // argument is `fill`; true forces a rectangular photo onto a
+                // square white canvas, which then makes later overlays appear
+                // outside the photograph. Never add that canvas.
+                $image->thumbnailImage($maxSide, $maxSide, true, false);
             }
             if (defined('Imagick::ORIENTATION_TOPLEFT')) {
                 $image->setImageOrientation(Imagick::ORIENTATION_TOPLEFT);
