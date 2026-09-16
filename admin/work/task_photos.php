@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/_auth.php';
 require_once __DIR__ . '/../../includes/work_tracker.php';
+require_once __DIR__ . '/../../includes/work_photo_queue.php';
 
 $id = (int)($_GET['id'] ?? 0);
 $job = wt_job($pdo, $id);
@@ -40,6 +41,10 @@ input,textarea,select{width:100%;box-sizing:border-box;margin:5px 0;padding:9px}
 .actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .actions a,.actions button{border:1px solid #ccd;background:#fff;border-radius:7px;padding:5px 7px;color:#17202a;text-decoration:none;font:inherit;font-size:12px;cursor:pointer}
 .expired{min-height:120px;display:grid;place-items:center;background:#eef2f5;border-radius:8px;padding:10px;text-align:center}
+.upload-progress{display:none;margin-top:14px;padding:12px;border:1px solid #9db5c8;border-radius:10px;background:#eef7ff}
+.upload-progress.active{display:block}.upload-progress.safe{background:#e8f6ed;border-color:#82bf94}.upload-progress.bad{background:#fff0ef;border-color:#d69a94}
+.progress-track{height:12px;background:#d9e1e7;border-radius:20px;overflow:hidden;margin:8px 0}.progress-bar{height:100%;width:0;background:#1677d2;transition:width .2s}
+.upload-files{font-size:12px;max-height:150px;overflow:auto;margin-top:8px}.upload-files div{padding:2px 0}
 @media(max-width:850px){.cols,.row{grid-template-columns:1fr}}
 </style>
 </head>
@@ -98,8 +103,14 @@ Bulk upload finished:
 <label>Choose photos</label>
 <input type="file" name="photos[]" accept="<?=wt_html(wt_task_photo_accept_attr())?>" multiple required>
 <input name="bulk_note" placeholder="Optional note for this batch, e.g. catch-up upload from Tuesday">
-<p class="muted">Up to 40 photos at once, but large iPhone batches may need to be uploaded in smaller groups if the server rejects the total batch size. Photos are still reduced to storage-safe web copies and branded social copies.</p>
-<button class="btn">UPLOAD AND SORT PHOTOS</button>
+<p class="muted">Choose up to 40 photos. Originals are uploaded individually so one large batch cannot exceed the combined server limit. Once every original is saved, you may leave while Lightsail converts, sorts and creates the social copies in the background.</p>
+<button class="btn" id="bulkUploadButton">UPLOAD ORIGINALS</button>
+<div id="bulkUploadProgress" class="upload-progress" aria-live="polite">
+<strong id="bulkUploadHeading">Preparing upload…</strong>
+<div class="progress-track"><div class="progress-bar" id="bulkUploadBar"></div></div>
+<div id="bulkUploadMessage" class="muted"></div>
+<div id="bulkUploadFiles" class="upload-files"></div>
+</div>
 </form>
 <?php endif; ?>
 </div>
@@ -175,24 +186,82 @@ document.querySelectorAll('.share-photo').forEach(function(button){
         location.href=new URL(button.dataset.downloadUrl||button.dataset.shareUrl,location.href).href;
     });
 });
-document.getElementById('bulkPhotoForm')?.addEventListener('submit', function(){
-    this.querySelectorAll('.client-photo-time').forEach(input => input.remove());
-    const input = this.querySelector('input[type="file"][name="photos[]"]');
-    const files = Array.from(input?.files || []);
-    const totalBytes = files.reduce((sum, file) => sum + (file.size || 0), 0);
-    const softLimit = 35 * 1024 * 1024;
-    if (totalBytes > softLimit && !confirm('This is a large photo batch. If the upload fails, try 5-10 iPhone photos at a time. Continue anyway?')) {
-        return false;
+const bulkForm=document.getElementById('bulkPhotoForm');
+const progressBox=document.getElementById('bulkUploadProgress');
+const progressHeading=document.getElementById('bulkUploadHeading');
+const progressMessage=document.getElementById('bulkUploadMessage');
+const progressBar=document.getElementById('bulkUploadBar');
+const progressFiles=document.getElementById('bulkUploadFiles');
+const uploadButton=document.getElementById('bulkUploadButton');
+const jobId=<?=json_encode($id)?>;
+const storageKey='mot-photo-upload-batch-'+jobId;
+let originalsTransferring=false;
+let transferFailures=[];
+
+function batchToken(){
+    if(window.crypto&&crypto.getRandomValues){const b=new Uint8Array(16);crypto.getRandomValues(b);return Array.from(b,x=>x.toString(16).padStart(2,'0')).join('');}
+    return Date.now().toString(36)+Math.random().toString(36).slice(2);
+}
+function escapeHtml(value){return String(value).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+function showProgress(kind,heading,message,percent){
+    progressBox.className='upload-progress active'+(kind?' '+kind:'');
+    progressHeading.textContent=heading; progressMessage.textContent=message||'';
+    progressBar.style.width=Math.max(0,Math.min(100,percent||0))+'%';
+}
+async function uploadOne(file,index,total,token,attempt=1){
+    const data=new FormData();
+    data.append('photo',file,file.name); data.append('job_id',String(jobId));
+    data.append('assignment_mode',bulkForm.elements.assignment_mode.value);
+    data.append('fallback_task_id',bulkForm.elements.fallback_task_id.value);
+    data.append('fallback_photo_type',bulkForm.elements.fallback_photo_type.value);
+    data.append('bulk_note',bulkForm.elements.bulk_note.value||'');
+    data.append('client_photo_mtime',String(file.lastModified||0));
+    data.append('batch_token',token); data.append('client_file_key',index+'-'+file.size+'-'+(file.lastModified||0));
+    try{
+        const response=await fetch('../../api/work/queue_task_photo_upload.php',{method:'POST',body:data,credentials:'same-origin'});
+        const result=await response.json().catch(()=>({ok:false,message:'The server returned an unreadable response.'}));
+        if(!response.ok||!result.ok)throw new Error(result.message||('Upload failed with HTTP '+response.status));
+        return result;
+    }catch(error){
+        if(attempt<3){await new Promise(resolve=>setTimeout(resolve,1000*attempt));return uploadOne(file,index,total,token,attempt+1);}
+        throw error;
     }
-    files.forEach(function(file){
-        const hidden = document.createElement('input');
-        hidden.type = 'hidden';
-        hidden.name = 'client_photo_mtime[]';
-        hidden.value = String(file.lastModified || '');
-        hidden.className = 'client-photo-time';
-        input.insertAdjacentElement('afterend', hidden);
-    });
+}
+async function pollBatch(token){
+    try{
+        const response=await fetch('../../api/work/task_photo_upload_status.php?job_id='+jobId+'&batch_token='+encodeURIComponent(token),{credentials:'same-origin',cache:'no-store'});
+        const data=await response.json(); if(!data.ok)return;
+        const s=data.summary; const finished=(s.complete||0)+(s.failed||0); const percent=s.total?Math.round(finished*100/s.total):0;
+        const failedNames=transferFailures.concat((data.items||[]).filter(x=>x.status==='failed').map(x=>x.original_name+(x.error_message?' — '+x.error_message:'')));
+        progressFiles.innerHTML=failedNames.map(x=>'<div>⚠️ '+escapeHtml(x)+'</div>').join('');
+        if(s.queued||s.processing){
+            showProgress('safe','Originals safely saved — you may leave this page',(s.complete||0)+' ready, '+(s.processing||0)+' processing, '+(s.queued||0)+' waiting'+(s.failed?', '+s.failed+' failed':''),percent);
+            setTimeout(()=>pollBatch(token),4000);
+        }else{
+            localStorage.removeItem(storageKey);
+            showProgress(s.failed?'bad':'safe',s.failed?'Background processing finished with a problem':'All photos are ready',(s.complete||0)+' completed'+(s.failed?', '+s.failed+' failed. The failed filenames are listed below.':''),100);
+            if(!s.failed){progressMessage.insertAdjacentHTML('beforeend',' <a href="task_photos.php?id='+jobId+'">Refresh photos</a>');}
+        }
+    }catch(error){setTimeout(()=>pollBatch(token),6000);}
+}
+bulkForm?.addEventListener('submit',async function(event){
+    event.preventDefault();
+    const input=this.querySelector('input[type="file"][name="photos[]"]'); const files=Array.from(input?.files||[]);
+    if(!files.length)return; if(files.length>40){alert('Please choose no more than 40 photos.');return;}
+    const token=batchToken(); localStorage.setItem(storageKey,token); originalsTransferring=true;
+    uploadButton.disabled=true; progressFiles.innerHTML=''; let saved=0; const failed=[]; transferFailures=[];
+    for(let i=0;i<files.length;i++){
+        showProgress('','Uploading original '+(i+1)+' of '+files.length,'Keep this tab open until every original reaches Lightsail.',Math.round(saved*100/files.length));
+        try{await uploadOne(files[i],i,files.length,token);saved++;progressFiles.insertAdjacentHTML('beforeend','<div>✓ '+escapeHtml(files[i].name)+'</div>');}
+        catch(error){failed.push(files[i].name+' — '+error.message);progressFiles.insertAdjacentHTML('beforeend','<div>✗ '+escapeHtml(files[i].name+' — '+error.message)+'</div>');}
+        progressBar.style.width=Math.round((i+1)*100/files.length)+'%';
+    }
+    originalsTransferring=false; uploadButton.disabled=false; transferFailures=failed.slice();
+    if(saved){showProgress('safe','Original transfer finished — you may safely leave',saved+' original'+(saved===1?'':'s')+' saved on Lightsail and processing in the background'+(failed.length?'; '+failed.length+' could not be uploaded.':'.'),100);pollBatch(token);}
+    else{localStorage.removeItem(storageKey);showProgress('bad','No originals were saved','Check the errors below and try again.',100);}
 });
+window.addEventListener('beforeunload',function(event){if(!originalsTransferring)return;event.preventDefault();event.returnValue='Photo originals are still uploading. Leaving now will cancel the remaining transfers.';});
+const previousBatch=localStorage.getItem(storageKey); if(previousBatch){showProgress('safe','Checking your background photo batch','You may continue working while Lightsail processes saved originals.',5);pollBatch(previousBatch);}
 </script>
 </body>
 </html>
