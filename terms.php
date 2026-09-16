@@ -10,8 +10,8 @@ if (session_status() === PHP_SESSION_NONE) {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Terms & Conditions | Mike Of All Trades</title>
 <meta name="description" content="Terms and conditions for handyman, property maintenance, quoting and booking services supplied by Mike Of All Trades in Victoria, Australia.">
-<link rel="icon" type="image/png" href="/assets/favicon.png?v=2">
-<link rel="shortcut icon" type="image/png" href="/assets/favicon.png?v=2">
+<link rel="icon" type="image/png" href="/assets/favicon.png?v=20260916-logo">
+<link rel="shortcut icon" type="image/png" href="/assets/favicon.png?v=20260916-logo">
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#111;color:#eee;font-family:Arial,Helvetica,sans-serif;line-height:1.65}

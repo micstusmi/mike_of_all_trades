@@ -57,6 +57,9 @@ Bulk upload finished:
 <?= (int)($_GET['bulk_fallback'] ?? 0) ?> used the fallback choice.
 </div>
 <?php endif; ?>
+<?php if (!empty($_GET['photo_error'])): ?>
+<div class="warn"><?=wt_html((string)$_GET['photo_error'])?></div>
+<?php endif; ?>
 
 <div class="card" id="bulk-upload">
 <h2>Catch-up bulk photo upload</h2>
@@ -93,9 +96,9 @@ Bulk upload finished:
 </div>
 </div>
 <label>Choose photos</label>
-<input type="file" name="photos[]" accept="image/jpeg,image/png,image/webp" multiple required>
+<input type="file" name="photos[]" accept="<?=wt_html(wt_task_photo_accept_attr())?>" multiple required>
 <input name="bulk_note" placeholder="Optional note for this batch, e.g. catch-up upload from Tuesday">
-<p class="muted">Up to 40 photos at once. Photos are still reduced to storage-safe web copies and branded social copies.</p>
+<p class="muted">Up to 40 photos at once, but large iPhone batches may need to be uploaded in smaller groups if the server rejects the total batch size. Photos are still reduced to storage-safe web copies and branded social copies.</p>
 <button class="btn">UPLOAD AND SORT PHOTOS</button>
 </form>
 <?php endif; ?>
@@ -115,25 +118,33 @@ Bulk upload finished:
 <?php foreach (($by[(int)$task['id']][$type] ?? []) as $p): ?>
 <?php
 $photoId = (int)$p['id'];
-$originalAvailable = empty($p['file_deleted_at']);
-$socialReady = !empty($p['social_relative_path']) && empty($p['social_deleted_at']);
+$originalAvailable = empty($p['file_deleted_at'])
+    && !empty($p['relative_path'])
+    && is_file(wt_task_photo_path((string)$p['relative_path']));
+$socialReady = !empty($p['social_relative_path'])
+    && empty($p['social_deleted_at'])
+    && is_file(wt_task_photo_path((string)$p['social_relative_path']));
 $photoUrl = '../../work/task_photo.php?id=' . $photoId . '&t=' . urlencode($token);
 $socialUrl = $photoUrl . '&variant=social';
+$thumbnailReady = !empty($p['thumbnail_relative_path']) && is_file(wt_task_photo_path((string)$p['thumbnail_relative_path']));
+$thumbnailUrl = $photoUrl . '&variant=thumbnail';
 ?>
 <div style="margin:8px 0">
 <?php if ($originalAvailable || $socialReady): ?>
-<img class="photo" src="<?=wt_html($socialReady ? $socialUrl : $photoUrl)?>">
+<img class="photo" loading="lazy" src="<?=wt_html($thumbnailReady ? $thumbnailUrl : ($socialReady ? $socialUrl : $photoUrl))?>">
+<?php if (!$originalAvailable && $socialReady): ?><div class="warn">Fallback preview only — the old source file is missing.</div><?php endif; ?>
 <?php else: ?>
-<div class="expired muted">Server copy expired<br><?=wt_html((string)($p['original_name'] ?? 'photo'))?></div>
+<div class="expired muted">Old photo record only — source and preview files are missing<br><?=wt_html((string)($p['original_name'] ?? 'photo'))?></div>
 <?php endif; ?>
 <div class="muted">Uploaded by <?=wt_html((string)$p['uploader_type'])?> · <?=wt_html(date('j M Y, g:i a', strtotime((string)$p['created_at'])))?></div>
+<div class="muted">Photo #<?=$photoId?> · <?=wt_html((string)($p['original_name'] ?? 'photo'))?></div>
 <?php if (!empty($p['note'])): ?><div><?=wt_html((string)$p['note'])?></div><?php endif; ?>
 <div class="actions">
-<?php if ($originalAvailable): ?><a target="_blank" href="<?=wt_html($photoUrl)?>">Original</a><?php endif; ?>
+<?php if ($originalAvailable): ?><a target="_blank" href="<?=wt_html($photoUrl)?>">Original</a><a href="<?=wt_html($photoUrl . '&download=1')?>">Download source</a><button type="button" class="share-photo" data-share-url="<?=wt_html($photoUrl)?>" data-download-url="<?=wt_html($photoUrl.'&download=1')?>" data-filename="<?=wt_html((string)($p['original_name']??'job-photo.jpg'))?>">Save to iPhone</button><?php endif; ?>
 <?php if ($socialReady): ?>
 <a target="_blank" href="<?=wt_html($socialUrl)?>">Branded</a>
 <a href="<?=wt_html($socialUrl . '&download=1')?>">Save</a>
-<button type="button" class="share-photo" data-share-url="<?=wt_html($socialUrl)?>">Share</button>
+<button type="button" class="share-photo" data-share-url="<?=wt_html($socialUrl)?>" data-download-url="<?=wt_html($socialUrl.'&download=1')?>" data-filename="social-photo.jpg">Share image</button>
 <?php endif; ?>
 </div>
 </div>
@@ -142,7 +153,7 @@ $socialUrl = $photoUrl . '&variant=social';
 <input type="hidden" name="job_id" value="<?=$id?>">
 <input type="hidden" name="task_id" value="<?=(int)$task['id']?>">
 <input type="hidden" name="photo_type" value="<?=$type?>">
-<input type="file" name="photos[]" accept="image/jpeg,image/png,image/webp" multiple required>
+<input type="file" name="photos[]" accept="<?=wt_html(wt_task_photo_accept_attr())?>" multiple required>
 <input name="note" placeholder="Optional note">
 <button class="btn">ADD <?=strtoupper($label)?> PHOTO</button>
 </form>
@@ -156,19 +167,24 @@ $socialUrl = $photoUrl . '&variant=social';
 document.querySelectorAll('.share-photo').forEach(function(button){
     button.addEventListener('click', async function(){
         const url = new URL(button.dataset.shareUrl, location.href).href;
-        if (navigator.share) {
-            try {
-                await navigator.share({title:'Mike Of All Trades job photo', url});
-                return;
-            } catch(e) {}
-        }
-        window.open(url, '_blank');
+        try {
+            const response=await fetch(url,{credentials:'same-origin'}); const blob=await response.blob();
+            const file=new File([blob],button.dataset.filename||'job-photo.jpg',{type:blob.type||'image/jpeg'});
+            if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({title:'Mike Of All Trades job photo',files:[file]});return;}
+        } catch(e) { if(e && e.name==='AbortError') return; }
+        location.href=new URL(button.dataset.downloadUrl||button.dataset.shareUrl,location.href).href;
     });
 });
 document.getElementById('bulkPhotoForm')?.addEventListener('submit', function(){
     this.querySelectorAll('.client-photo-time').forEach(input => input.remove());
     const input = this.querySelector('input[type="file"][name="photos[]"]');
-    Array.from(input?.files || []).forEach(function(file){
+    const files = Array.from(input?.files || []);
+    const totalBytes = files.reduce((sum, file) => sum + (file.size || 0), 0);
+    const softLimit = 35 * 1024 * 1024;
+    if (totalBytes > softLimit && !confirm('This is a large photo batch. If the upload fails, try 5-10 iPhone photos at a time. Continue anyway?')) {
+        return false;
+    }
+    files.forEach(function(file){
         const hidden = document.createElement('input');
         hidden.type = 'hidden';
         hidden.name = 'client_photo_mtime[]';

@@ -6,8 +6,8 @@ if (session_status() === PHP_SESSION_NONE) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <link rel="icon" type="image/png" href="/assets/favicon.png">
-<link rel="shortcut icon" href="/assets/favicon.png">
+    <link rel="icon" type="image/png" href="/assets/favicon.png?v=20260916-logo">
+<link rel="shortcut icon" href="/assets/favicon.png?v=20260916-logo">
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">

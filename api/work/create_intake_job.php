@@ -71,9 +71,9 @@ if(is_array($files) && isset($files['name']) && is_array($files['name'])){
         $size=(int)($files['size'][$i]??0);
         if($size<=0 || $size>12*1024*1024) intake_fail('Each upload must be 12 MB or smaller.');
         $tmp=(string)$files['tmp_name'][$i];
-        $mime=(new finfo(FILEINFO_MIME_TYPE))->file($tmp) ?: '';
-        $allowed=['image/jpeg','image/png','image/webp','application/pdf'];
-        if(!in_array($mime,$allowed,true)) intake_fail('Unsupported file type: '.$mime.'. Use JPEG, PNG, WEBP or PDF.');
+        $mime=wt_normalise_uploaded_photo_mime((string)((new finfo(FILEINFO_MIME_TYPE))->file($tmp) ?: ''),(string)$files['name'][$i]);
+        $allowed=['image/jpeg','image/png','image/webp','image/heic','image/heif','image/heic-sequence','image/heif-sequence','application/pdf'];
+        if(!in_array($mime,$allowed,true)) intake_fail('Unsupported file type: '.$mime.'. Use JPEG, PNG, WEBP, HEIC, HEIF or PDF.');
         $fileRows[]=['tmp'=>$tmp,'name'=>(string)$files['name'][$i],'mime'=>$mime,'size'=>$size];
     }
 }
@@ -137,13 +137,26 @@ $stored=[];
 $insFile=$pdo->prepare("INSERT INTO work_job_intake_files(job_id,original_name,stored_name,relative_path,mime_type,file_size,sha256) VALUES(?,?,?,?,?,?,?)");
 foreach($fileRows as $idx=>$f){
     $safe=safe_file_name($f['name']);
+    if (wt_is_heic_photo((string)$f['mime'])) {
+        $safe = preg_replace('/\.(heic|heif)$/i', '.jpg', $safe) ?: ($safe . '.jpg');
+    }
     $storedName=sprintf('%02d_',($idx+1)).bin2hex(random_bytes(4)).'_'.$safe;
     $dest=$jobDir.'/'.$storedName;
-    if(!move_uploaded_file($f['tmp'],$dest)) intake_fail('Draft job #'.$jobId.' was created, but an uploaded file could not be preserved.',500);
+    $storedMime = (string)$f['mime'];
+    if (wt_is_heic_photo($storedMime)) {
+        try {
+            wt_save_heic_as_task_jpeg((string)$f['tmp'], $dest);
+            $storedMime = 'image/jpeg';
+        } catch (Throwable $e) {
+            intake_fail($e->getMessage(), 500);
+        }
+    } elseif(!move_uploaded_file($f['tmp'],$dest)) {
+        intake_fail('Draft job #'.$jobId.' was created, but an uploaded file could not be preserved.',500);
+    }
     $sha=hash_file('sha256',$dest) ?: null;
     $relative='job_'.$jobId.'/'.$storedName;
-    $insFile->execute([$jobId,$f['name'],$storedName,$relative,$f['mime'],filesize($dest)?:$f['size'],$sha]);
-    $stored[]=['id'=>(int)$pdo->lastInsertId(),'path'=>$dest,'name'=>$f['name'],'mime'=>$f['mime']];
+    $insFile->execute([$jobId,$f['name'],$storedName,$relative,$storedMime,filesize($dest)?:$f['size'],$sha]);
+    $stored[]=['id'=>(int)$pdo->lastInsertId(),'path'=>$dest,'name'=>$f['name'],'mime'=>$storedMime];
 }
 
 $apiKey=wt_env('OPENAI_API_KEY');

@@ -10,6 +10,37 @@ function bulk_fail(string $message, int $status = 400): never
     exit($message);
 }
 
+function bulk_ini_bytes(string $value): int
+{
+    $value = trim($value);
+    if ($value === '') {
+        return 0;
+    }
+
+    $unit = strtolower(substr($value, -1));
+    $number = (float)$value;
+
+    return match ($unit) {
+        'g' => (int)round($number * 1024 * 1024 * 1024),
+        'm' => (int)round($number * 1024 * 1024),
+        'k' => (int)round($number * 1024),
+        default => (int)round($number),
+    };
+}
+
+function bulk_format_bytes(int $bytes): string
+{
+    if ($bytes >= 1024 * 1024) {
+        return round($bytes / 1024 / 1024, 1) . ' MB';
+    }
+
+    if ($bytes >= 1024) {
+        return round($bytes / 1024, 1) . ' KB';
+    }
+
+    return $bytes . ' bytes';
+}
+
 function bulk_photo_taken_at(string $path, string $mime, ?int $clientMs): ?DateTimeImmutable
 {
     if ($mime === 'image/jpeg' && function_exists('exif_read_data')) {
@@ -76,6 +107,18 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     bulk_fail('POST required.', 405);
 }
 
+$postMax = bulk_ini_bytes((string)ini_get('post_max_size'));
+$contentLength = (int)($_SERVER['CONTENT_LENGTH'] ?? 0);
+if ($postMax > 0 && $contentLength > $postMax) {
+    bulk_fail(
+        'That photo batch is too large for this server upload limit. ' .
+        'Selected batch: about ' . bulk_format_bytes($contentLength) . '. ' .
+        'Server limit: ' . bulk_format_bytes($postMax) . '. ' .
+        'Please upload fewer iPhone photos at a time, or increase PHP post_max_size/upload_max_filesize.',
+        413
+    );
+}
+
 $jobId = (int)($_POST['job_id'] ?? 0);
 $assignmentMode = (string)($_POST['assignment_mode'] ?? 'auto');
 $fallbackTaskId = (int)($_POST['fallback_task_id'] ?? 0);
@@ -128,7 +171,7 @@ if (count($names) > 40) {
     bulk_fail('Please upload no more than 40 photos at once.');
 }
 
-$allowed = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
+$allowed = wt_allowed_task_photo_types();
 $photoBase = wt_task_photo_base_dir();
 if (!is_dir($photoBase) && !mkdir($photoBase, 0770, true) && !is_dir($photoBase)) {
     bulk_fail('Private task photo folder could not be created.', 500);
@@ -165,7 +208,7 @@ foreach ($names as $i => $originalName) {
         continue;
     }
 
-    $mime = $finfo->file($tmp);
+    $mime = wt_normalise_uploaded_photo_mime((string)$finfo->file($tmp), (string)$originalName);
     if (!isset($allowed[$mime])) {
         continue;
     }
@@ -187,12 +230,13 @@ foreach ($names as $i => $originalName) {
     }
 
     $safeOriginal = preg_replace('/[^A-Za-z0-9._-]+/', '_', basename((string)$originalName)) ?: 'photo.' . $allowed[$mime];
-    $stored = $photoType . '_' . date('Ymd_His') . '_' . bin2hex(random_bytes(5)) . '.' . (extension_loaded('gd') ? 'jpg' : $allowed[$mime]);
+    $stored = $photoType . '_' . date('Ymd_His') . '_' . bin2hex(random_bytes(5)) . '.' . wt_task_photo_stored_extension($mime);
     $dest = $dir . '/' . $stored;
 
     try {
         $storedInfo = wt_store_uploaded_task_photo_file($tmp, $dest, $mime, $size);
     } catch (Throwable $e) {
+        $lastError = $e->getMessage();
         continue;
     }
 
@@ -227,6 +271,7 @@ header(
     $jobId .
     '&bulk_uploaded=' .
     $uploaded .
+    ($uploaded < 1 && isset($lastError) ? '&photo_error=' . urlencode($lastError) : '') .
     '&bulk_auto=' .
     $autoCount .
     '&bulk_fallback=' .

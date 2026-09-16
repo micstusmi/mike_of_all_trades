@@ -10,6 +10,11 @@ $date=trim($_POST['work_date']??'');
 $hours=(float)($_POST['recorded_hours']??0);
 $notes=trim($_POST['notes']??'');
 $taskId=(int)($_POST['task_id']??0); if($taskId>0){$q=$pdo->prepare("SELECT id FROM work_tasks WHERE id=? AND job_id=?");$q->execute([$taskId,$id]);if(!$q->fetchColumn())die('Invalid task for this job.');}
+$retroPhotoCount=wt_upload_field_file_count('retro_before_photos')+wt_upload_field_file_count('retro_after_photos');
+if($retroPhotoCount>20)die('Please upload no more than 20 before/after photos when adding past work.');
+if($taskId<=0 && (wt_upload_field_has_files('retro_before_photos') || wt_upload_field_has_files('retro_after_photos'))){
+  $taskId=wt_get_or_create_general_photo_task($pdo,$id);
+}
 $startTime=trim($_POST['start_time']??''); $endTime=trim($_POST['end_time']??'');
 if(!$date||$hours<=0||$hours>24)die('Date and valid total job hours are required.');
 if($notes==='')die('Please describe what was done.');
@@ -27,4 +32,10 @@ if($startTime!==''||$endTime!==''){
 }
 $stmt=$pdo->prepare("INSERT INTO work_sessions (job_id,worker_id,task_id,started_at,ended_at,session_source,retrospective_entered_at,retrospective_entry_basis,retrospective_hours,category,start_location,billable,notes,stop_reason,stop_note) VALUES(?,?,?,?,?, 'retrospective',NOW(),?,?,'other','other',?,?,'completed_activity','Retrospective entry — work was completed before it was entered into the tracker.')");
 $stmt->execute([$id,$workerId,$taskId?:null,$start->format('Y-m-d H:i:s'),$end->format('Y-m-d H:i:s'),$basis,$hours,$billable,$notes]);
-header("Location: ../../admin/work/job.php?id=$id&retrospective_added=1"); exit;
+$uploadedPhotos=0;
+if($taskId>0){
+  $photoNote=trim((string)($_POST['retro_photo_note']??''));
+  $uploadedPhotos+=wt_save_task_photo_upload_field($pdo,$id,$taskId,'retro_before_photos','before',$photoNote,20);
+  $uploadedPhotos+=wt_save_task_photo_upload_field($pdo,$id,$taskId,'retro_after_photos','after',$photoNote,20);
+}
+header("Location: ../../admin/work/job.php?id=$id&retrospective_added=1&photos_uploaded=$uploadedPhotos"); exit;

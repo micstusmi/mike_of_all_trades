@@ -21,7 +21,7 @@ $errs=is_array($files['error'])?$files['error']:[$files['error']];
 $sizes=is_array($files['size'])?$files['size']:[$files['size']];
 if(count($names)>8){http_response_code(400);echo json_encode(['ok'=>false,'error'=>'Please upload no more than 8 photos at once.']);exit;}
 
-$allowed=['image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp'];
+$allowed=wt_allowed_task_photo_types();
 $base=wt_env('WORKTRACKER_PRIVATE_UPLOAD_DIR',dirname(__DIR__,2).'/storage/private/job_intake');
 $photoBase=dirname(rtrim($base,'/')).'/task_photos';
 $dir=$photoBase.'/job_'.$jobId.'/task_'.$taskId;
@@ -34,15 +34,15 @@ $count=0;
 foreach($names as $i=>$original){
  if(($errs[$i]??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_OK)continue;
  $size=(int)($sizes[$i]??0);if($size<=0||$size>12*1024*1024)continue;
- $mime=$finfo->file($tmp[$i]);if(!isset($allowed[$mime]))continue;
- $storedExt=extension_loaded('gd')?'jpg':$allowed[$mime];
+ $mime=wt_normalise_uploaded_photo_mime((string)$finfo->file($tmp[$i]),(string)$original);if(!isset($allowed[$mime]))continue;
+ $storedExt=wt_task_photo_stored_extension($mime);
  $stored=$type.'_'.date('Ymd_His').'_'.bin2hex(random_bytes(5)).'.'.$storedExt;
  $dest=$dir.'/'.$stored;
- try{$storedInfo=wt_store_uploaded_task_photo_file((string)$tmp[$i],$dest,$mime,$size);}catch(Throwable $e){continue;}
+ try{$storedInfo=wt_store_uploaded_task_photo_file((string)$tmp[$i],$dest,$mime,$size);}catch(Throwable $e){$lastError=$e->getMessage();continue;}
  $relative='job_'.$jobId.'/task_'.$taskId.'/'.$stored;
  $ins->execute([$jobId,$taskId,$type,'mike',(string)$original,$stored,$relative,$storedInfo['mime_type'],$storedInfo['file_size'],$storedInfo['sha256'],$note,0]);
  wt_after_task_photo_saved($pdo,(int)$pdo->lastInsertId(),$dest,(string)$storedInfo['mime_type'],$type,$relative,$storedInfo);
  $count++;
 }
-if($count<1){http_response_code(400);echo json_encode(['ok'=>false,'error'=>'No valid photo was uploaded. Use JPG, PNG or WEBP up to 12 MB each.']);exit;}
+if($count<1){http_response_code(400);echo json_encode(['ok'=>false,'error'=>$lastError ?? 'No valid photo was uploaded. Use JPG, PNG, WEBP, HEIC or HEIF up to 12 MB each.']);exit;}
 echo json_encode(['ok'=>true,'uploaded'=>$count]);

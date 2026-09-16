@@ -73,11 +73,7 @@ if (count($names) > 8) {
     fail_photo('Please upload no more than 8 photos at once.');
 }
 
-$allowed = [
-    'image/jpeg' => 'jpg',
-    'image/png' => 'png',
-    'image/webp' => 'webp',
-];
+$allowed = wt_allowed_task_photo_types();
 
 $base = wt_env(
     'WORKTRACKER_PRIVATE_UPLOAD_DIR',
@@ -152,7 +148,7 @@ foreach ($names as $i => $originalName) {
         continue;
     }
 
-    $mime = $finfo->file($tmp);
+    $mime = wt_normalise_uploaded_photo_mime((string)$finfo->file($tmp), (string)$originalName);
 
     if (!isset($allowed[$mime])) {
         continue;
@@ -164,7 +160,7 @@ foreach ($names as $i => $originalName) {
         basename((string)$originalName)
     ) ?: 'photo.' . $allowed[$mime];
 
-    $storedExt = extension_loaded('gd') ? 'jpg' : $allowed[$mime];
+    $storedExt = wt_task_photo_stored_extension($mime);
 
     $stored =
         $type .
@@ -180,6 +176,7 @@ foreach ($names as $i => $originalName) {
     try {
         $storedInfo = wt_store_uploaded_task_photo_file($tmp, $dest, $mime, $size);
     } catch (Throwable $e) {
+        $lastError = $e->getMessage();
         continue;
     }
 
@@ -212,8 +209,9 @@ foreach ($names as $i => $originalName) {
 
 if ($uploaded < 1) {
     fail_photo(
+        $lastError ??
         'No valid photo was uploaded. ' .
-        'Use JPG, PNG or WEBP up to 12 MB each.'
+        'Use JPG, PNG, WEBP, HEIC or HEIF up to 12 MB each.'
     );
 }
 

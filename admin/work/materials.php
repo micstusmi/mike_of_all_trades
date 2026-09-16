@@ -494,7 +494,7 @@ style="margin-top:10px"
 <input
 type="file"
 name="receipt"
-accept="image/jpeg,image/png,image/webp,application/pdf"
+accept="image/*,.heic,.heif,.HEIC,.HEIF,application/pdf,.pdf"
 required
 >
 

@@ -149,7 +149,7 @@ $baseUrl = $isLocalhost ? '/mike_of_all_trades/' : '/';
         }
     </style>
 
-    <link rel="icon" type="image/png" href="<?= $baseUrl ?>assets/favicon.png?v=1">
+    <link rel="icon" type="image/png" href="<?= $baseUrl ?>assets/favicon.png?v=20260916-logo">
 
     <!-- Meta Pixel Code -->
 <script>
@@ -182,7 +182,7 @@ fbq('track', 'PageView');
 
         <div class="d-flex align-items-center">
             <a class="navbar-brand p-0 m-0" href="<?= $baseUrl ?>index.php">
-                <img src="<?= $baseUrl ?>assets/logos/mike_of_all_trades_logo.png" class="rounded shadow-sm">
+                <img src="<?= $baseUrl ?>assets/logos/mike_of_all_trades_logo.png?v=20260916-logo" class="rounded shadow-sm">
             </a>
             <div class="navbar-brand-text d-none d-lg-block">Mike Of All Trades</div>
         </div>

@@ -1,0 +1,2 @@
+<?php
+declare(strict_types=1);require_once __DIR__.'/_admin_auth.php';require_once __DIR__.'/../../includes/work_tracker.php';header('Content-Type: application/json');$id=(int)($_GET['id']??0);$q=$pdo->prepare("SELECT id,status,duration_seconds,error_message FROM work_social_videos WHERE id=? LIMIT 1");$q->execute([$id]);$v=$q->fetch(PDO::FETCH_ASSOC);if(!$v){http_response_code(404);echo json_encode(['ok'=>false]);exit;}echo json_encode(['ok'=>true]+$v);

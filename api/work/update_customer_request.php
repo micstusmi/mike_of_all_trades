@@ -7,11 +7,14 @@ $new=trim((string)($_POST['customer_request_text']??''));
 if($new===''){http_response_code(400);die('The requested-work list cannot be empty.');}
 $old=(string)($job['customer_request_text']??$job['original_scope']??'');
 if(hash_equals(hash('sha256',$old),hash('sha256',$new))){header('Location: ../../work/job.php?t='.urlencode($token).'&request_saved=1#customer-request');exit;}
+$items=wt_split_customer_request_items($new);
+if(!$items){http_response_code(400);die('No requested work items could be found.');}
 
 $pdo->beginTransaction();
 try{
+  $new=wt_replace_job_intake_items($pdo,(int)$job['id'],$items);
   $q=$pdo->prepare("INSERT INTO work_job_request_revisions(job_id,source,previous_text,new_text,note,requires_review) VALUES(?,?,?,?,?,1)");
-  $q->execute([(int)$job['id'],'customer',$old,$new,'Customer updated the requested-work list']);
+  $q->execute([(int)$job['id'],'customer',$old,$new,'Customer updated the requested-work list; pasted list split into '.count($items).' requested item(s)']);
   $revisionId=(int)$pdo->lastInsertId();
   $q=$pdo->prepare("UPDATE work_jobs SET customer_request_text=?,customer_request_updated_at=NOW(),ai_breakdown_status='pending',ai_breakdown_error=NULL WHERE id=?");
   $q->execute([$new,(int)$job['id']]);

@@ -422,22 +422,30 @@ textarea{width:100%;box-sizing:border-box}
 .free-total{font-size:24px;font-weight:900;color:#2b6a1f}
 @media(max-width:800px){.plan-grid,.timebreak-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:520px){.plan-grid,.timebreak-grid{grid-template-columns:1fr}}
-.quick-panel{position:sticky;top:0;z-index:900;background:#f4f6f8;border-bottom:1px solid #d7dee4;padding-top:8px;margin:0 -15px 14px;padding-left:15px;padding-right:15px}
+.quick-panel{background:#f4f6f8;border-bottom:1px solid #d7dee4;padding-top:8px;margin:0 -15px 14px;padding-left:15px;padding-right:15px}
 .quick-card{border:2px solid #cbd7df;background:#fff}
 .quick-current{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;background:#17202a;color:#fff;border-radius:10px;padding:12px 14px;margin-bottom:12px}
 .quick-current strong{font-size:18px}.quick-current .timer{font-size:22px;color:#fff}
 .quick-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}
-.quick-btn,.quick-link{min-height:78px;width:100%;border:2px solid #c8d2d9;background:#fff;color:#17202a;border-radius:10px;padding:8px 6px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;font-weight:900;text-align:center;text-decoration:none;cursor:pointer}
-.quick-btn svg,.quick-link svg{width:36px;height:36px;stroke:currentColor;stroke-width:2.4;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.quick-btn,.quick-link{position:relative;min-height:96px;width:100%;border:2px solid #b8c5ce;background:#fff;color:#17202a;border-radius:12px;padding:8px 6px 24px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;font-weight:900;text-align:center;text-decoration:none;cursor:pointer;box-shadow:0 2px 4px rgba(23,32,42,.08)}
+.quick-btn:hover,.quick-link:hover{border-color:#527082;background:#f8fbfd}.quick-btn:focus-visible,.quick-link:focus-visible{outline:4px solid #9fc4e5;outline-offset:2px}
+.quick-btn svg,.quick-link svg{width:48px;height:48px;stroke:currentColor;stroke-width:2.8;fill:none;stroke-linecap:round;stroke-linejoin:round;background:#eef3f6;border-radius:50%;padding:7px;box-sizing:border-box}
 .quick-btn span,.quick-link span{font-size:14px;line-height:1.1}
-.quick-btn.active{background:#087f23;color:#fff;border-color:#087f23}
-.quick-btn.pause-active{background:#b76e00;color:#fff;border-color:#b76e00}
+.quick-btn small{font-size:11px;line-height:1.15;font-weight:750;opacity:.9}
+.quick-btn::after,.quick-link::after{content:attr(data-state);position:absolute;left:8px;right:8px;bottom:5px;border-radius:999px;padding:3px 5px;background:#e8eef2;color:#475965;font-size:10px;line-height:1;font-weight:950;letter-spacing:.08em}
+.quick-btn.active{background:#087f23;color:#fff;border-color:#087f23;box-shadow:0 0 0 3px rgba(8,127,35,.18)}
+.quick-btn.active svg,.quick-btn.pause-active svg{background:rgba(255,255,255,.18)}.quick-btn.active::after{content:'ON · TAP TO STOP';background:#fff;color:#087f23}
+.quick-btn.pause-active{background:#b76e00;color:#fff;border-color:#b76e00;box-shadow:0 0 0 3px rgba(183,110,0,.18)}
+.quick-btn.pause-active::after{content:'BREAK ON · TAP TO RESUME';background:#fff;color:#8a5200}
 .quick-btn.danger{border-color:#d99a9a}.quick-btn.danger.active{background:#b42318;border-color:#b42318}
 .quick-link.shortcut{background:#eef6ff;border-color:#9fc4e5}
+.quick-sms-mode{display:flex;align-items:center;gap:8px;margin:0 0 12px;padding:9px 11px;border:1px solid #c8d2d9;border-radius:9px;background:#f7f9fa;font-size:13px}.quick-sms-mode strong{white-space:nowrap}
 .quick-select-row{display:grid;grid-template-columns:1fr;gap:8px;margin:10px 0 12px}
 .quick-flash{border-radius:10px;padding:10px 12px;margin:10px 0;font-weight:850}
 .quick-flash.ok{background:#e7f6ec;border:1px solid #9dd8ad;color:#126d2d}.quick-flash.bad{background:#fde8e8;border:1px solid #d99a9a;color:#8b2525}
-@media(max-width:760px){.quick-grid{grid-template-columns:repeat(3,1fr)}.quick-btn,.quick-link{min-height:86px}.quick-btn svg,.quick-link svg{width:40px;height:40px}.quick-btn span,.quick-link span{font-size:15px}}
+.photo-mini-panel{background:#eef6ff;border:1px solid #9fc4e5;border-radius:10px;padding:12px;margin:12px 0}.photo-mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.photo-mini-panel input[type=file]{width:100%;background:#fff}.photo-mini-panel input[type=text]{width:100%;box-sizing:border-box}
+@media(max-width:700px){.photo-mini-grid{grid-template-columns:1fr}}
+@media(max-width:760px){.quick-grid{grid-template-columns:repeat(3,1fr)}.quick-btn,.quick-link{min-height:112px}.quick-btn svg,.quick-link svg{width:56px;height:56px}.quick-btn span,.quick-link span{font-size:16px}}
 @media(max-width:480px){.quick-grid{grid-template-columns:repeat(2,1fr)}}
 </style>
 <link rel="stylesheet" href="assets/workspace_v8_3.css?v=1">
@@ -548,7 +556,11 @@ if ($quickSession && !empty($quickSession['task_id']) && isset($taskById[(int)$q
         <div>
             <strong><?=wt_html($quickCurrentLabel)?></strong>
             <div class="small" style="color:#dbe5ec">
-                <?= $quickTaskTitle !== '' ? wt_html($quickTaskTitle) : 'Choose a shortcut below' ?>
+                <?php if(in_array($quickActiveAction,['coffee_break','meal_break'],true)):?>
+                    Tap the highlighted break button again to finish it and resume work
+                <?php else:?>
+                    <?= $quickTaskTitle !== '' ? wt_html($quickTaskTitle) : 'Choose a shortcut below' ?>
+                <?php endif;?>
             </div>
         </div>
         <?php if($quickSession):?>
@@ -568,6 +580,11 @@ if ($quickSession && !empty($quickSession['task_id']) && isset($taskById[(int)$q
             <?=wt_html((string)$quickActionFlash['message'])?>
         </div>
     <?php endif;?>
+
+    <div class="quick-sms-mode">
+        <strong>Customer SMS:</strong>
+        <span><?=wt_html($customerUpdateModeLabels[$job['customer_update_mode'] ?? 'full_transparency'] ?? $customerUpdateModeLabels['full_transparency'])?></span>
+    </div>
 
     <form method="post" action="../../api/work/quick_action.php">
         <input type="hidden" name="job_id" value="<?=$id?>">
@@ -592,51 +609,53 @@ if ($quickSession && !empty($quickSession['task_id']) && isset($taskById[(int)$q
         </div>
 
         <div class="quick-grid">
-            <button class="quick-btn<?=$quickActiveAction==='travel_site'?' active':''?>" type="submit" name="quick_action" value="travel_site" title="Start travelling to the customer site">
-                <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M5 30h23M7 24l5-9h14l5 9M10 30a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM26 30a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM35 24v14h8V24M32 27l7-7 7 7"/></svg>
-                <span>Travel to site</span>
+            <button class="quick-btn<?=$quickActiveAction==='travel_site'?' active':''?>" type="submit" name="quick_action" value="travel_site" data-state="START" aria-pressed="<?=$quickActiveAction==='travel_site'?'true':'false'?>" title="Start travelling to the customer site">
+                <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M4 29h27M7 28l4-9h14l7 9M11 29a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM28 29a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM34 17h10M40 13l4 4-4 4"/></svg>
+                <span><?=$quickActiveAction==='travel_site'?'Stop travel':'Travel to site'?></span>
             </button>
-            <button class="quick-btn<?=$quickActiveAction==='work' || $quickActiveAction==='arrive_site'?' active':''?>" type="submit" name="quick_action" value="arrive_site" title="Arrive on site and start work">
-                <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M8 25l16-14 16 14M13 23v17h22V23M20 40V28h8v12M34 12l7 7M33 15l-3-3 4-4 3 3Z"/></svg>
+            <button class="quick-btn" type="submit" name="quick_action" value="arrive_site" data-state="SWITCH TO" aria-pressed="false" title="Arrive on site and start work">
+                <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M6 27h24M9 26l4-8h12l6 8M12 27a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM28 27a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM38 6a7 7 0 0 0-7 7c0 6 7 13 7 13s7-7 7-13a7 7 0 0 0-7-7ZM38 11v4M36 13h4"/></svg>
                 <span>Arrived</span>
             </button>
-            <button class="quick-btn<?=$quickActiveAction==='work'?' active':''?>" type="submit" name="quick_action" value="work" title="Start or change to on-site work">
-                <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M17 10l21 21-7 7L10 17M15 23 9 29l10 10 6-6M31 7l10 10"/></svg>
-                <span>Work</span>
+            <button class="quick-btn<?=$quickActiveAction==='work'?' active':''?>" type="submit" name="quick_action" value="work" data-state="START" aria-pressed="<?=$quickActiveAction==='work'?'true':'false'?>" title="Start or change to on-site work">
+                <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M8 38l18-18M20 12l5-5 9 9-5 5M29 30l9 9M33 26l8 8M12 8l7 7-5 5-7-7Z"/></svg>
+                <span><?=$quickActiveAction==='work'?'Stop work':'Work'?></span>
             </button>
-            <button class="quick-btn<?=$quickActiveAction==='leave_site'?' active':''?>" type="submit" name="quick_action" value="leave_site" title="Leave the customer site">
-                <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M5 22l14-12 14 12M10 20v16h18V20M31 32h10M37 26l6 6-6 6M18 36V26h6v10"/></svg>
-                <span>Leave site</span>
+            <button class="quick-btn<?=$quickActiveAction==='leave_site'?' active':''?>" type="submit" name="quick_action" value="leave_site" data-state="START" aria-pressed="<?=$quickActiveAction==='leave_site'?'true':'false'?>" title="Leave the customer site">
+                <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M4 29h27M7 28l4-9h14l7 9M11 29a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM28 29a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM34 17h10M40 13l4 4-4 4M5 10h10M5 10v8"/></svg>
+                <span><?=$quickActiveAction==='leave_site'?'Stop leaving':'Leave site'?></span>
             </button>
-            <button class="quick-btn<?=$quickActiveAction==='supplier_out'?' active':''?>" type="submit" name="quick_action" value="supplier_out" title="Travel to Bunnings or another supplier">
-                <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M6 31h19M8 25l4-8h11l5 8M10 31a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM25 31a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM34 39V16h9v23M34 23h9M34 30h9"/></svg>
-                <span>Go supplier</span>
+            <button class="quick-btn<?=$quickActiveAction==='supplier_out'?' active':''?>" type="submit" name="quick_action" value="supplier_out" data-state="START" aria-pressed="<?=$quickActiveAction==='supplier_out'?'true':'false'?>" title="Travel to Bunnings or another supplier">
+                <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M5 31h18M7 27l4-7h10l5 7M10 31a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM24 31a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM33 18h11v21H33ZM31 18l3-7h9l3 7M35 25h7M28 14h-8M24 10l4 4-4 4"/></svg>
+                <span><?=$quickActiveAction==='supplier_out'?'Stop supplier trip':'Go supplier'?></span>
             </button>
-            <button class="quick-btn<?=$quickActiveAction==='supplier_return'?' active':''?>" type="submit" name="quick_action" value="supplier_return" title="Return from Bunnings or supplier">
-                <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M6 39V16h10v23M6 23h10M6 30h10M23 31h17M29 25l-6 6 6 6M28 31a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM41 31a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"/></svg>
-                <span>Return</span>
+            <button class="quick-btn<?=$quickActiveAction==='supplier_return'?' active':''?>" type="submit" name="quick_action" value="supplier_return" data-state="START" aria-pressed="<?=$quickActiveAction==='supplier_return'?'true':'false'?>" title="Return from Bunnings or supplier">
+                <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M4 18h11v21H4ZM2 18l3-7h9l3 7M6 25h7M21 31h22M23 27l-4 4 4 4M27 31a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM41 31a4 4 0 1 0 0 8 4 4 0 0 0 0-8"/></svg>
+                <span><?=$quickActiveAction==='supplier_return'?'Stop return trip':'Return to site'?></span>
             </button>
-            <a class="quick-link shortcut" href="task_photos.php?id=<?=$id?>#bulk-upload" title="Upload job photos without changing the timer">
+            <a class="quick-link shortcut" href="task_photos.php?id=<?=$id?>#bulk-upload" data-state="OPEN · NO SMS" title="Upload job photos without changing the timer">
                 <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M8 17h9l3-5h8l3 5h9v22H8ZM24 34a7 7 0 1 0 0-14 7 7 0 0 0 0 14Z"/></svg>
                 <span>Add photos</span>
             </a>
-            <a class="quick-link shortcut" href="materials.php?id=<?=$id?>#receipts" title="Add a receipt or material without changing the timer">
+            <a class="quick-link shortcut" href="materials.php?id=<?=$id?>#receipts" data-state="OPEN · NO SMS" title="Add a receipt or material without changing the timer">
                 <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M14 6h20v36l-5-3-5 3-5-3-5 3ZM19 17h10M19 24h10M19 31h7"/></svg>
                 <span>Add receipt</span>
             </a>
-            <button class="quick-btn<?=$quickActiveAction==='coffee_break'?' pause-active':''?>" type="submit" name="quick_action" value="coffee_break" title="Start a non-chargeable coffee or short break">
+            <button class="quick-btn<?=$quickActiveAction==='coffee_break'?' pause-active':''?>" type="submit" name="quick_action" value="coffee_break" data-state="START BREAK" aria-pressed="<?=$quickActiveAction==='coffee_break'?'true':'false'?>" title="<?=$quickActiveAction==='coffee_break'?'End the break and resume the previous work':'Start a non-chargeable coffee or short break'?>">
                 <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M13 19h21v11a9 9 0 0 1-9 9h-3a9 9 0 0 1-9-9ZM34 22h4a4 4 0 0 1 0 8h-4M16 10c2 2-2 4 0 6M24 10c2 2-2 4 0 6M32 10c2 2-2 4 0 6"/></svg>
-                <span>Coffee break</span>
+                <span><?=$quickActiveAction==='coffee_break'?'End coffee break':'Coffee break'?></span>
+                <?php if($quickActiveAction==='coffee_break'):?><small>Tap to resume work</small><?php endif;?>
             </button>
-            <button class="quick-btn<?=$quickActiveAction==='meal_break'?' pause-active':''?>" type="submit" name="quick_action" value="meal_break" title="Start a non-chargeable meal break">
+            <button class="quick-btn<?=$quickActiveAction==='meal_break'?' pause-active':''?>" type="submit" name="quick_action" value="meal_break" data-state="START BREAK" aria-pressed="<?=$quickActiveAction==='meal_break'?'true':'false'?>" title="<?=$quickActiveAction==='meal_break'?'End the break and resume the previous work':'Start a non-chargeable meal break'?>">
                 <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 40a14 14 0 1 0 0-28 14 14 0 0 0 0 28ZM9 8v14M5 8v8M13 8v8M38 8v32M34 20h8"/></svg>
-                <span>Meal break</span>
+                <span><?=$quickActiveAction==='meal_break'?'End meal break':'Meal break'?></span>
+                <?php if($quickActiveAction==='meal_break'):?><small>Tap to resume work</small><?php endif;?>
             </button>
-            <button class="quick-btn" type="button" data-quick-open="drying" title="Open the drying or curing form without starting overlapping labour">
-                <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M15 7h18M15 41h18M17 7c0 10 14 10 14 17S17 31 17 41M31 7c0 10-14 10-14 17s14 7 14 17M21 17h6M21 32h6"/></svg>
+            <button class="quick-btn" type="button" data-quick-open="drying" data-state="OPEN FORM" title="Open the drying or curing form without starting overlapping labour">
+                <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M7 34h25M10 29h20M12 24h16M16 24V12h12v12M14 12h16M36 13c-3 3 3 5 0 8M41 10c-3 3 3 5 0 8M36 28c-3 3 3 5 0 8"/></svg>
                 <span>Drying/curing</span>
             </button>
-            <button class="quick-btn danger" type="submit" name="quick_action" value="finish_activity" title="Finish the current activity">
+            <button class="quick-btn danger" type="submit" name="quick_action" value="finish_activity" data-state="END CURRENT" title="Finish the current activity">
                 <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 42a18 18 0 1 0 0-36 18 18 0 0 0 0 36ZM15 25l6 6 13-14"/></svg>
                 <span>Finish</span>
             </button>
@@ -792,6 +811,19 @@ Customer day-before confirmation:
 <div style="white-space:pre-wrap;background:#fff;border:1px solid #d7e3ec;border-radius:10px;padding:12px"><?=wt_html($customerRequest)?></div>
 <p><span class="ai-status <?=wt_html((string)($job['ai_breakdown_status']??'not_requested'))?>">AI breakdown: <?=wt_html(str_replace('_',' ',(string)($job['ai_breakdown_status']??'not requested')))?></span><?php if(!empty($job['ai_breakdown_generated_at'])):?> <span class="small">Generated <?=wt_html($job['ai_breakdown_generated_at'])?></span><?php endif;?></p>
 <?php if(!empty($job['ai_breakdown_error'])):?><div class="notice-warn" style="padding:10px;border-radius:9px"><?=wt_html($job['ai_breakdown_error'])?></div><?php endif;?>
+<?php if(isset($_GET['bulk_list_imported'])):?><div class="notice-good" style="padding:10px;border-radius:9px;margin:10px 0"><b>Customer list imported.</b> <?=max(0,(int)$_GET['bulk_list_imported'])?> requested item<?=((int)$_GET['bulk_list_imported'])===1?'':'s'?> detected. AI task breakdown is running.</div><?php endif;?>
+<details class="task-detail-box">
+<summary><b>＋ Paste customer task list and split with AI</b></summary>
+<form method="post" action="../../api/work/import_customer_task_list.php" style="margin-top:10px">
+<input type="hidden" name="job_id" value="<?=$id?>">
+<div class="field">
+    <label>Customer list</label>
+    <textarea name="customer_task_list" rows="7" required placeholder="Paste the customer list here. One item per line is best, but numbered/bulleted lists and semicolon-separated lists are also split."></textarea>
+</div>
+<p class="small">This replaces the current requested-work list for this job, saves each line as a separate customer request item, then runs the AI breakdown to create separate work tasks.</p>
+<button class="btn" type="submit">SPLIT LIST + GENERATE TASKS</button>
+</form>
+</details>
 <div class="row">
 <form method="post" action="../../api/work/send_customer_job_link.php"><input type="hidden" name="job_id" value="<?=$id?>"><button class="btn" type="submit">SEND / RESEND CUSTOMER LINK</button></form>
 <button class="btn" type="button" id="generateAiTasks">GENERATE / UPDATE AI TASK BREAKDOWN</button>
@@ -1162,7 +1194,7 @@ Customer day-before confirmation:
                     <div class="task-detail-box" style="border:2px solid #3973a8;background:#eef6ff">
                         <b>📷 Add photos with this finish</b>
                         <p class="small" style="margin:6px 0 10px">Optional. Add up to 8 photos for the completed activity or finished current task.</p>
-                        <input type="file" name="finish_photos[]" accept="image/jpeg,image/png,image/webp" multiple>
+                        <input type="file" name="finish_photos[]" accept="<?=wt_html(wt_task_photo_accept_attr())?>" multiple>
                         <div class="field" style="margin-top:9px">
                             <label>Photo note (optional)</label>
                             <input name="finish_photo_note" placeholder="e.g. task complete; ready for next stage">
@@ -2700,7 +2732,7 @@ Replacement seals if required"><?=wt_html($t['suggested_materials']??'')?></text
 <div class="task-detail-box" style="border:2px solid #3973a8;background:#eef6ff">
 <b>📷 Add photos with this task update</b>
 <p class="small" style="margin:6px 0 10px">Optional. Add up to 8 photos whenever you save progress, mark the task waiting, or complete it. They stay attached to this task.</p>
-<input type="file" name="progress_photos[]" accept="image/jpeg,image/png,image/webp" multiple>
+<input type="file" name="progress_photos[]" accept="<?=wt_html(wt_task_photo_accept_attr())?>" multiple>
 <div class="field" style="margin-top:9px"><label>Photo note (optional)</label><input name="progress_photo_note" placeholder="e.g. second coat applied; ready for sanding after curing"></div>
 </div>
 
@@ -3465,7 +3497,7 @@ function wb_hours(float $hours): string {
 <div class="card retro-card">
 <h2>🕘 Add previously completed work</h2>
 <p class="small"><b>Retrospective entry.</b> Use this for legitimate work already completed before it was entered into the tracker. For complicated days, simply enter the total job hours after excluding breaks, unrelated calls, errands and other customers. No fake historical SMS is sent.</p>
-<form method="post" action="../../api/work/add_retrospective_session.php">
+<form method="post" action="../../api/work/add_retrospective_session.php" enctype="multipart/form-data">
 <input type="hidden" name="job_id" value="<?=$id?>">
 <div class="row">
     <div class="field"><label>Worker</label><select name="worker_id" required><option value="mike">Mike / default rate</option><?php foreach($workers as $w):?><option value="<?=$w['id']?>"><?=wt_html($w['worker_name'])?> — <?=wt_money((float)$w['hourly_rate'])?>/hr</option><?php endforeach;?></select></div>
@@ -3483,6 +3515,24 @@ function wb_hours(float $hours): string {
 <p class="small">If both times are entered, they are shown as the known start/finish times. Otherwise only the total job hours are shown.</p>
 </details>
 <p class="checkline"><input type="checkbox" name="billable" value="1" checked> <b>Billable job time</b></p>
+<div class="photo-mini-panel">
+    <b>Add before / after photos for this past work</b>
+    <p class="small">Optional. Choose a task above, or leave General selected to file them under General job photos. Up to 20 photos total.</p>
+    <div class="photo-mini-grid">
+        <div class="field">
+            <label>Before photos</label>
+            <input type="file" name="retro_before_photos[]" accept="<?=wt_html(wt_task_photo_accept_attr())?>" multiple>
+        </div>
+        <div class="field">
+            <label>After photos</label>
+            <input type="file" name="retro_after_photos[]" accept="<?=wt_html(wt_task_photo_accept_attr())?>" multiple>
+        </div>
+    </div>
+    <div class="field" style="margin-top:8px">
+        <label>Photo note (optional)</label>
+        <input name="retro_photo_note" placeholder="e.g. Added later from iPhone photos">
+    </div>
+</div>
 <button class="btn">＋ ADD PAST WORK</button>
 </form>
 </div>
@@ -3490,7 +3540,7 @@ function wb_hours(float $hours): string {
 <div class="card">
 <h2>Start job activity</h2>
 <p class="small">Record where you are and what you are doing. One active session per worker <b>on this job</b> is allowed, so repeated clicks cannot create duplicate timers. You can still leave this job open or waiting and work on another job concurrently.</p>
-<form method="post" action="../../api/work/start_session.php">
+<form method="post" action="../../api/work/start_session.php" enctype="multipart/form-data">
 <input type="hidden" name="job_id" value="<?=$id?>">
 <div class="row">
     <div class="field">
@@ -3552,6 +3602,20 @@ function wb_hours(float $hours): string {
     <b>Charge travel time if this activity is travel</b>
     <span class="small">Leave unticked for normal local travel.</span>
 </p>
+<div class="photo-mini-panel">
+    <b>Add before photos for this activity</b>
+    <p class="small">Optional. Choose a task above, or leave General selected to file them under General job photos. Up to 20 photos.</p>
+    <div class="photo-mini-grid">
+        <div class="field">
+            <label>Before photos</label>
+            <input type="file" name="start_before_photos[]" accept="<?=wt_html(wt_task_photo_accept_attr())?>" multiple>
+        </div>
+        <div class="field">
+            <label>Photo note (optional)</label>
+            <input name="start_photo_note" placeholder="e.g. condition before starting this task">
+        </div>
+    </div>
+</div>
 
 <?php if(!isset($runningWorkerKeys['mike']) || count($workers) > 0):?>
 <button class="btn start" style="font-size:18px;padding:15px 22px">▶ START ACTIVITY</button>
@@ -4647,7 +4711,7 @@ function wb_hours(float $hours): string {
 
             <div class="field wide">
                 <label>📷 Stage photo(s) (optional)</label>
-                <input type="file" name="cure_photos[]" accept="image/jpeg,image/png,image/webp" multiple>
+                <input type="file" name="cure_photos[]" accept="<?=wt_html(wt_task_photo_accept_attr())?>" multiple>
                 <div class="small">Attach what you just applied. Up to 8 photos; they are saved against the current task.</div>
             </div>
 
@@ -4703,8 +4767,8 @@ function wb_hours(float $hours): string {
 
             <div class="field wide" style="border-top:1px solid #e1c172;padding-top:10px">
                 <label>Customer update</label>
-                <label class="checkline"><input type="radio" name="notify_customer" value="0" checked> Save only — do not SMS</label>
-                <label class="checkline"><input type="radio" name="notify_customer" value="1"> Save + SMS customer</label>
+                <input type="hidden" name="notify_customer" value="1">
+                <div class="notice-good" style="padding:9px;border-radius:8px">An SMS will be sent automatically explaining what is drying/curing and that this waiting time is not recorded as labour.</div>
             </div>
         `;
 

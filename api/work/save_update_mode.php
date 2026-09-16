@@ -15,5 +15,5 @@ if (!in_array($mode, $allowed, true)) {
 $stmt = $pdo->prepare("UPDATE work_jobs SET customer_update_mode=? WHERE id=?");
 $stmt->execute([$mode, $jobId]);
 
-header("Location: ../../admin/work/job.php?id=".$jobId."&update_mode_saved=1");
+header("Location: ../../admin/work/manage_job.php?id=".$jobId."&update_mode_saved=1#quick-actions");
 exit;

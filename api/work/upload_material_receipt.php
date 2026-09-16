@@ -44,17 +44,21 @@ if ((int)$file['size'] <= 0 || (int)$file['size'] > 12 * 1024 * 1024) {
 }
 
 $finfo = new finfo(FILEINFO_MIME_TYPE);
-$mime = $finfo->file($file['tmp_name']);
+$mime = wt_normalise_uploaded_photo_mime((string)$finfo->file($file['tmp_name']), (string)$file['name']);
 
 $extensions = [
     'image/jpeg' => 'jpg',
     'image/png' => 'png',
     'image/webp' => 'webp',
+    'image/heic' => 'jpg',
+    'image/heif' => 'jpg',
+    'image/heic-sequence' => 'jpg',
+    'image/heif-sequence' => 'jpg',
     'application/pdf' => 'pdf',
 ];
 
 if (!isset($extensions[$mime])) {
-    exit('Receipt must be JPG, PNG, WEBP or PDF.');
+    exit('Receipt must be JPG, PNG, WEBP, HEIC, HEIF or PDF.');
 }
 
 $root = dirname(__DIR__, 2);
@@ -78,7 +82,13 @@ $filename =
 $absolutePath = $absoluteDir . '/' . $filename;
 $relativePath = $relativeDir . '/' . $filename;
 
-if (!move_uploaded_file($file['tmp_name'], $absolutePath)) {
+if (wt_is_heic_photo($mime)) {
+    try {
+        wt_save_heic_as_task_jpeg((string)$file['tmp_name'], $absolutePath);
+    } catch (Throwable $e) {
+        exit($e->getMessage());
+    }
+} elseif (!move_uploaded_file($file['tmp_name'], $absolutePath)) {
     exit('Could not save receipt.');
 }
 

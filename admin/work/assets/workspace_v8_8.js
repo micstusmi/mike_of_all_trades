@@ -973,7 +973,7 @@
                     input.classList.add('wt88-photo-input');
                     input.setAttribute(
                         'accept',
-                        'image/jpeg,image/png,image/webp'
+                        'image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif'
                     );
 
                     /*

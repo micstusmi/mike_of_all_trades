@@ -253,7 +253,7 @@ if ($files && $taskId > 0 && isset($files['name'])) {
     $errors = is_array($files['error']) ? $files['error'] : [$files['error']];
     $sizes = is_array($files['size']) ? $files['size'] : [$files['size']];
     if (count($names) > 8) die('Please upload no more than 8 photos at once.');
-    $allowed = ['image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp'];
+    $allowed = wt_allowed_task_photo_types();
     $base = wt_env('WORKTRACKER_PRIVATE_UPLOAD_DIR', dirname(__DIR__, 2).'/storage/private/job_intake');
     $dir = dirname(rtrim($base, '/')).'/task_photos/job_'.$jobId.'/task_'.$taskId;
     if (!is_dir($dir) && !mkdir($dir, 0770, true) && !is_dir($dir)) die('Private task photo folder could not be created.');
@@ -264,13 +264,19 @@ if ($files && $taskId > 0 && isset($files['name'])) {
         if (($errors[$i] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) die('One selected photo could not be uploaded.');
         $size = (int)($sizes[$i] ?? 0);
         if ($size <= 0 || $size > 12*1024*1024) die('Each photo must be no larger than 12 MB.');
-        $mime = $finfo->file($tmps[$i]);
-        if (!isset($allowed[$mime])) die('Photos must be JPG, PNG or WEBP.');
-        $stored = 'progress_'.date('Ymd_His').'_'.bin2hex(random_bytes(5)).'.'.$allowed[$mime];
+        $mime = wt_normalise_uploaded_photo_mime((string)$finfo->file($tmps[$i]), (string)$original);
+        if (!isset($allowed[$mime])) die('Photos must be JPG, PNG, WEBP, HEIC or HEIF.');
+        $storedExt = wt_task_photo_stored_extension($mime);
+        $stored = 'progress_'.date('Ymd_His').'_'.bin2hex(random_bytes(5)).'.'.$storedExt;
         $dest = $dir.'/'.$stored;
-        if (!move_uploaded_file($tmps[$i], $dest)) die('A selected photo could not be saved.');
+        try {
+            $storedInfo = wt_store_uploaded_task_photo_file((string)$tmps[$i], $dest, $mime, $size);
+        } catch (Throwable $e) {
+            die($e->getMessage());
+        }
         $relative = 'job_'.$jobId.'/task_'.$taskId.'/'.$stored;
-        $ins->execute([$jobId,$taskId,'progress','mike',(string)$original,$stored,$relative,$mime,$size,hash_file('sha256',$dest),$stopNote,0]);
+        $ins->execute([$jobId,$taskId,'progress','mike',(string)$original,$stored,$relative,$storedInfo['mime_type'],$storedInfo['file_size'],$storedInfo['sha256'],$stopNote,0]);
+        wt_after_task_photo_saved($pdo,(int)$pdo->lastInsertId(),$dest,(string)$storedInfo['mime_type'],'progress',$relative,$storedInfo);
     }
 }
 

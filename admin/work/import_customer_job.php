@@ -44,7 +44,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f4f6f8;color:#17
 </div>
 
 <h2>Customer's original material</h2>
-<div class="drop"><b>Upload screenshots, photos or PDFs</b><br><span class="small">JPEG, PNG, WEBP or PDF. Up to 10 files. Originals are retained with the job.</span><br><br><input id="intakeFiles" type="file" name="intake_files[]" multiple accept="image/jpeg,image/png,image/webp,application/pdf"></div>
+<div class="drop"><b>Upload screenshots, photos or PDFs</b><br><span class="small">JPEG, PNG, WEBP, HEIC, HEIF or PDF. Up to 10 files. Originals are retained with the job.</span><br><br><input id="intakeFiles" type="file" name="intake_files[]" multiple accept="image/*,.heic,.heif,.HEIC,.HEIF,application/pdf,.pdf"></div>
 <label>Or paste / type the customer's list</label><textarea name="pasted_text" placeholder="Optional — paste any accompanying message or task list here."></textarea>
 <div class="warning"><b>What happens next:</b> the draft job is created immediately. AI extracts the individual requested items without inventing missing details, flags ambiguous items, and then you review the extracted list before generating the granular task breakdown.</div>
 <button class="btn blue" type="submit">LOG JOB & ANALYSE CUSTOMER LIST</button>

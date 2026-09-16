@@ -112,11 +112,7 @@ function wt_save_finish_photos(PDO $pdo, int $jobId, int $taskId, string $photoT
         exit('Please upload no more than 8 photos at once.');
     }
 
-    $allowed = [
-        'image/jpeg' => 'jpg',
-        'image/png' => 'png',
-        'image/webp' => 'webp',
-    ];
+    $allowed = wt_allowed_task_photo_types();
 
     $base = wt_env(
         'WORKTRACKER_PRIVATE_UPLOAD_DIR',
@@ -154,16 +150,19 @@ function wt_save_finish_photos(PDO $pdo, int $jobId, int $taskId, string $photoT
         }
 
         $tmp = (string)($tmps[$i] ?? '');
-        $mime = $finfo->file($tmp);
+        $mime = wt_normalise_uploaded_photo_mime((string)$finfo->file($tmp), (string)$original);
         if (!isset($allowed[$mime])) {
-            exit('Photos must be JPG, PNG or WEBP.');
+            exit('Photos must be JPG, PNG, WEBP, HEIC or HEIF.');
         }
 
-        $stored = $photoType . '_' . date('Ymd_His') . '_' . bin2hex(random_bytes(5)) . '.' . $allowed[$mime];
+        $storedExt = wt_task_photo_stored_extension($mime);
+        $stored = $photoType . '_' . date('Ymd_His') . '_' . bin2hex(random_bytes(5)) . '.' . $storedExt;
         $dest = $dir . '/' . $stored;
 
-        if (!move_uploaded_file($tmp, $dest)) {
-            exit('A selected photo could not be saved.');
+        try {
+            $storedInfo = wt_store_uploaded_task_photo_file($tmp, $dest, $mime, $size);
+        } catch (Throwable $e) {
+            exit($e->getMessage());
         }
 
         $relative = 'job_' . $jobId . '/task_' . $taskId . '/' . $stored;
@@ -176,12 +175,14 @@ function wt_save_finish_photos(PDO $pdo, int $jobId, int $taskId, string $photoT
             (string)$original,
             $stored,
             $relative,
-            $mime,
-            $size,
-            hash_file('sha256', $dest),
+            $storedInfo['mime_type'],
+            $storedInfo['file_size'],
+            $storedInfo['sha256'],
             $note,
             0,
         ]);
+
+        wt_after_task_photo_saved($pdo, (int)$pdo->lastInsertId(), $dest, (string)$storedInfo['mime_type'], $photoType, $relative, $storedInfo);
 
         $count++;
     }

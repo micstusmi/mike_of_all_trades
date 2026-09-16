@@ -209,7 +209,7 @@ if (!empty($job['agreement_snapshot_json'])) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Live Job Record & Agreement — Mike of All Trades</title>
-<link rel="icon" type="image/png" href="/assets/favicon.png?v=1">
+<link rel="icon" type="image/png" href="/assets/favicon.png?v=20260916-logo">
 <style>
 body{font-family:system-ui,-apple-system,sans-serif;margin:0;background:#f4f6f8;color:#17202a}
 .wrap{max-width:850px;margin:auto;padding:16px}
@@ -468,7 +468,7 @@ textarea,input{box-sizing:border-box;width:100%;padding:11px;border:1px solid #c
 
 <div class="card request-editor" id="customer-request">
 <h2>Your requested work</h2>
-<p class="muted">Your job is logged. Check each requested item now and correct anything before work is done. Earlier versions are retained instead of being silently overwritten.</p>
+<p class="muted">Your job is logged. Check each requested item now and correct anything before work is done. If adding several items, put each one on its own line. Earlier versions are retained instead of being silently overwritten.</p>
 <?php if(($_GET['request_saved']??'')==='1'):?><div class="saved-note">✓ Your update has been saved and Mike has been notified.</div><?php endif;?>
 <?php if($intakeItems):?>
   <?php foreach($intakeItems as $ii):?>
@@ -481,11 +481,11 @@ textarea,input{box-sizing:border-box;width:100%;padding:11px;border:1px solid #c
     </form>
   </div>
   <?php endforeach;?>
-  <details class="request-item-card"><summary><b>+ Add another requested item</b></summary><form method="post" action="../api/work/update_intake_items_customer.php" style="margin-top:9px"><input type="hidden" name="token" value="<?=wt_html($token)?>"><textarea name="request_text" rows="3" required placeholder="Add another item, measurement, colour, product or instruction"></textarea><button class="btn" name="action" value="add" style="margin-top:8px">ADD ITEM</button></form></details>
+  <details class="request-item-card"><summary><b>+ Add another requested item</b></summary><form method="post" action="../api/work/update_intake_items_customer.php" style="margin-top:9px"><input type="hidden" name="token" value="<?=wt_html($token)?>"><textarea name="request_text" rows="4" required placeholder="Add one item, or paste several items with one per line"></textarea><button class="btn" name="action" value="add" style="margin-top:8px">ADD ITEM</button></form></details>
 <?php else:?>
 <form method="post" action="../api/work/update_customer_request.php">
 <input type="hidden" name="token" value="<?=wt_html($token)?>">
-<textarea name="customer_request_text" required><?=wt_html($customerRequest)?></textarea>
+<textarea name="customer_request_text" required placeholder="One requested item per line"><?=wt_html($customerRequest)?></textarea>
 <button class="btn" type="submit" style="margin-top:10px">SAVE UPDATED JOB LIST</button>
 </form>
 <?php endif;?>
@@ -617,9 +617,9 @@ foreach($tasks as $ct){if(isset($taskCounts[$ct['status']]))$taskCounts[$ct['sta
  <?php if(!empty($t['detailed_procedure'])||!empty($t['time_drivers'])||!empty($t['waiting_curing_notes'])):?><details class="task-more"><summary>What’s involved &amp; why this can take time</summary><?php if(!empty($t['detailed_procedure'])):?><div class="task-detail-section"><b>Typical work stages</b><?=nl2br(wt_html($t['detailed_procedure']))?></div><?php endif;?><?php if(!empty($t['time_drivers'])):?><div class="task-detail-section"><b>Things that can affect the time required</b><?=nl2br(wt_html($t['time_drivers']))?></div><?php endif;?><?php if(!empty($t['waiting_curing_notes'])):?><div class="task-detail-section"><b>Waiting, drying or curing</b><?=nl2br(wt_html($t['waiting_curing_notes']))?><div class="muted" style="margin-top:6px">Elapsed waiting time is not automatically treated as billable labour; charged time is recorded separately in the job activity history.</div></div><?php endif;?></details><?php endif;?>
  <?php if(!empty($t['suggested_materials'])):?><details class="task-more"><summary>Materials &amp; consumables that may be required</summary><div class="task-detail-section task-material-list"><?=wt_html($t['suggested_materials'])?></div><div class="muted" style="margin-top:6px">This is a planning/suggested list and does not mean every item was actually used or charged.</div></details><?php endif;?>
 
- <details class="task-more"><summary>📷 Before / after photos</summary>
+ <details class="task-more"><summary>📷 Before / progress / after photos</summary>
  <div class="photo-pair">
- <?php foreach(['before'=>'BEFORE','after'=>'AFTER'] as $ptype=>$plabel):?>
+ <?php foreach(['before'=>'BEFORE','progress'=>'PROGRESS / STAGE','after'=>'AFTER'] as $ptype=>$plabel):?>
   <div class="photo-panel"><h4><?=$plabel?></h4>
    <?php foreach(($taskPhotosByTask[(int)$t['id']][$ptype]??[]) as $ph):?>
     <img class="task-photo-thumb" src="task_photo.php?id=<?=$ph['id']?>&amp;t=<?=urlencode($token)?>" alt="<?=wt_html(strtolower($plabel))?> task photo">
@@ -628,7 +628,7 @@ foreach($tasks as $ct){if(isset($taskCounts[$ct['status']]))$taskCounts[$ct['sta
    <?php endforeach;?>
    <form class="photo-upload" method="post" action="../api/work/upload_task_photo.php" enctype="multipart/form-data">
     <input type="hidden" name="token" value="<?=wt_html($token)?>"><input type="hidden" name="task_id" value="<?=$t['id']?>"><input type="hidden" name="photo_type" value="<?=$ptype?>">
-    <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" required><input name="note" placeholder="Optional photo note"><button class="btn" type="submit" style="margin-top:7px">ADD <?=$plabel?> PHOTO</button>
+    <input type="file" name="photo" accept="<?=wt_html(wt_task_photo_accept_attr())?>" required><input name="note" placeholder="Optional photo note"><button class="btn" type="submit" style="margin-top:7px">ADD <?=$plabel?> PHOTO</button>
    </form>
   </div>
  <?php endforeach;?>

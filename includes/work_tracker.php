@@ -169,6 +169,120 @@ function wt_initialise_job_intake(PDO $pdo, int $jobId, string $requestText, boo
     return ['job'=>$job,'sms'=>$smsResult];
 }
 
+function wt_split_customer_request_items(string $text): array
+{
+    $text = trim(str_replace(["\r\n", "\r"], "\n", $text));
+    if ($text === '') {
+        return [];
+    }
+
+    $rawLines = preg_split('/\n+/', $text) ?: [];
+    $items = [];
+
+    foreach ($rawLines as $line) {
+        $line = trim((string)$line);
+        if ($line === '') {
+            continue;
+        }
+
+        $line = preg_replace('/\s+/', ' ', $line) ?? $line;
+
+        $parts = preg_split(
+            '/(?=\s*(?:[-*•]\s+|\d{1,2}[\).\:-]\s+|[a-zA-Z][\).\:-]\s+))/',
+            $line,
+            -1,
+            PREG_SPLIT_NO_EMPTY
+        ) ?: [$line];
+
+        if (count($parts) === 1 && str_contains($line, ';')) {
+            $parts = preg_split('/\s*;\s*/', $line, -1, PREG_SPLIT_NO_EMPTY) ?: [$line];
+        }
+
+        foreach ($parts as $part) {
+            $item = trim((string)$part);
+            $item = preg_replace('/^(?:[-*•]\s+|\d{1,2}[\).\:-]\s+|[a-zA-Z][\).\:-]\s+)/', '', $item) ?? $item;
+            $item = trim($item);
+            if ($item !== '' && strlen($item) >= 2) {
+                $items[] = $item;
+            }
+        }
+    }
+
+    $deduped = [];
+    $seen = [];
+    foreach ($items as $item) {
+        $key = strtolower($item);
+        if (isset($seen[$key])) {
+            continue;
+        }
+        $seen[$key] = true;
+        $deduped[] = $item;
+    }
+
+    return $deduped;
+}
+
+function wt_replace_job_intake_items(PDO $pdo, int $jobId, array $items): string
+{
+    $clean = [];
+    foreach ($items as $item) {
+        $item = trim((string)$item);
+        if ($item !== '') {
+            $clean[] = $item;
+        }
+    }
+
+    if (!$clean) {
+        throw new InvalidArgumentException('The requested-work list cannot be empty.');
+    }
+
+    $pdo->prepare('DELETE FROM work_job_intake_items WHERE job_id=?')->execute([$jobId]);
+    $insert = $pdo->prepare('INSERT INTO work_job_intake_items(job_id,item_order,request_text,needs_clarification) VALUES(?,?,?,0)');
+    $order = 0;
+    foreach ($clean as $item) {
+        $order += 10;
+        $insert->execute([$jobId, $order, $item]);
+    }
+
+    return implode("\n", $clean);
+}
+
+function wt_get_or_create_general_photo_task(PDO $pdo, int $jobId): int
+{
+    $q = $pdo->prepare("
+        SELECT id
+        FROM work_tasks
+        WHERE job_id=?
+          AND title='General job photos'
+          AND status<>'cancelled'
+        ORDER BY id
+        LIMIT 1
+    ");
+    $q->execute([$jobId]);
+    $existing = (int)$q->fetchColumn();
+    if ($existing > 0) {
+        return $existing;
+    }
+
+    $q = $pdo->prepare("SELECT COALESCE(MAX(task_order),0)+10 FROM work_tasks WHERE job_id=?");
+    $q->execute([$jobId]);
+    $order = (int)$q->fetchColumn();
+
+    $q = $pdo->prepare("
+        INSERT INTO work_tasks
+        (job_id,task_order,title,description,status,task_origin,customer_visible)
+        VALUES(?,?,?,?,'not_started','mike_added',1)
+    ");
+    $q->execute([
+        $jobId,
+        $order,
+        'General job photos',
+        'General before, progress or after photos that were not attached to a more specific task at the time they were uploaded.',
+    ]);
+
+    return (int)$pdo->lastInsertId();
+}
+
 function wt_send_sms(PDO $pdo, ?int $jobId, string $phone, string $message, string $purpose='general'): array {
     require_once __DIR__ . '/sms_broadcast.php';
 

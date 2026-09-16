@@ -65,6 +65,12 @@ $notes = trim($_POST['notes'] ?? '');
 $taskId=(int)($_POST['task_id']??0);
 $taskTitle='';
 if($taskId>0){$tq=$pdo->prepare("SELECT title FROM work_tasks WHERE id=? AND job_id=? AND status<>'cancelled'");$tq->execute([$taskId,$id]);$taskTitle=(string)$tq->fetchColumn();if($taskTitle==='')die('Invalid task for this job.');}
+$startPhotoCount=wt_upload_field_file_count('start_before_photos');
+if($startPhotoCount>20)die('Please upload no more than 20 before photos when starting an activity.');
+if($taskId<=0 && wt_upload_field_has_files('start_before_photos')){
+    $taskId=wt_get_or_create_general_photo_task($pdo,$id);
+    $taskTitle='General job photos';
+}
 $locationDetail = trim($_POST['location_detail'] ?? '');
 $billable = ($category === 'travel' || $location === 'travel_job')
     ? (isset($_POST['charge_travel']) ? 1 : 0)
@@ -77,6 +83,11 @@ $stmt = $pdo->prepare("
 ");
 $stmt->execute([$id, $workerId, $taskId?:null, $category, $location, $locationDetail ?: null, $billable, $notes]);
 if($taskId>0)$pdo->prepare("UPDATE work_tasks SET status=IF(status IN ('not_started','blocked'),'in_progress',status) WHERE id=? AND job_id=?")->execute([$taskId,$id]);
+
+if($taskId>0){
+    $photoNote=trim((string)($_POST['start_photo_note']??''));
+    wt_save_task_photo_upload_field($pdo,$id,$taskId,'start_before_photos','before',$photoNote,20);
+}
 
 $pdo->prepare("UPDATE work_jobs SET status='active' WHERE id=?")->execute([$id]);
 

@@ -27,6 +27,7 @@ $model=wt_env('WORKTRACKER_AI_MODEL','gpt-5.6-luna');
 $prompt=<<<TXT
 You are preparing a structured handyman job plan for Mike of All Trades in Victoria, Australia.
 Break the customer's requested work into practical individual tasks that Mike can start/stop separately.
+Treat each line or bullet in the customer's requested-work list as a separate source request. Do not collapse a list of unrelated customer requests into one broad task. Merge items only when they are clearly the same work in the same area.
 Return JSON only, with this exact top-level shape: {"tasks":[...]}.
 Each task object must contain: title, description, customer_summary, detailed_procedure, time_drivers, waiting_curing_notes, suggested_materials, ai_estimate_low, ai_estimate_high, ai_reasoning.
 Use plain English. detailed_procedure should be granular enough to explain real preparation, setup, investigation, cleaning, testing, adjustment, pack-up and documentation where relevant.
