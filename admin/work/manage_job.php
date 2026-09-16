@@ -143,6 +143,35 @@ foreach ($runningSessions as $rs) {
     $runningWorkerKeys[$rs['worker_id'] === null ? 'mike' : 'worker_'.$rs['worker_id']] = true;
 }
 
+$quickSession = $runningSessions[0] ?? null;
+$quickActiveAction = 'idle';
+if ($quickSession) {
+    if (!empty($quickSession['active_break'])) {
+        $quickActiveAction = (($quickSession['active_break']['reason'] ?? '') === 'meal')
+            ? 'meal_break'
+            : 'coffee_break';
+    } elseif (($quickSession['travel_type'] ?? '') === 'to_customer') {
+        $quickActiveAction = 'travel_site';
+    } elseif (($quickSession['category'] ?? '') === 'procurement') {
+        $quickActiveAction = 'supplier_out';
+    } elseif (
+        stripos((string)($quickSession['location_detail'] ?? ''), 'Returning from supplier') !== false
+        || stripos((string)($quickSession['notes'] ?? ''), 'Returning from supplier') !== false
+    ) {
+        $quickActiveAction = 'supplier_return';
+    } elseif (
+        stripos((string)($quickSession['location_detail'] ?? ''), 'Leaving customer site') !== false
+        || stripos((string)($quickSession['notes'] ?? ''), 'Leaving customer site') !== false
+    ) {
+        $quickActiveAction = 'leave_site';
+    } elseif (($quickSession['category'] ?? '') === 'onsite') {
+        $quickActiveAction = 'work';
+    }
+}
+
+$quickActionFlash = $_SESSION['wt_quick_action_flash'] ?? null;
+unset($_SESSION['wt_quick_action_flash']);
+
 $locationLabels = [
     'onsite' => 'On site',
     'bunnings' => 'Bunnings',
@@ -393,6 +422,23 @@ textarea{width:100%;box-sizing:border-box}
 .free-total{font-size:24px;font-weight:900;color:#2b6a1f}
 @media(max-width:800px){.plan-grid,.timebreak-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:520px){.plan-grid,.timebreak-grid{grid-template-columns:1fr}}
+.quick-panel{position:sticky;top:0;z-index:900;background:#f4f6f8;border-bottom:1px solid #d7dee4;padding-top:8px;margin:0 -15px 14px;padding-left:15px;padding-right:15px}
+.quick-card{border:2px solid #cbd7df;background:#fff}
+.quick-current{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;background:#17202a;color:#fff;border-radius:10px;padding:12px 14px;margin-bottom:12px}
+.quick-current strong{font-size:18px}.quick-current .timer{font-size:22px;color:#fff}
+.quick-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}
+.quick-btn,.quick-link{min-height:78px;width:100%;border:2px solid #c8d2d9;background:#fff;color:#17202a;border-radius:10px;padding:8px 6px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;font-weight:900;text-align:center;text-decoration:none;cursor:pointer}
+.quick-btn svg,.quick-link svg{width:36px;height:36px;stroke:currentColor;stroke-width:2.4;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.quick-btn span,.quick-link span{font-size:14px;line-height:1.1}
+.quick-btn.active{background:#087f23;color:#fff;border-color:#087f23}
+.quick-btn.pause-active{background:#b76e00;color:#fff;border-color:#b76e00}
+.quick-btn.danger{border-color:#d99a9a}.quick-btn.danger.active{background:#b42318;border-color:#b42318}
+.quick-link.shortcut{background:#eef6ff;border-color:#9fc4e5}
+.quick-select-row{display:grid;grid-template-columns:1fr;gap:8px;margin:10px 0 12px}
+.quick-flash{border-radius:10px;padding:10px 12px;margin:10px 0;font-weight:850}
+.quick-flash.ok{background:#e7f6ec;border:1px solid #9dd8ad;color:#126d2d}.quick-flash.bad{background:#fde8e8;border:1px solid #d99a9a;color:#8b2525}
+@media(max-width:760px){.quick-grid{grid-template-columns:repeat(3,1fr)}.quick-btn,.quick-link{min-height:86px}.quick-btn svg,.quick-link svg{width:40px;height:40px}.quick-btn span,.quick-link span{font-size:15px}}
+@media(max-width:480px){.quick-grid{grid-template-columns:repeat(2,1fr)}}
 </style>
 <link rel="stylesheet" href="assets/workspace_v8_3.css?v=1">
 <link rel="stylesheet" href="assets/task_photos_inline_v8_4c.css?v=1">
@@ -470,9 +516,134 @@ box-shadow:0 8px 28px #0003;
 <?php endif;?>
 <div class="wrap">
 
-<p><a href="index.php">← All jobs</a></p>
+<p>
+    <a href="index.php">← All jobs</a>
+    · <a href="task_photos.php?id=<?=$id?>">Task photos</a>
+    · <a href="social_drafts.php?id=<?=$id?>">Social drafts</a>
+</p>
 <h1>Manage Job #<?=$id?> — <?=wt_html($job['customer_name'])?></h1>
 <p><?=wt_html($job['job_address'])?></p>
+
+<?php
+$quickLabels = [
+    'idle' => 'No timer running',
+    'travel_site' => 'Travelling to site',
+    'arrive_site' => 'Arrived / on site',
+    'work' => 'Working',
+    'leave_site' => 'Leaving site',
+    'supplier_out' => 'Going to supplier',
+    'supplier_return' => 'Returning from supplier',
+    'coffee_break' => 'Coffee break',
+    'meal_break' => 'Meal break',
+];
+$quickCurrentLabel = $quickLabels[$quickActiveAction] ?? 'Activity running';
+$quickTaskTitle = '';
+if ($quickSession && !empty($quickSession['task_id']) && isset($taskById[(int)$quickSession['task_id']])) {
+    $quickTaskTitle = (string)$taskById[(int)$quickSession['task_id']]['title'];
+}
+?>
+<section class="quick-panel" id="quick-actions">
+<div class="card quick-card">
+    <div class="quick-current">
+        <div>
+            <strong><?=wt_html($quickCurrentLabel)?></strong>
+            <div class="small" style="color:#dbe5ec">
+                <?= $quickTaskTitle !== '' ? wt_html($quickTaskTitle) : 'Choose a shortcut below' ?>
+            </div>
+        </div>
+        <?php if($quickSession):?>
+        <div
+            class="timer live-timer"
+            data-start="<?=wt_html($quickSession['started_at'])?>"
+            data-break-seconds="<?=(int)($quickSession['break_seconds'] ?? 0)?>"
+            data-paused="<?=!empty($quickSession['active_break']) ? '1' : '0'?>"
+        >00:00:00</div>
+        <?php else:?>
+        <div class="timer">00:00:00</div>
+        <?php endif;?>
+    </div>
+
+    <?php if(is_array($quickActionFlash)):?>
+        <div class="quick-flash <?=$quickActionFlash['ok'] ? 'ok' : 'bad'?>">
+            <?=wt_html((string)$quickActionFlash['message'])?>
+        </div>
+    <?php endif;?>
+
+    <form method="post" action="../../api/work/quick_action.php">
+        <input type="hidden" name="job_id" value="<?=$id?>">
+        <div class="quick-select-row">
+            <label class="field">
+                <span>Task for the next activity</span>
+                <select name="quick_task_id">
+                    <option value="0">General / not task-specific</option>
+                    <?php foreach($tasks as $qt):?>
+                        <?php if(($qt['status'] ?? '') !== 'cancelled'):?>
+                            <option value="<?=(int)$qt['id']?>" <?=$quickSession && (int)($quickSession['task_id'] ?? 0)===(int)$qt['id']?'selected':''?>>
+                                <?=wt_html($qt['title'])?>
+                            </option>
+                        <?php endif;?>
+                    <?php endforeach;?>
+                </select>
+            </label>
+            <label class="checkline">
+                <input type="checkbox" name="quick_charge_travel" value="1">
+                Charge travel time for CBD / north-of-Yarra / special toll or parking jobs
+            </label>
+        </div>
+
+        <div class="quick-grid">
+            <button class="quick-btn<?=$quickActiveAction==='travel_site'?' active':''?>" type="submit" name="quick_action" value="travel_site" title="Start travelling to the customer site">
+                <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M5 30h23M7 24l5-9h14l5 9M10 30a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM26 30a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM35 24v14h8V24M32 27l7-7 7 7"/></svg>
+                <span>Travel to site</span>
+            </button>
+            <button class="quick-btn<?=$quickActiveAction==='work' || $quickActiveAction==='arrive_site'?' active':''?>" type="submit" name="quick_action" value="arrive_site" title="Arrive on site and start work">
+                <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M8 25l16-14 16 14M13 23v17h22V23M20 40V28h8v12M34 12l7 7M33 15l-3-3 4-4 3 3Z"/></svg>
+                <span>Arrived</span>
+            </button>
+            <button class="quick-btn<?=$quickActiveAction==='work'?' active':''?>" type="submit" name="quick_action" value="work" title="Start or change to on-site work">
+                <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M17 10l21 21-7 7L10 17M15 23 9 29l10 10 6-6M31 7l10 10"/></svg>
+                <span>Work</span>
+            </button>
+            <button class="quick-btn<?=$quickActiveAction==='leave_site'?' active':''?>" type="submit" name="quick_action" value="leave_site" title="Leave the customer site">
+                <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M5 22l14-12 14 12M10 20v16h18V20M31 32h10M37 26l6 6-6 6M18 36V26h6v10"/></svg>
+                <span>Leave site</span>
+            </button>
+            <button class="quick-btn<?=$quickActiveAction==='supplier_out'?' active':''?>" type="submit" name="quick_action" value="supplier_out" title="Travel to Bunnings or another supplier">
+                <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M6 31h19M8 25l4-8h11l5 8M10 31a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM25 31a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM34 39V16h9v23M34 23h9M34 30h9"/></svg>
+                <span>Go supplier</span>
+            </button>
+            <button class="quick-btn<?=$quickActiveAction==='supplier_return'?' active':''?>" type="submit" name="quick_action" value="supplier_return" title="Return from Bunnings or supplier">
+                <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M6 39V16h10v23M6 23h10M6 30h10M23 31h17M29 25l-6 6 6 6M28 31a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM41 31a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"/></svg>
+                <span>Return</span>
+            </button>
+            <a class="quick-link shortcut" href="task_photos.php?id=<?=$id?>#bulk-upload" title="Upload job photos without changing the timer">
+                <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M8 17h9l3-5h8l3 5h9v22H8ZM24 34a7 7 0 1 0 0-14 7 7 0 0 0 0 14Z"/></svg>
+                <span>Add photos</span>
+            </a>
+            <a class="quick-link shortcut" href="materials.php?id=<?=$id?>#receipts" title="Add a receipt or material without changing the timer">
+                <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M14 6h20v36l-5-3-5 3-5-3-5 3ZM19 17h10M19 24h10M19 31h7"/></svg>
+                <span>Add receipt</span>
+            </a>
+            <button class="quick-btn<?=$quickActiveAction==='coffee_break'?' pause-active':''?>" type="submit" name="quick_action" value="coffee_break" title="Start a non-chargeable coffee or short break">
+                <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M13 19h21v11a9 9 0 0 1-9 9h-3a9 9 0 0 1-9-9ZM34 22h4a4 4 0 0 1 0 8h-4M16 10c2 2-2 4 0 6M24 10c2 2-2 4 0 6M32 10c2 2-2 4 0 6"/></svg>
+                <span>Coffee break</span>
+            </button>
+            <button class="quick-btn<?=$quickActiveAction==='meal_break'?' pause-active':''?>" type="submit" name="quick_action" value="meal_break" title="Start a non-chargeable meal break">
+                <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 40a14 14 0 1 0 0-28 14 14 0 0 0 0 28ZM9 8v14M5 8v8M13 8v8M38 8v32M34 20h8"/></svg>
+                <span>Meal break</span>
+            </button>
+            <button class="quick-btn" type="button" data-quick-open="drying" title="Open the drying or curing form without starting overlapping labour">
+                <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M15 7h18M15 41h18M17 7c0 10 14 10 14 17S17 31 17 41M31 7c0 10-14 10-14 17s14 7 14 17M21 17h6M21 32h6"/></svg>
+                <span>Drying/curing</span>
+            </button>
+            <button class="quick-btn danger" type="submit" name="quick_action" value="finish_activity" title="Finish the current activity">
+                <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 42a18 18 0 1 0 0-36 18 18 0 0 0 0 36ZM15 25l6 6 13-14"/></svg>
+                <span>Finish</span>
+            </button>
+        </div>
+    </form>
+</div>
+</section>
 
 <div class="card" id="customer-details">
 <h2>Customer details</h2>
@@ -2632,6 +2803,11 @@ customer notified of this specific update.
     <div class="field"><label>ETA in minutes</label><input name="eta_minutes" type="number" min="1" max="240" value="30" required></div>
     <div class="field wide"><label>Travel note (optional)</label><input name="notes" placeholder="e.g. bringing materials collected this morning"></div>
 </div>
+<p class="checkline">
+    <input type="checkbox" name="charge_travel" value="1">
+    <b>Charge this travel time</b>
+    <span class="small">Use only for CBD / north-of-Yarra / unusual toll or parking jobs.</span>
+</p>
 <button class="btn sms" style="font-size:18px;padding:15px 22px">🚗 ON MY WAY + START TRAVEL</button>
 </form>
 
@@ -3371,6 +3547,11 @@ function wb_hours(float $hours): string {
         <input name="notes" placeholder="e.g. removing damaged tiles and checking wall condition" required>
     </div>
 </div>
+<p class="checkline">
+    <input type="checkbox" name="charge_travel" value="1">
+    <b>Charge travel time if this activity is travel</b>
+    <span class="small">Leave unticked for normal local travel.</span>
+</p>
 
 <?php if(!isset($runningWorkerKeys['mike']) || count($workers) > 0):?>
 <button class="btn start" style="font-size:18px;padding:15px 22px">▶ START ACTIVITY</button>
@@ -3717,6 +3898,27 @@ function wb_hours(float $hours): string {
     }
     updateTimers();
     setInterval(updateTimers,1000);
+})();
+</script>
+
+<script>
+(function(){
+    const dryingButton = document.querySelector('[data-quick-open="drying"]');
+    if (!dryingButton) return;
+
+    dryingButton.addEventListener('click', function(){
+        const existingWaitButton = document.querySelector('.wait-cure-quick-button');
+        if (existingWaitButton) {
+            existingWaitButton.click();
+            existingWaitButton.scrollIntoView({behavior:'smooth', block:'center'});
+            return;
+        }
+
+        const runningTimer = document.getElementById('live-timer');
+        if (runningTimer) {
+            runningTimer.scrollIntoView({behavior:'smooth', block:'center'});
+        }
+    });
 })();
 </script>
 

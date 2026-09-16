@@ -10,6 +10,7 @@ $job = wt_job($pdo, $id);
 $etaMinutes = (int)($_POST['eta_minutes'] ?? 0);
 $origin = trim((string)($_POST['origin'] ?? ''));
 $notes = trim((string)($_POST['notes'] ?? ''));
+$billableTravel = isset($_POST['charge_travel']) ? 1 : 0;
 
 if ($etaMinutes < 1 || $etaMinutes > 240) {
     $_SESSION['work_sms_flash'] = [
@@ -70,13 +71,14 @@ $q = $pdo->prepare("
         notes
     )
     VALUES
-    (?, 'live', NULL, NOW(), 'travel', 'travel_job', ?, 'to_customer', ?, 1, ?)
+    (?, 'live', NULL, NOW(), 'travel', 'travel_job', ?, 'to_customer', ?, ?, ?)
 ");
 
 $q->execute([
     $id,
     $route,
     $etaAt,
+    $billableTravel,
     $notes !== '' ? $notes : 'Travel to customer premises'
 ]);
 
@@ -96,7 +98,7 @@ if (
         "Mike of All Trades — On my way\n" .
         "Mike has left for your job.\n" .
         "ETA: " . $etaDisplay . " (about " . $etaMinutes . " minutes).\n" .
-        "Job-related travel is now being recorded separately so your job history shows travel as well as on-site work.\n" .
+        "Job-related travel is being recorded separately so your job history shows travel as well as on-site work.\n" .
         "Live job record: " . wt_public_url($job);
 
     $r = wt_send_sms(

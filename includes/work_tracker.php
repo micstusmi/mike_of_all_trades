@@ -8,6 +8,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/sms_broadcast.php';
+require_once __DIR__ . '/work_media.php';
 
 if (!isset($pdo) || !($pdo instanceof PDO)) {
     if (isset($db) && $db instanceof PDO) {

@@ -66,14 +66,17 @@ $taskId=(int)($_POST['task_id']??0);
 $taskTitle='';
 if($taskId>0){$tq=$pdo->prepare("SELECT title FROM work_tasks WHERE id=? AND job_id=? AND status<>'cancelled'");$tq->execute([$taskId,$id]);$taskTitle=(string)$tq->fetchColumn();if($taskTitle==='')die('Invalid task for this job.');}
 $locationDetail = trim($_POST['location_detail'] ?? '');
+$billable = ($category === 'travel' || $location === 'travel_job')
+    ? (isset($_POST['charge_travel']) ? 1 : 0)
+    : 1;
 
 $stmt = $pdo->prepare("
     INSERT INTO work_sessions
     (job_id,session_source,worker_id,task_id,started_at,category,start_location,location_detail,billable,notes)
     VALUES(?,'live',?,?,UTC_TIMESTAMP(),?,?,?,?,?)
 ");
-$stmt->execute([$id, $workerId, $taskId?:null, $category, $location, $locationDetail ?: null, 1, $notes]);
-if($taskId>0)$pdo->prepare("UPDATE work_tasks SET status=IF(status='not_started','in_progress',status) WHERE id=? AND job_id=?")->execute([$taskId,$id]);
+$stmt->execute([$id, $workerId, $taskId?:null, $category, $location, $locationDetail ?: null, $billable, $notes]);
+if($taskId>0)$pdo->prepare("UPDATE work_tasks SET status=IF(status IN ('not_started','blocked'),'in_progress',status) WHERE id=? AND job_id=?")->execute([$taskId,$id]);
 
 $pdo->prepare("UPDATE work_jobs SET status='active' WHERE id=?")->execute([$id]);
 

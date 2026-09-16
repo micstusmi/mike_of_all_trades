@@ -12,21 +12,34 @@ if(!$task){http_response_code(404);exit('Task not found.');}
 
 $q=$pdo->prepare("SELECT * FROM work_task_photos WHERE job_id=? AND task_id=? ORDER BY photo_type,created_at,id");
 $q->execute([$jobId,$taskId]);$photos=$q->fetchAll(PDO::FETCH_ASSOC);
-$by=['before'=>[],'after'=>[]];foreach($photos as $p){if(isset($by[$p['photo_type']]))$by[$p['photo_type']][]=$p;}
+$by=['before'=>[],'progress'=>[],'after'=>[]];foreach($photos as $p){if(isset($by[$p['photo_type']]))$by[$p['photo_type']][]=$p;}
 function e4c($s){return htmlspecialchars((string)$s,ENT_QUOTES,'UTF-8');}
 ?>
 <h4>📷 Before / after photos</h4>
-<p class="wt-photo-help">Photos saved here stay attached to this individual task. Originals are kept separately.</p>
+<p class="wt-photo-help">Photos saved here stay attached to this individual task. Originals are kept separately. Branded copies can be opened, shared, or saved to your iPhone Photos app from the image/share screen.</p>
 <div class="wt-photo-columns">
-<?php foreach(['before'=>'BEFORE','after'=>'AFTER'] as $type=>$label):?>
+<?php foreach(['before'=>'BEFORE','progress'=>'PROGRESS / STAGE','after'=>'AFTER'] as $type=>$label):?>
 <div class="wt-photo-side">
-<h5><?=$type==='before'?'📷':'✅'?> <?=$label?> photos</h5>
+<h5><?=$type==='before'?'📷':($type==='progress'?'🛠️':'✅')?> <?=$label?> photos</h5>
 <?php if(!$by[$type]):?><div class="wt-photo-empty">No <?=strtolower($label)?> photos yet.</div><?php endif;?>
 <div class="wt-photo-thumbs">
 <?php foreach($by[$type] as $p):?>
 <div class="wt-photo-thumb">
-<a target="_blank" href="task_photo_admin_view.php?id=<?=(int)$p['id']?>"><img loading="lazy" src="task_photo_admin_view.php?id=<?=(int)$p['id']?>" alt="<?=e4c($label)?> photo"></a>
+<?php $originalAvailable=empty($p['file_deleted_at']);$socialReady=!empty($p['social_relative_path'])&&empty($p['social_deleted_at']);$socialUrl='task_photo_admin_view.php?id='.(int)$p['id'].'&variant=social';?>
+<?php if($originalAvailable||$socialReady):?>
+<a target="_blank" href="<?=e4c($socialReady?$socialUrl:'task_photo_admin_view.php?id='.(int)$p['id'])?>"><img loading="lazy" src="<?=e4c($socialReady?$socialUrl:'task_photo_admin_view.php?id='.(int)$p['id'])?>" alt="<?=e4c($label)?> photo"></a>
+<?php else:?>
+<div class="wt-photo-empty">Server copy expired. Original name: <?=e4c($p['original_name']??'photo')?></div>
+<?php endif;?>
 <?php if(trim((string)($p['note']??''))!==''):?><small title="<?=e4c($p['note'])?>"><?=e4c($p['note'])?></small><?php endif;?>
+<div class="wt-photo-actions">
+<?php if($originalAvailable):?><a target="_blank" href="task_photo_admin_view.php?id=<?=(int)$p['id']?>">Original</a><?php endif;?>
+<?php if($socialReady):?>
+<a target="_blank" href="<?=e4c($socialUrl)?>">Branded</a>
+<a href="<?=e4c($socialUrl.'&download=1')?>">Save</a>
+<button type="button" class="wt-photo-share" data-share-url="<?=e4c($socialUrl)?>">Share</button>
+<?php endif;?>
+</div>
 </div>
 <?php endforeach;?>
 </div>
@@ -36,8 +49,24 @@ function e4c($s){return htmlspecialchars((string)$s,ENT_QUOTES,'UTF-8');}
 <input type="hidden" name="photo_type" value="<?=$type?>">
 <div><input type="file" name="photos[]" accept="image/jpeg,image/png,image/webp" multiple required></div>
 <input type="text" name="note" placeholder="Optional note">
-<button class="wt-photo-btn <?=$type==='before'?'wt-photo-before':'wt-photo-after'?>" type="submit">+ ADD <?=$label?></button>
+<button class="wt-photo-btn <?=$type==='before'?'wt-photo-before':($type==='progress'?'':'wt-photo-after')?>" type="submit">+ ADD <?=$label?></button>
 </form>
 </div>
 <?php endforeach;?>
 </div>
+<script>
+document.querySelectorAll('.wt-photo-share').forEach(function (button) {
+    if (button.dataset.bound === '1') return;
+    button.dataset.bound = '1';
+    button.addEventListener('click', async function () {
+        const url = new URL(button.dataset.shareUrl, window.location.href).href;
+        if (navigator.share) {
+            try {
+                await navigator.share({title: 'Mike Of All Trades job photo', url});
+                return;
+            } catch (e) {}
+        }
+        window.open(url, '_blank');
+    });
+});
+</script>

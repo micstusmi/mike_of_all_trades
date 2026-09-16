@@ -22,7 +22,7 @@ $note = trim((string)($_POST['note'] ?? ''));
 if (
     $jobId <= 0 ||
     $taskId <= 0 ||
-    !in_array($type, ['before', 'after'], true)
+    !in_array($type, ['before', 'progress', 'after'], true)
 ) {
     fail_photo('Invalid request.');
 }
@@ -164,6 +164,8 @@ foreach ($names as $i => $originalName) {
         basename((string)$originalName)
     ) ?: 'photo.' . $allowed[$mime];
 
+    $storedExt = extension_loaded('gd') ? 'jpg' : $allowed[$mime];
+
     $stored =
         $type .
         '_' .
@@ -171,11 +173,13 @@ foreach ($names as $i => $originalName) {
         '_' .
         bin2hex(random_bytes(5)) .
         '.' .
-        $allowed[$mime];
+        $storedExt;
 
     $dest = $dir . '/' . $stored;
 
-    if (!move_uploaded_file($tmp, $dest)) {
+    try {
+        $storedInfo = wt_store_uploaded_task_photo_file($tmp, $dest, $mime, $size);
+    } catch (Throwable $e) {
         continue;
     }
 
@@ -195,11 +199,13 @@ foreach ($names as $i => $originalName) {
         $safeOriginal,
         $stored,
         $relative,
-        $mime,
-        $size,
-        hash_file('sha256', $dest) ?: null,
+        $storedInfo['mime_type'],
+        $storedInfo['file_size'],
+        $storedInfo['sha256'],
         $note !== '' ? $note : null,
     ]);
+
+    wt_after_task_photo_saved($pdo, (int)$pdo->lastInsertId(), $dest, (string)$storedInfo['mime_type'], $type, $relative, $storedInfo);
 
     $uploaded++;
 }
