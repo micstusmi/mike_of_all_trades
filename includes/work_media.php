@@ -217,6 +217,78 @@ function wt_convert_heic_with_cli(string $tmpPath, string $destPath, int $maxSid
         @unlink($destPath);
     }
 
+    // Debian/Ubuntu commonly provide HEIC decoding through libheif's
+    // `heif-convert`, even when the installed ImageMagick build has no HEIC
+    // delegate. Decode to a temporary JPEG first, then resize that JPEG so the
+    // stored task-photo copy remains storage-safe.
+    foreach (['/usr/bin/heif-convert', 'heif-convert'] as $tool) {
+        $decodedPath = $destPath . '.decoded-' . bin2hex(random_bytes(4)) . '.jpg';
+        $decodeCommand = sprintf(
+            '%s -q %d %s %s 2>&1',
+            escapeshellcmd($tool),
+            $quality,
+            escapeshellarg($tmpPath),
+            escapeshellarg($decodedPath)
+        );
+        $output = [];
+        $code = 1;
+        @exec($decodeCommand, $output, $code);
+
+        if ($code !== 0 || !is_file($decodedPath) || (filesize($decodedPath) ?: 0) < 1) {
+            @unlink($decodedPath);
+            continue;
+        }
+
+        foreach (['magick', 'convert'] as $resizeTool) {
+            $resizeCommand = sprintf(
+                '%s %s -auto-orient -resize %dx%d\\> -quality %d %s 2>&1',
+                escapeshellcmd($resizeTool),
+                escapeshellarg($decodedPath),
+                $maxSide,
+                $maxSide,
+                $quality,
+                escapeshellarg($destPath)
+            );
+            $resizeOutput = [];
+            $resizeCode = 1;
+            @exec($resizeCommand, $resizeOutput, $resizeCode);
+            if ($resizeCode === 0 && is_file($destPath) && (filesize($destPath) ?: 0) > 0) {
+                @unlink($decodedPath);
+                return;
+            }
+            @unlink($destPath);
+        }
+
+        if (extension_loaded('gd')) {
+            $source = @imagecreatefromjpeg($decodedPath);
+            if ($source) {
+                $srcW = imagesx($source);
+                $srcH = imagesy($source);
+                $scale = min(1, $maxSide / max($srcW, $srcH));
+                $outW = max(1, (int)round($srcW * $scale));
+                $outH = max(1, (int)round($srcH * $scale));
+                $canvas = imagecreatetruecolor($outW, $outH);
+                imagecopyresampled($canvas, $source, 0, 0, 0, 0, $outW, $outH, $srcW, $srcH);
+                $saved = imagejpeg($canvas, $destPath, $quality);
+                imagedestroy($canvas);
+                imagedestroy($source);
+                @unlink($decodedPath);
+                if ($saved && is_file($destPath) && (filesize($destPath) ?: 0) > 0) {
+                    return;
+                }
+                @unlink($destPath);
+                continue;
+            }
+        }
+
+        // A successfully decoded JPEG is preferable to rejecting the upload.
+        // This branch is only used when neither ImageMagick nor GD can resize.
+        if (@rename($decodedPath, $destPath)) {
+            return;
+        }
+        @unlink($decodedPath);
+    }
+
     throw new RuntimeException(wt_heic_support_error());
 }
 
@@ -511,7 +583,10 @@ function wt_platform_photo_specs(): array
             'shape' => 'instagram',
             'tag_position' => 'top-left',
             'logo_position' => 'bottom-right',
-            'logo_alpha' => 34,
+            'label_top_ratio' => 0.07,
+            'logo_right_ratio' => 0.08,
+            'logo_bottom_ratio' => 0.12,
+            'logo_alpha' => 62,
         ],
         'tiktok' => [
             'label' => 'TikTok',
@@ -522,7 +597,10 @@ function wt_platform_photo_specs(): array
             'shape' => 'portrait',
             'tag_position' => 'top-left',
             'logo_position' => 'bottom-right',
-            'logo_alpha' => 34,
+            'label_top_ratio' => 0.11,
+            'logo_right_ratio' => 0.12,
+            'logo_bottom_ratio' => 0.22,
+            'logo_alpha' => 62,
         ],
         'facebook' => [
             'label' => 'Facebook',
@@ -533,7 +611,10 @@ function wt_platform_photo_specs(): array
             'shape' => 'source',
             'tag_position' => 'top-left',
             'logo_position' => 'bottom-right',
-            'logo_alpha' => 32,
+            'label_top_ratio' => 0.06,
+            'logo_right_ratio' => 0.06,
+            'logo_bottom_ratio' => 0.08,
+            'logo_alpha' => 58,
         ],
     ];
 }
@@ -644,15 +725,16 @@ function wt_draw_social_photo_marks($canvas, int $outW, int $outH, string $photo
         $labelW = $textW + ($labelPadX * 2);
         $labelH = $textH + ($labelPadY * 2);
         $labelX = max($pad, (int)round(($outW - $labelW) / 2));
-        $labelY = $pad;
+        $labelY = max($pad, (int)round($outH * (float)($spec['label_top_ratio'] ?? 0.06)));
         imagefilledrectangle($canvas, $labelX, $labelY, $labelX + $labelW, $labelY + $labelH, $panel);
         imagettftext($canvas, $fontSize, 0, $labelX + $labelPadX + 2, $labelY + $labelPadY + $textH + 2, $shadow, $font, $label);
         imagettftext($canvas, $fontSize, 0, $labelX + $labelPadX, $labelY + $labelPadY + $textH, $white, $font, $label);
     } else {
         $labelW = min($outW - ($pad * 2), 380);
         $labelX = max($pad, (int)round(($outW - $labelW) / 2));
-        imagefilledrectangle($canvas, $labelX, $pad, $labelX + $labelW, $pad + 80, $panel);
-        imagestring($canvas, 5, $labelX + 18, $pad + 24, $label, $white);
+        $labelY = max($pad, (int)round($outH * (float)($spec['label_top_ratio'] ?? 0.06)));
+        imagefilledrectangle($canvas, $labelX, $labelY, $labelX + $labelW, $labelY + 80, $panel);
+        imagestring($canvas, 5, $labelX + 18, $labelY + 24, $label, $white);
     }
 
     $logoPath = dirname(__DIR__) . '/assets/logos/mike_of_all_trades_logo_wireframe.png';
@@ -677,8 +759,8 @@ function wt_draw_social_photo_marks($canvas, int $outW, int $outH, string $photo
     // Keep the complete tall wireframe logo inside a generous social-media
     // safe area. Its aspect ratio is preserved and its height is capped so it
     // can never run through the bottom edge on landscape or square variants.
-    $safeX = max(48, (int)round($outW * 0.06));
-    $safeY = max(48, (int)round($outH * 0.06));
+    $safeX = max(48, (int)round($outW * (float)($spec['logo_right_ratio'] ?? 0.06)));
+    $safeY = max(48, (int)round($outH * (float)($spec['logo_bottom_ratio'] ?? 0.08)));
     $targetW = max(82, (int)round($outW * 0.12));
     $targetH = max(1, (int)round($targetW * $logoH / $logoW));
     $maxLogoH = max(100, (int)round($outH * 0.22));
