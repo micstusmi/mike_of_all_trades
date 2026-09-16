@@ -222,13 +222,27 @@ function wt_social_video_frame(string $sourcePath, string $mime, string $stage, 
     $black = imagecolorallocate($canvas, 0, 0, 0);
     imagefill($canvas, 0, 0, $black);
     wt_imagecopy_platform_fit($canvas, $source, 1080, 1920, $srcW, $srcH, 'cover');
-    wt_draw_social_photo_marks($canvas, 1080, 1920, $stage, ['logo_alpha' => 38]);
+    // Reel overlays use a different safe-area layout from static carousel
+    // images. Keep the stage label below the platform header, move the brand
+    // mark away from right-side controls and reserve the lower quarter for
+    // readable embedded captions.
+    wt_draw_social_photo_marks($canvas, 1080, 1920, $stage, [
+        'label_top_ratio' => 0.20,
+        'logo_position' => 'middle-left',
+        'logo_left_ratio' => 0.06,
+        'logo_top_ratio' => 0.50,
+        'logo_alpha' => 40,
+    ]);
 
     $font = wt_social_photo_font();
     $lines = wt_social_video_wrap($caption, 34);
     $lineHeight = 58;
     $panelH = max(150, count($lines) * $lineHeight + 72);
-    $panelTop = 1920 - $panelH - 150;
+    // Centre embedded captions roughly one quarter of the frame up from the
+    // bottom. This avoids the caption/CTA/navigation stack commonly drawn by
+    // vertical-video platforms along the bottom edge.
+    $panelCentreY = (int)round(1920 * 0.73);
+    $panelTop = max((int)round(1920 * 0.60), $panelCentreY - (int)round($panelH / 2));
     $panel = imagecolorallocatealpha($canvas, 0, 0, 0, 38);
     imagefilledrectangle($canvas, 54, $panelTop, 1026, $panelTop + $panelH, $panel);
     $white = imagecolorallocate($canvas, 255, 255, 255);

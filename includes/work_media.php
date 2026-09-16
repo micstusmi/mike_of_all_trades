@@ -759,7 +759,7 @@ function wt_draw_social_photo_marks($canvas, int $outW, int $outH, string $photo
     // Keep the complete tall wireframe logo inside a generous social-media
     // safe area. Its aspect ratio is preserved and its height is capped so it
     // can never run through the bottom edge on landscape or square variants.
-    $safeX = max(48, (int)round($outW * (float)($spec['logo_right_ratio'] ?? 0.06)));
+    $safeX = max(48, (int)round($outW * (float)($spec['logo_right_ratio'] ?? $spec['logo_left_ratio'] ?? 0.06)));
     $safeY = max(48, (int)round($outH * (float)($spec['logo_bottom_ratio'] ?? 0.08)));
     $targetW = max(82, (int)round($outW * 0.12));
     $targetH = max(1, (int)round($targetW * $logoH / $logoW));
@@ -768,8 +768,13 @@ function wt_draw_social_photo_marks($canvas, int $outW, int $outH, string $photo
         $targetH = $maxLogoH;
         $targetW = max(1, (int)round($targetH * $logoW / $logoH));
     }
-    $x = max($safeX, $outW - $targetW - $safeX);
-    $y = max($safeY, $outH - $targetH - $safeY);
+    if (($spec['logo_position'] ?? 'bottom-right') === 'middle-left') {
+        $x = max(48, (int)round($outW * (float)($spec['logo_left_ratio'] ?? 0.06)));
+        $y = max(48, min($outH - $targetH - 48, (int)round($outH * (float)($spec['logo_top_ratio'] ?? 0.50))));
+    } else {
+        $x = max($safeX, $outW - $targetW - $safeX);
+        $y = max($safeY, $outH - $targetH - $safeY);
+    }
     wt_copy_logo_watermark($canvas, $logo, $x, $y, $targetW, $targetH, (int)($spec['logo_alpha'] ?? 32));
 }
 
