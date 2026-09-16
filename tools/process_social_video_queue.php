@@ -33,39 +33,51 @@ for ($run = 0; $run < $limit; $run++) {
         $itemsStmt = $pdo->prepare("SELECT i.*,p.relative_path,p.mime_type,p.photo_type FROM work_social_video_items i JOIN work_task_photos p ON p.id=i.photo_id WHERE i.video_id=? ORDER BY i.sort_order,i.id");
         $itemsStmt->execute([$videoId]); $items = $itemsStmt->fetchAll(PDO::FETCH_ASSOC);
         if (count($items) < 2) throw new RuntimeException('At least two usable slideshow items are required.');
-        $concat = ''; $srt = ''; $narration = []; $clock = 0.0;
+        $slides = []; $narration = []; $baseClock = 0.0;
         foreach ($items as $index => $item) {
             $source = wt_task_photo_path((string)$item['relative_path']);
             if (!is_file($source)) throw new RuntimeException('Source photo #' . (int)$item['photo_id'] . ' is missing.');
             $frame = $temp . '/frame_' . sprintf('%03d', $index + 1) . '.jpg';
             wt_social_video_frame($source, (string)$item['mime_type'], (string)$item['photo_type'], (string)$item['screen_caption'], $frame);
             $duration = max(1.0, min(12.0, (float)$item['duration_seconds']));
-            $safeFrame = str_replace("'", "'\\''", $frame);
-            $concat .= "file '" . $safeFrame . "'\n" . 'duration ' . number_format($duration, 3, '.', '') . "\n";
-            $start = $clock; $clock += $duration;
-            $srt .= ($index + 1) . "\n" . wt_srt_time($start) . ' --> ' . wt_srt_time($clock) . "\n" . trim((string)$item['screen_caption']) . "\n\n";
+            $slides[] = [
+                'frame' => $frame,
+                'caption' => trim((string)$item['screen_caption']),
+                'duration' => $duration,
+            ];
+            $baseClock += $duration;
             $spoken = trim((string)($item['narration_text'] ?? ''));
             if ($spoken !== '') $narration[] = $spoken;
         }
-        $lastFrame = $temp . '/frame_' . sprintf('%03d', count($items)) . '.jpg';
-        $concat .= "file '" . str_replace("'", "'\\''", $lastFrame) . "'\n";
-        $concatPath = $temp . '/slides.txt'; file_put_contents($concatPath, $concat);
-        $silent = $temp . '/silent.mp4';
-        wt_run_command([$ffmpeg,'-y','-f','concat','-safe','0','-i',$concatPath,'-vf','fps=30,format=yuv420p','-c:v','libx264','-preset','medium','-crf','20','-movflags','+faststart',$silent], 'Video rendering failed');
 
         $voicePath = null;
-        $voiceTempo = 1.0;
+        $voiceDuration = null;
         if (!empty($video['voiceover_enabled']) && $narration) {
             $voicePath = $temp . '/voice.mp3';
             wt_openai_tts(implode("\n\n", $narration), (string)$video['voice_name'], $voicePath);
             $voiceDuration = wt_social_media_duration($voicePath);
-            if ($voiceDuration !== null && $voiceDuration > $clock) {
-                $voiceTempo = $voiceDuration / $clock;
-                if ($voiceTempo > 1.35) {
-                    throw new RuntimeException('The narration is too long for the approved slide timing. Shorten the narration or increase slide durations.');
-                }
-            }
         }
+
+        // Voice-over timing is authoritative. If narration needs more time, extend
+        // every slide proportionally before building either the video or captions.
+        $durationScale = 1.0;
+        if ($voiceDuration !== null && $voiceDuration > $baseClock) {
+            $durationScale = ($voiceDuration + 0.5) / $baseClock;
+        }
+        $concat = ''; $srt = ''; $clock = 0.0;
+        foreach ($slides as $index => $slide) {
+            $duration = (float)$slide['duration'] * $durationScale;
+            $safeFrame = str_replace("'", "'\\''", (string)$slide['frame']);
+            $concat .= "file '" . $safeFrame . "'\n" . 'duration ' . number_format($duration, 3, '.', '') . "\n";
+            $start = $clock; $clock += $duration;
+            $srt .= ($index + 1) . "\n" . wt_srt_time($start) . ' --> ' . wt_srt_time($clock) . "\n" . (string)$slide['caption'] . "\n\n";
+        }
+        $lastFrame = (string)$slides[count($slides) - 1]['frame'];
+        $concat .= "file '" . str_replace("'", "'\\''", $lastFrame) . "'\n";
+        $concatPath = $temp . '/slides.txt';
+        if (file_put_contents($concatPath, $concat) === false) throw new RuntimeException('Slideshow timing file could not be saved.');
+        $silent = $temp . '/silent.mp4';
+        wt_run_command([$ffmpeg,'-y','-f','concat','-safe','0','-i',$concatPath,'-vf','fps=30,format=yuv420p','-c:v','libx264','-preset','medium','-crf','20','-movflags','+faststart',$silent], 'Video rendering failed');
         $musicPath = null; $musicChoice = (string)($video['music_file'] ?? ''); $musicFiles = wt_social_music_files();
         if ($musicChoice === '__auto__' && $musicFiles) {
             $recentMusicStmt = $pdo->prepare("
@@ -92,16 +104,16 @@ for ($run = 0; $run < $limit; $run++) {
         $relativeDir = 'job_' . (int)$video['job_id']; $outDir = wt_social_video_path($relativeDir);
         if (!is_dir($outDir) && !mkdir($outDir,0770,true) && !is_dir($outDir)) throw new RuntimeException('Social video output folder could not be created.');
         $relativeVideo = $relativeDir . '/social_video_' . $videoId . '.mp4'; $final = wt_social_video_path($relativeVideo);
-        $tempoFilter = 'atempo=' . number_format($voiceTempo, 4, '.', '') . ',volume=1.0';
+        $voiceFilter = 'volume=1.0';
         $musicFadeSeconds = min(2.0, max(0.5, $clock / 10));
         $musicFadeStart = max(0.0, $clock - $musicFadeSeconds);
         $musicFilter = 'volume=' . ($voicePath ? '0.10' : '0.13')
             . ',afade=t=out:st=' . number_format($musicFadeStart, 3, '.', '')
             . ':d=' . number_format($musicFadeSeconds, 3, '.', '');
         if ($voicePath && $musicPath) {
-            wt_run_command([$ffmpeg,'-y','-i',$silent,'-i',$voicePath,'-stream_loop','-1','-i',$musicPath,'-filter_complex','[1:a]'.$tempoFilter.'[voice];[2:a]'.$musicFilter.'[music];[voice][music]amix=inputs=2:duration=longest:dropout_transition=2[a]','-map','0:v:0','-map','[a]','-c:v','copy','-c:a','aac','-b:a','160k','-t',number_format($clock,3,'.',''),'-movflags','+faststart',$final], 'Voice/music mixing failed');
+            wt_run_command([$ffmpeg,'-y','-i',$silent,'-i',$voicePath,'-stream_loop','-1','-i',$musicPath,'-filter_complex','[1:a]'.$voiceFilter.'[voice];[2:a]'.$musicFilter.'[music];[voice][music]amix=inputs=2:duration=longest:dropout_transition=2[a]','-map','0:v:0','-map','[a]','-c:v','copy','-c:a','aac','-b:a','160k','-t',number_format($clock,3,'.',''),'-movflags','+faststart',$final], 'Voice/music mixing failed');
         } elseif ($voicePath) {
-            wt_run_command([$ffmpeg,'-y','-i',$silent,'-i',$voicePath,'-filter_complex','[1:a]'.$tempoFilter.'[voice]','-map','0:v:0','-map','[voice]','-c:v','copy','-c:a','aac','-b:a','160k','-t',number_format($clock,3,'.',''),'-movflags','+faststart',$final], 'Voice-over mixing failed');
+            wt_run_command([$ffmpeg,'-y','-i',$silent,'-i',$voicePath,'-filter_complex','[1:a]'.$voiceFilter.'[voice]','-map','0:v:0','-map','[voice]','-c:v','copy','-c:a','aac','-b:a','160k','-t',number_format($clock,3,'.',''),'-movflags','+faststart',$final], 'Voice-over mixing failed');
         } elseif ($musicPath) {
             wt_run_command([$ffmpeg,'-y','-i',$silent,'-stream_loop','-1','-i',$musicPath,'-filter_complex','[1:a]'.$musicFilter.'[a]','-map','0:v:0','-map','[a]','-c:v','copy','-c:a','aac','-b:a','160k','-t',number_format($clock,3,'.',''),'-movflags','+faststart',$final], 'Music mixing failed');
         } else {
