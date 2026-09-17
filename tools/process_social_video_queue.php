@@ -24,6 +24,66 @@ function svq_progress(PDO $pdo, int $videoId, int $percent, string $stage, strin
         ->execute([max(0,min(100,$percent)),mb_substr($stage,0,60),mb_substr($detail,0,255),$current,$total,$videoId]);
 }
 
+function svq_narration_caption_chunks(array $paragraphs, int $maxWords = 10, int $maxChars = 62): array {
+    $words = preg_split('/\s+/u', trim(implode(' ', $paragraphs))) ?: [];
+    $chunks = []; $current = [];
+    foreach ($words as $word) {
+        if ($word === '') continue;
+        $candidate = implode(' ', array_merge($current, [$word]));
+        if ($current && (count($current) >= $maxWords || mb_strlen($candidate) > $maxChars)) {
+            $chunks[] = implode(' ', $current);
+            $current = [$word];
+        } else {
+            $current[] = $word;
+        }
+    }
+    if ($current) $chunks[] = implode(' ', $current);
+    return $chunks;
+}
+
+function svq_run_command_with_heartbeat(PDO $pdo, int $videoId, array $parts, string $errorLabel, int $percent, string $stage, string $detail): void {
+    $descriptors = [
+        0 => ['pipe', 'r'],
+        1 => ['pipe', 'w'],
+        2 => ['pipe', 'w'],
+    ];
+    $pipes = [];
+    $process = proc_open($parts, $descriptors, $pipes, null, null, ['bypass_shell' => true]);
+    if (!is_resource($process)) throw new RuntimeException($errorLabel . ': process could not be started.');
+    fclose($pipes[0]);
+    stream_set_blocking($pipes[1], false);
+    stream_set_blocking($pipes[2], false);
+    $output = '';
+    $lastHeartbeat = 0.0;
+    $exitCode = -1;
+    while (true) {
+        $output .= (string)stream_get_contents($pipes[1]);
+        $output .= (string)stream_get_contents($pipes[2]);
+        if (strlen($output) > 120000) $output = substr($output, -120000);
+        $now = microtime(true);
+        if ($now - $lastHeartbeat >= 10.0) {
+            svq_progress($pdo, $videoId, $percent, $stage, $detail);
+            $lastHeartbeat = $now;
+        }
+        $status = proc_get_status($process);
+        if (!$status['running']) {
+            $exitCode = (int)$status['exitcode'];
+            break;
+        }
+        usleep(250000);
+    }
+    $output .= (string)stream_get_contents($pipes[1]);
+    $output .= (string)stream_get_contents($pipes[2]);
+    fclose($pipes[1]);
+    fclose($pipes[2]);
+    $closeCode = proc_close($process);
+    if ($exitCode < 0) $exitCode = $closeCode;
+    if ($exitCode !== 0) {
+        $lines = preg_split('/\R/', trim($output)) ?: [];
+        throw new RuntimeException($errorLabel . ': ' . implode("\n", array_slice($lines, -12)));
+    }
+}
+
 for ($run = 0; $run < $limit; $run++) {
     $pdo->beginTransaction();
     $q = $pdo->query("SELECT * FROM work_social_videos WHERE status='queued' ORDER BY id LIMIT 1 FOR UPDATE");
@@ -80,7 +140,24 @@ for ($run = 0; $run < $limit; $run++) {
             $safeFrame = str_replace("'", "'\\''", (string)$slide['frame']);
             $concat .= "file '" . $safeFrame . "'\n" . 'duration ' . number_format($duration, 3, '.', '') . "\n";
             $start = $clock; $clock += $duration;
-            $srt .= ($index + 1) . "\n" . wt_srt_time($start) . ' --> ' . wt_srt_time($clock) . "\n" . (string)$slide['caption'] . "\n\n";
+            if ($voicePath === null) {
+                $srt .= ($index + 1) . "\n" . wt_srt_time($start) . ' --> ' . wt_srt_time($clock) . "\n" . (string)$slide['caption'] . "\n\n";
+            }
+        }
+        if ($voicePath !== null && $narration) {
+            // Closed captions should represent the spoken narration, not the
+            // separate short marketing headlines drawn over each photograph.
+            $captionChunks = svq_narration_caption_chunks($narration);
+            $spokenClock = 0.0;
+            $spokenDuration = min($clock, max(0.1, (float)($voiceDuration ?? $clock)));
+            $totalWords = max(1, array_sum(array_map(static fn(string $chunk): int => max(1, str_word_count($chunk)), $captionChunks)));
+            foreach ($captionChunks as $captionIndex => $captionText) {
+                $chunkWords = max(1, str_word_count($captionText));
+                $start = $spokenClock;
+                $spokenClock += $spokenDuration * ($chunkWords / $totalWords);
+                if ($captionIndex === count($captionChunks) - 1) $spokenClock = $spokenDuration;
+                $srt .= ($captionIndex + 1) . "\n" . wt_srt_time($start) . ' --> ' . wt_srt_time($spokenClock) . "\n" . $captionText . "\n\n";
+            }
         }
         $lastFrame = (string)$slides[count($slides) - 1]['frame'];
         $concat .= "file '" . str_replace("'", "'\\''", $lastFrame) . "'\n";
@@ -88,7 +165,7 @@ for ($run = 0; $run < $limit; $run++) {
         if (file_put_contents($concatPath, $concat) === false) throw new RuntimeException('Slideshow timing file could not be saved.');
         $silent = $temp . '/silent.mp4';
         svq_progress($pdo,$videoId,58,'rendering_video','Encoding the slideshow video');
-        wt_run_command([$ffmpeg,'-y','-f','concat','-safe','0','-i',$concatPath,'-vf','fps=30,format=yuv420p','-c:v','libx264','-preset','medium','-crf','20','-movflags','+faststart',$silent], 'Video rendering failed');
+        svq_run_command_with_heartbeat($pdo,$videoId,[$ffmpeg,'-y','-f','concat','-safe','0','-i',$concatPath,'-vf','fps=30,format=yuv420p','-c:v','libx264','-preset','veryfast','-crf','20','-movflags','+faststart',$silent],'Video rendering failed',58,'rendering_video','Encoding the slideshow video');
         svq_progress($pdo,$videoId,82,'mixing_audio','Selecting and mixing voice-over and music');
         $musicPath = null; $musicChoice = (string)($video['music_file'] ?? ''); $musicFiles = wt_social_music_files();
         if ($musicChoice === '__auto__' && $musicFiles) {
@@ -123,11 +200,11 @@ for ($run = 0; $run < $limit; $run++) {
             . ',afade=t=out:st=' . number_format($musicFadeStart, 3, '.', '')
             . ':d=' . number_format($musicFadeSeconds, 3, '.', '');
         if ($voicePath && $musicPath) {
-            wt_run_command([$ffmpeg,'-y','-i',$silent,'-i',$voicePath,'-stream_loop','-1','-i',$musicPath,'-filter_complex','[1:a]'.$voiceFilter.'[voice];[2:a]'.$musicFilter.'[music];[voice][music]amix=inputs=2:duration=longest:dropout_transition=2[a]','-map','0:v:0','-map','[a]','-c:v','copy','-c:a','aac','-b:a','160k','-t',number_format($clock,3,'.',''),'-movflags','+faststart',$final], 'Voice/music mixing failed');
+            svq_run_command_with_heartbeat($pdo,$videoId,[$ffmpeg,'-y','-i',$silent,'-i',$voicePath,'-stream_loop','-1','-i',$musicPath,'-filter_complex','[1:a]'.$voiceFilter.'[voice];[2:a]'.$musicFilter.'[music];[voice][music]amix=inputs=2:duration=longest:dropout_transition=2[a]','-map','0:v:0','-map','[a]','-c:v','copy','-c:a','aac','-b:a','160k','-t',number_format($clock,3,'.',''),'-movflags','+faststart',$final],'Voice/music mixing failed',84,'mixing_audio','Mixing AI voice-over and music');
         } elseif ($voicePath) {
-            wt_run_command([$ffmpeg,'-y','-i',$silent,'-i',$voicePath,'-filter_complex','[1:a]'.$voiceFilter.'[voice]','-map','0:v:0','-map','[voice]','-c:v','copy','-c:a','aac','-b:a','160k','-t',number_format($clock,3,'.',''),'-movflags','+faststart',$final], 'Voice-over mixing failed');
+            svq_run_command_with_heartbeat($pdo,$videoId,[$ffmpeg,'-y','-i',$silent,'-i',$voicePath,'-filter_complex','[1:a]'.$voiceFilter.'[voice]','-map','0:v:0','-map','[voice]','-c:v','copy','-c:a','aac','-b:a','160k','-t',number_format($clock,3,'.',''),'-movflags','+faststart',$final],'Voice-over mixing failed',84,'mixing_audio','Mixing AI voice-over');
         } elseif ($musicPath) {
-            wt_run_command([$ffmpeg,'-y','-i',$silent,'-stream_loop','-1','-i',$musicPath,'-filter_complex','[1:a]'.$musicFilter.'[a]','-map','0:v:0','-map','[a]','-c:v','copy','-c:a','aac','-b:a','160k','-t',number_format($clock,3,'.',''),'-movflags','+faststart',$final], 'Music mixing failed');
+            svq_run_command_with_heartbeat($pdo,$videoId,[$ffmpeg,'-y','-i',$silent,'-stream_loop','-1','-i',$musicPath,'-filter_complex','[1:a]'.$musicFilter.'[a]','-map','0:v:0','-map','[a]','-c:v','copy','-c:a','aac','-b:a','160k','-t',number_format($clock,3,'.',''),'-movflags','+faststart',$final],'Music mixing failed',84,'mixing_audio','Mixing slideshow music');
         } else {
             if (!rename($silent,$final)) throw new RuntimeException('Rendered video could not be moved into storage.');
         }
