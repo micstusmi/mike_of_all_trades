@@ -69,6 +69,8 @@ $taskChangeRequests=$changeStmt->fetchAll(PDO::FETCH_ASSOC);
 $changesByTask=[]; foreach($taskChangeRequests as $cr){$changesByTask[(int)$cr['task_id']][]=$cr;}
 $pendingChangeCount=count(array_filter($taskChangeRequests,fn($cr)=>$cr['status']==='awaiting_review'));
 $revStmt=$pdo->prepare("SELECT * FROM work_job_request_revisions WHERE job_id=? ORDER BY created_at DESC,id DESC LIMIT 20");$revStmt->execute([$id]);$requestRevisions=$revStmt->fetchAll(PDO::FETCH_ASSOC);$pendingRequestRevisions=array_values(array_filter($requestRevisions,fn($r)=>!empty($r['requires_review'])&&empty($r['reviewed_at'])));$customerRequest=(string)($job['customer_request_text']??$job['original_scope']??'');
+$taskUpdateReviews=[];
+try{$taskUpdateStmt=$pdo->prepare("SELECT * FROM work_task_update_requests WHERE job_id=? AND status IN ('ready','failed') ORDER BY created_at DESC,id DESC LIMIT 20");$taskUpdateStmt->execute([$id]);$taskUpdateReviews=$taskUpdateStmt->fetchAll(PDO::FETCH_ASSOC);}catch(Throwable $e){}
 $jobSourceLabels=['website'=>'Website','ai_website'=>'AI website quote','website_booking'=>'Website booking','phone'=>'Phone call','sms'=>'SMS','whatsapp'=>'WhatsApp','messenger'=>'Messenger','signal'=>'Signal','airtasker'=>'Airtasker','email'=>'Email','friend_family'=>'Friend / family','word_of_mouth'=>'Word of mouth / referral','repeat_customer'=>'Repeat customer','other'=>'Other'];
 
 $workers = $pdo->prepare("SELECT * FROM work_workers WHERE job_id=? AND active=1 ORDER BY id");
@@ -637,9 +639,9 @@ if ($quickSession && !empty($quickSession['task_id']) && isset($taskById[(int)$q
                 <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M8 17h9l3-5h8l3 5h9v22H8ZM24 34a7 7 0 1 0 0-14 7 7 0 0 0 0 14Z"/></svg>
                 <span>Add photos</span>
             </a>
-            <a class="quick-link shortcut" href="materials.php?id=<?=$id?>#receipts" data-state="OPEN · NO SMS" title="Add a receipt or material without changing the timer">
+            <a class="quick-link shortcut" href="materials.php?id=<?=$id?><?=($quickSession&&($quickSession['category']??'')==='procurement')?'&session_id='.(int)$quickSession['id']:''?>#receipts" data-state="OPEN · NO SMS" title="Photograph or bulk upload receipts without changing the timer">
                 <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M14 6h20v36l-5-3-5 3-5-3-5 3ZM19 17h10M19 24h10M19 31h7"/></svg>
-                <span>Add receipt</span>
+                <span>Scan receipts</span>
             </a>
             <button class="quick-btn<?=$quickActiveAction==='coffee_break'?' pause-active':''?>" type="submit" name="quick_action" value="coffee_break" data-state="START BREAK" aria-pressed="<?=$quickActiveAction==='coffee_break'?'true':'false'?>" title="<?=$quickActiveAction==='coffee_break'?'End the break and resume the previous work':'Start a non-chargeable coffee or short break'?>">
                 <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M13 19h21v11a9 9 0 0 1-9 9h-3a9 9 0 0 1-9-9ZM34 22h4a4 4 0 0 1 0 8h-4M16 10c2 2-2 4 0 6M24 10c2 2-2 4 0 6M32 10c2 2-2 4 0 6"/></svg>
@@ -812,21 +814,24 @@ Customer day-before confirmation:
 <p><span class="ai-status <?=wt_html((string)($job['ai_breakdown_status']??'not_requested'))?>">AI breakdown: <?=wt_html(str_replace('_',' ',(string)($job['ai_breakdown_status']??'not requested')))?></span><?php if(!empty($job['ai_breakdown_generated_at'])):?> <span class="small">Generated <?=wt_html($job['ai_breakdown_generated_at'])?></span><?php endif;?></p>
 <?php if(!empty($job['ai_breakdown_error'])):?><div class="notice-warn" style="padding:10px;border-radius:9px"><?=wt_html($job['ai_breakdown_error'])?></div><?php endif;?>
 <?php if(isset($_GET['bulk_list_imported'])):?><div class="notice-good" style="padding:10px;border-radius:9px;margin:10px 0"><b>Customer list imported.</b> <?=max(0,(int)$_GET['bulk_list_imported'])?> requested item<?=((int)$_GET['bulk_list_imported'])===1?'':'s'?> detected. AI task breakdown is running.</div><?php endif;?>
-<details class="task-detail-box">
-<summary><b>＋ Paste customer task list and split with AI</b></summary>
-<form method="post" action="../../api/work/import_customer_task_list.php" style="margin-top:10px">
+<?php if(isset($_GET['task_merge_added'])||isset($_GET['task_merge_updated'])):?><div class="notice-good" style="padding:10px;border-radius:9px;margin:10px 0"><b>✓ Approved task comparison applied.</b> <?=max(0,(int)($_GET['task_merge_added']??0))?> new task(s) added and <?=max(0,(int)($_GET['task_merge_updated']??0))?> existing task(s) updated without changing their status, photos or recorded time.</div><?php endif;?>
+<?php foreach($taskUpdateReviews as $review):?><div class="request-revision"><b><?=($review['status']==='ready'?'AI task comparison awaiting your approval':'AI task comparison failed')?></b><div class="small"><?=wt_html((string)$review['created_at'])?> · submitted by <?=wt_html((string)$review['submitted_by'])?></div><?php if($review['status']==='ready'):?><p><a class="btn" href="task_update_review.php?id=<?=$id?>&request_id=<?=$review['id']?>">REVIEW ADDITIONS / UPDATES</a></p><?php else:?><div class="notice-warn" style="padding:8px;border-radius:8px"><?=wt_html((string)$review['error_message'])?></div><?php endif;?></div><?php endforeach;?>
+<details class="task-detail-box" open>
+<summary><b>＋ Compare an updated list, screenshot or PDF with existing tasks</b></summary>
+<form method="post" action="../../api/work/propose_task_update_admin.php" enctype="multipart/form-data" style="margin-top:10px">
 <input type="hidden" name="job_id" value="<?=$id?>">
 <div class="field">
-    <label>Customer list</label>
-    <textarea name="customer_task_list" rows="7" required placeholder="Paste the customer list here. One item per line is best, but numbered/bulleted lists and semicolon-separated lists are also split."></textarea>
+    <label>Updated or more complete task list</label>
+    <textarea name="updated_task_list" rows="8" placeholder="Paste the complete updated list here. You may also attach screenshots, photos or PDFs below."></textarea>
 </div>
-<p class="small">This replaces the current requested-work list for this job, saves each line as a separate customer request item, then runs the AI breakdown to create separate work tasks.</p>
-<button class="btn" type="submit">SPLIT LIST + GENERATE TASKS</button>
+<div class="field"><label>Optional screenshots, photos or PDFs — up to 10 files</label><input type="file" name="task_list_files[]" accept="image/*,.heic,.heif,.HEIC,.HEIF,application/pdf,.pdf" multiple></div>
+<p class="small"><b>Safe comparison:</b> AI compares the new evidence with the existing task board. Nothing is changed until you review each suggested addition or wording update. Existing task IDs, completion status, photos and recorded time are preserved.</p>
+<button class="btn" type="submit">COMPARE WITH EXISTING TASKS</button>
 </form>
 </details>
 <div class="row">
 <form method="post" action="../../api/work/send_customer_job_link.php"><input type="hidden" name="job_id" value="<?=$id?>"><button class="btn" type="submit">SEND / RESEND CUSTOMER LINK</button></form>
-<button class="btn" type="button" id="generateAiTasks">GENERATE / UPDATE AI TASK BREAKDOWN</button>
+<?php if(!$tasks):?><button class="btn" type="button" id="generateAiTasks">GENERATE INITIAL AI TASK BREAKDOWN</button><?php else:?><a class="btn" href="#customer-request">UPDATE TASKS WITH SAFE AI COMPARISON</a><?php endif;?>
 </div>
 <div id="aiBreakdownMessage" class="small" style="margin-top:8px"></div>
 <?php foreach($pendingRequestRevisions as $rr):?><div class="request-revision"><b>Customer updated job list — awaiting your review</b><div class="small"><?=wt_html($rr['created_at'])?></div><div style="white-space:pre-wrap;margin:8px 0"><?=wt_html($rr['new_text'])?></div><form method="post" action="../../api/work/review_customer_request.php"><input type="hidden" name="job_id" value="<?=$id?>"><input type="hidden" name="revision_id" value="<?=$rr['id']?>"><button class="btn" type="submit">MARK REVIEWED &amp; NOTIFY CUSTOMER</button></form></div><?php endforeach;?>

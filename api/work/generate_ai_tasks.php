@@ -4,6 +4,8 @@ require_once __DIR__ . '/../../includes/work_tracker.php';
 header('Content-Type: application/json; charset=utf-8');
 $jobId=(int)($_POST['job_id']??0); if($jobId<=0){http_response_code(400);echo json_encode(['ok'=>false,'error'=>'Invalid job ID']);exit;}
 $job=wt_job($pdo,$jobId);
+$existingTaskCountQuery=$pdo->prepare("SELECT COUNT(*) FROM work_tasks WHERE job_id=? AND status<>'cancelled'");$existingTaskCountQuery->execute([$jobId]);
+if((int)$existingTaskCountQuery->fetchColumn()>0){http_response_code(409);echo json_encode(['ok'=>false,'error'=>'This job already has tasks. Use the safe AI task comparison so existing status, photos and recorded time are preserved.']);exit;}
 $apiKey=wt_env('OPENAI_API_KEY');
 if(!$apiKey){http_response_code(500);echo json_encode(['ok'=>false,'error'=>'OPENAI_API_KEY is not configured']);exit;}
 $request=trim((string)($job['customer_request_text']??$job['original_scope']??''));
@@ -68,8 +70,6 @@ if(!is_array($parsed)||!isset($parsed['tasks'])||!is_array($parsed['tasks'])){$m
 
 $batch='ai-'.date('YmdHis').'-'.bin2hex(random_bytes(3));
 $q=$pdo->prepare("SELECT id FROM work_job_request_revisions WHERE job_id=? ORDER BY id DESC LIMIT 1");$q->execute([$jobId]);$revisionId=$q->fetchColumn();
-// Preserve prior AI task history, but hide/cancel untouched superseded AI suggestions before inserting the refreshed breakdown.
-$pdo->prepare("UPDATE work_tasks t SET t.status='cancelled',t.customer_visible=0 WHERE t.job_id=? AND t.task_origin='ai_suggested' AND t.status='not_started' AND NOT EXISTS (SELECT 1 FROM work_sessions s WHERE s.task_id=t.id) AND NOT EXISTS (SELECT 1 FROM work_task_change_requests c WHERE c.task_id=t.id)")->execute([$jobId]);
 $q=$pdo->prepare("SELECT COALESCE(MAX(task_order),0) FROM work_tasks WHERE job_id=?");$q->execute([$jobId]);$order=(int)$q->fetchColumn();
 $ins=$pdo->prepare("INSERT INTO work_tasks(job_id,task_order,title,description,customer_summary,detailed_procedure,time_drivers,waiting_curing_notes,suggested_materials,status,task_origin,ai_batch_key,source_request_revision_id,ai_estimate_low,ai_estimate_high,ai_reasoning,customer_visible) VALUES(?,?,?,?,?,?,?,?,?,'not_started','ai_suggested',?,?,?,?,?,1)");
 $count=0;

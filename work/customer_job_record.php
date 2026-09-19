@@ -11,6 +11,8 @@ $revStmt=$pdo->prepare("SELECT * FROM work_job_request_revisions WHERE job_id=? 
 $revStmt->execute([$job['id']]);
 $requestRevisions=$revStmt->fetchAll(PDO::FETCH_ASSOC);
 $customerRequest=(string)($job['customer_request_text']??$job['original_scope']??'');
+$latestCustomerTaskUpdate=null;
+try{$taskUpdateStmt=$pdo->prepare("SELECT status,created_at FROM work_task_update_requests WHERE job_id=? AND source='customer' ORDER BY id DESC LIMIT 1");$taskUpdateStmt->execute([$job['id']]);$latestCustomerTaskUpdate=$taskUpdateStmt->fetch(PDO::FETCH_ASSOC)?:null;}catch(Throwable $e){}
 
 $intakeItems=[];
 try{
@@ -470,6 +472,8 @@ textarea,input{box-sizing:border-box;width:100%;padding:11px;border:1px solid #c
 <h2>Your requested work</h2>
 <p class="muted">Your job is logged. Check each requested item now and correct anything before work is done. If adding several items, put each one on its own line. Earlier versions are retained instead of being silently overwritten.</p>
 <?php if(($_GET['request_saved']??'')==='1'):?><div class="saved-note">✓ Your update has been saved and Mike has been notified.</div><?php endif;?>
+<?php if(($_GET['task_update_submitted']??'')==='1'):?><div class="saved-note">✓ Your updated list and files were compared with the existing tasks and sent to Mike for approval. Nothing was silently overwritten.</div><?php endif;?>
+<details class="request-item-card" open><summary><b>Update several tasks from a list, screenshot, photo or PDF</b></summary><p class="muted">Use this when the existing task board is incomplete. AI compares your new information with the current tasks. Mike reviews the proposed additions or updates before they become part of the job record.</p><form method="post" action="../api/work/propose_task_update_customer.php" enctype="multipart/form-data"><input type="hidden" name="token" value="<?=wt_html($token)?>"><textarea name="updated_task_list" rows="6" placeholder="Paste the updated or more complete list here, or attach files below."></textarea><label style="display:block;margin-top:9px"><b>Attach up to 10 screenshots, photos or PDFs</b></label><input type="file" name="task_list_files[]" accept="image/*,.heic,.heif,.HEIC,.HEIF,application/pdf,.pdf" multiple><button class="btn" type="submit" style="margin-top:9px">COMPARE UPDATED LIST WITH CURRENT TASKS</button></form><?php if($latestCustomerTaskUpdate):?><p class="muted">Latest bulk update: <?=wt_html(str_replace('_',' ',(string)$latestCustomerTaskUpdate['status']))?> · <?=wt_html((string)$latestCustomerTaskUpdate['created_at'])?></p><?php endif;?></details>
 <?php if($intakeItems):?>
   <?php foreach($intakeItems as $ii):?>
   <div class="request-item-card">

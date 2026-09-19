@@ -1,0 +1,3 @@
+<?php
+declare(strict_types=1);
+require_once __DIR__.'/_admin_auth.php';require_once __DIR__.'/../../includes/work_receipts.php';if($_SERVER['REQUEST_METHOD']!=='POST')wr_fail('POST required.',405);$jobId=(int)($_POST['job_id']??0);$receiptId=(int)($_POST['receipt_id']??0);wt_job($pdo,$jobId);$q=$pdo->prepare("UPDATE work_receipts SET status='processing',error_message=NULL WHERE id=? AND job_id=? AND status='failed'");$q->execute([$receiptId,$jobId]);if($q->rowCount()<1)wr_fail('This receipt is not available for retry.',409);wr_start_worker($jobId);header('Location: ../../admin/work/materials.php?id='.$jobId.'#receipts');exit;

@@ -7,13 +7,17 @@ require_once __DIR__ . '/../../includes/work_tracker.php';
 $id = (int)($_GET['id'] ?? 0);
 $job = wt_job($pdo, $id);
 $tasks = wt_job_tasks($pdo, $id);
+$captureSessionId=(int)($_GET['session_id']??0);
+if($captureSessionId>0){$sq=$pdo->prepare('SELECT id FROM work_sessions WHERE id=? AND job_id=?');$sq->execute([$captureSessionId,$id]);if(!$sq->fetchColumn())$captureSessionId=0;}
 
 $q = $pdo->prepare("
     SELECT
         m.*,
-        t.title AS task_title
+        t.title AS task_title,
+        rl.receipt_id AS scanned_receipt_id
     FROM work_materials m
     LEFT JOIN work_tasks t ON t.id=m.task_id
+    LEFT JOIN work_receipt_lines rl ON rl.material_id=m.id
     WHERE m.job_id=?
     ORDER BY
         COALESCE(m.purchase_date, DATE(m.purchased_at)) DESC,
@@ -21,6 +25,12 @@ $q = $pdo->prepare("
 ");
 $q->execute([$id]);
 $materials = $q->fetchAll(PDO::FETCH_ASSOC);
+$receiptCounts = ['processing'=>0,'ready'=>0,'applied'=>0,'failed'=>0];
+try {
+    $rq=$pdo->prepare('SELECT status,COUNT(*) total FROM work_receipts WHERE job_id=? GROUP BY status');
+    $rq->execute([$id]);
+    foreach($rq->fetchAll(PDO::FETCH_ASSOC) as $row)$receiptCounts[(string)$row['status']]=(int)$row['total'];
+} catch(Throwable $e) {}
 
 $labels = [
     'already_on_site' => 'Already on site',
@@ -71,6 +81,7 @@ foreach ($materials as $m) {
 
     $sourceGstTotal += (float)($m['receipt_gst_amount'] ?? 0);
 }
+$sourceNetTotal = max(0.0, $actualTotal - $sourceGstTotal);
 ?>
 <!doctype html>
 <html>
@@ -93,7 +104,7 @@ textarea{width:100%}
 .tag{background:#edf1f4;padding:5px 8px;border-radius:999px;font-size:11px;font-weight:800}
 .item{border-top:1px solid #e3e8eb;padding:16px 0}
 .item:first-child{border-top:0}
-.metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:9px}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:9px}
 .metric{background:#f6f8fa;border:1px solid #e1e6ea;border-radius:10px;padding:11px}
 .metric b{display:block;font-size:20px;margin-top:4px}
 .receipt{background:#f8fafb;border:1px solid #dce3e8;border-radius:10px;padding:10px;margin-top:10px}
@@ -122,6 +133,8 @@ textarea{width:100%}
 <?php if(isset($_GET['added'])):?><div class="notice"><b>✓ Material added.</b></div><?php endif;?>
 <?php if(isset($_GET['saved'])):?><div class="notice"><b>✓ Material updated.</b></div><?php endif;?>
 <?php if(isset($_GET['receipt_saved'])):?><div class="notice"><b>✓ Receipt stored.</b></div><?php endif;?>
+<?php if(isset($_GET['receipts_queued'])):?><div class="notice"><b>✓ <?=max(0,(int)$_GET['receipts_queued'])?> receipt(s) securely uploaded for background OCR.</b> You can leave this page and return later.<?php if((int)($_GET['receipt_duplicates']??0)>0):?> <?=max(0,(int)$_GET['receipt_duplicates'])?> duplicate(s) were safely skipped.<?php endif;?></div><?php endif;?>
+<?php if(($_GET['receipt_worker']??'1')==='0'):?><div class="warning"><b>The receipts are safely stored, but the automatic OCR worker could not start.</b> Check WORKTRACKER_PHP_BIN or run the receipt worker manually; no receipt data has been lost.</div><?php endif;?>
 
 <div class="metrics">
 <div class="metric">Recorded actual cost<b><?=wt_money($actualTotal)?></b></div>
@@ -129,12 +142,26 @@ textarea{width:100%}
 <div class="metric">Paid by customer<b><?=wt_money($customerPaidTotal)?></b></div>
 <div class="metric">Reimbursement due<b><?=wt_money($reimbursementDue)?></b></div>
 <div class="metric">GST shown on source receipts<b><?=wt_money($sourceGstTotal)?></b></div>
+<div class="metric">Materials excluding shown GST<b><?=wt_money($sourceNetTotal)?></b></div>
 </div>
 
 <div class="warning">
 <b>GST note:</b>
 GST shown here is information copied from third-party supplier receipts.
 It is not GST added by Mike Of All Trades to the customer's charge.
+</div>
+
+<div class="card" id="receipts">
+<h2>📄 Scan or bulk upload receipts</h2>
+<p>Take receipt photos while shopping, choose several existing photos/PDFs, or upload a ZIP containing up to 60 receipt images/PDFs. OCR runs in the background and <b>nothing affects job totals until you review and approve it.</b></p>
+<form method="post" action="../../api/work/upload_receipts_bulk.php" enctype="multipart/form-data">
+<input type="hidden" name="job_id" value="<?=$id?>">
+<input type="hidden" name="session_id" value="<?=$captureSessionId?>">
+<div class="row"><div class="grow"><label>Link these receipts to a task (optional)</label><select name="task_id" style="width:100%"><option value="0">Whole job / decide during review</option><?php foreach($tasks as $t):?><option value="<?=$t['id']?>"><?=wt_html($t['title'])?></option><?php endforeach;?></select></div><div class="grow"><label>Receipt photos, PDFs or ZIP</label><input type="file" name="receipts[]" accept="image/*,.heic,.heif,.HEIC,.HEIF,application/pdf,.pdf,application/zip,.zip" multiple required style="width:100%"></div></div>
+<p class="muted">Duplicates are detected using the original file contents. Each receipt stays private and must be checked against the original before approval.</p><button class="btn" type="submit">UPLOAD &amp; SCAN RECEIPTS</button>
+</form>
+<p id="receiptOcrStatus"><b>OCR status:</b> <?=$receiptCounts['processing']?> processing · <?=$receiptCounts['ready']?> ready to review · <?=$receiptCounts['failed']?> failed · <?=$receiptCounts['applied']?> approved</p>
+<?php if($receiptCounts['ready']+$receiptCounts['failed']+$receiptCounts['applied']>0):?><p><a class="btn secondary" href="receipt_review.php?id=<?=$id?>">REVIEW SCANNED RECEIPTS</a></p><?php endif;?>
 </div>
 
 <div class="card">
@@ -477,6 +504,9 @@ View receipt
 <span class="muted">
 Uploading another file will replace this receipt.
 </span>
+<?php elseif(!empty($m['scanned_receipt_id'])):?>
+<b>Approved scanned receipt attached ✓</b><br>
+<a class="btn secondary" target="_blank" href="receipt_file.php?job_id=<?=$id?>&receipt_id=<?=(int)$m['scanned_receipt_id']?>">View source receipt</a>
 <?php else:?>
 <b>No receipt attached</b>
 <?php endif;?>
@@ -516,3 +546,6 @@ Maximum 12 MB.
 </div>
 </body>
 </html>
+<?php if($receiptCounts['processing']>0):?><script>
+(()=>{const initialReady=<?=$receiptCounts['ready']?>;const poll=async()=>{try{const r=await fetch('../../api/work/receipt_status.php?job_id=<?=$id?>',{cache:'no-store'});const d=await r.json();if(!d.ok)return;const c=d.counts||{};const el=document.getElementById('receiptOcrStatus');if(el)el.innerHTML='<b>OCR status:</b> '+(c.processing||0)+' processing · '+(c.ready||0)+' ready to review · '+(c.failed||0)+' failed · '+(c.applied||0)+' approved';if((c.processing||0)===0||(c.ready||0)>initialReady)window.location.reload();}catch(e){}};setInterval(poll,4000);})();
+</script><?php endif;?>
