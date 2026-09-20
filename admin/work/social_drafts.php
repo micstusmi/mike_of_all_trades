@@ -169,6 +169,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f4f6f8;color:#17
 .card{background:#fff;border:1px solid #dfe5e9;border-radius:8px;padding:16px;margin:14px 0;box-shadow:0 2px 10px #0001}
 .platform-card{border-top:5px solid #17202a}
 .platform-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.page-tools{position:sticky;top:0;z-index:20;display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:#f4f6f8ee;padding:9px 0;border-bottom:1px solid #d7e0e6;backdrop-filter:blur(5px)}
 .btn{background:#17202a;color:#fff;border:0;border-radius:8px;padding:11px 14px;font-weight:850;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:8px}
 .btn.secondary{background:#fff;color:#17202a;border:1px solid #ccd6dd}
 .muted{color:#66717c;font-size:13px}
@@ -206,9 +207,10 @@ textarea{width:100%;box-sizing:border-box;min-height:120px;border:1px solid #ccd
 <p><a href="manage_job.php?id=<?=$id?>">&larr; Manage job</a> · <a href="task_photos.php?id=<?=$id?>">Task photos</a></p>
 <h1>Social drafts</h1>
 <p class="muted"><?=sd_e((string)$job['customer_name'])?> · <?=sd_e((string)($job['job_address'] ?? ''))?></p>
-<p><a class="btn" href="social_video_builder.php?id=<?=$id?>">Create slideshow / Reel / Short</a></p>
+<p><a class="btn" href="social_video_builder.php?id=<?=$id?>">Slideshows / reels / shorts</a></p>
 </div>
 </div>
+<div class="page-tools" id="pageTop"><strong>Page navigation</strong><button type="button" class="btn secondary" id="collapseAllPhotos">Collapse all images</button><button type="button" class="btn secondary" id="expandAllPhotos">Expand all images</button><a class="btn secondary" href="#pageBottom">↓ Bottom</a></div>
 
 <?php foreach ($platforms as $platform => $meta): ?>
 <section class="card platform-card" id="<?=$platform?>">
@@ -217,7 +219,7 @@ textarea{width:100%;box-sizing:border-box;min-height:120px;border:1px solid #ccd
 <h2><?=sd_e($meta['name'])?></h2>
 <p class="muted"><?=sd_e($meta['help'])?></p>
 </div>
-<button class="btn generate-platform" data-platform="<?=sd_e($platform)?>">Generate <?=sd_e($meta['name'])?> AI draft</button>
+<div class="actions"><button type="button" class="btn secondary toggle-platform-images" data-platform="<?=sd_e($platform)?>">Collapse images</button><button class="btn generate-platform" data-platform="<?=sd_e($platform)?>">Generate <?=sd_e($meta['name'])?> AI draft</button></div>
 </div>
 <div class="muted platform-status" data-platform-status="<?=sd_e($platform)?>"></div>
 <div class="drafts" data-new-draft="<?=sd_e($platform)?>" style="display:none"></div>
@@ -237,7 +239,7 @@ textarea{width:100%;box-sizing:border-box;min-height:120px;border:1px solid #ccd
 </div>
 <?php endif; ?>
 
-<div class="photo-grid">
+<div class="photo-grid" data-photo-grid="<?=sd_e($platform)?>">
 <?php foreach ($photos as $photo): ?>
 <?php
 $photoId = (int)$photo['id'];
@@ -294,12 +296,29 @@ Posted
 </div>
 </section>
 <?php endforeach; ?>
+<div class="page-tools" id="pageBottom"><a class="btn secondary" href="#pageTop">↑ Top</a><button type="button" class="btn secondary" id="collapseAllPhotosBottom">Collapse all images</button><button type="button" class="btn secondary" id="expandAllPhotosBottom">Expand all images</button></div>
 </div>
 <script>
 const jobId = <?= (int)$id ?>;
 function escapeHtml(value) {
     return String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
 }
+function setPhotoGrids(collapsed) {
+    document.querySelectorAll('[data-photo-grid]').forEach(grid => { grid.hidden = collapsed; });
+    document.querySelectorAll('.toggle-platform-images').forEach(button => { button.textContent = collapsed ? 'Expand images' : 'Collapse images'; });
+}
+document.getElementById('collapseAllPhotos').addEventListener('click', () => setPhotoGrids(true));
+document.getElementById('expandAllPhotos').addEventListener('click', () => setPhotoGrids(false));
+document.getElementById('collapseAllPhotosBottom').addEventListener('click', () => setPhotoGrids(true));
+document.getElementById('expandAllPhotosBottom').addEventListener('click', () => setPhotoGrids(false));
+document.querySelectorAll('.toggle-platform-images').forEach(button => {
+    button.addEventListener('click', () => {
+        const grid = document.querySelector(`[data-photo-grid="${button.dataset.platform}"]`);
+        if (!grid) return;
+        grid.hidden = !grid.hidden;
+        button.textContent = grid.hidden ? 'Expand images' : 'Collapse images';
+    });
+});
 document.querySelectorAll('.generate-platform').forEach(button => {
     button.addEventListener('click', async function () {
         const platform = this.dataset.platform;

@@ -28,17 +28,30 @@ function wt_social_video_platforms(): array
 function wt_social_video_voices(): array
 {
     return [
-        'cedar' => 'Cedar — natural, high quality (recommended)',
+        'fable' => 'Fable — expressive, best Australian fit (default)',
+        'cedar' => 'Cedar — natural, American-leaning',
         'marin' => 'Marin — warm, high quality',
         'alloy' => 'Alloy — neutral',
         'ash' => 'Ash — warm',
         'echo' => 'Echo — clear',
-        'fable' => 'Fable — expressive (legacy)',
         'onyx' => 'Onyx — deeper',
         'nova' => 'Nova — bright',
         'sage' => 'Sage — calm',
         'shimmer' => 'Shimmer — friendly',
     ];
+}
+
+function wt_social_resolve_voice(string $voice, string $accent): string
+{
+    if (!isset(wt_social_video_voices()[$voice])) $voice = 'fable';
+
+    // Cedar consistently presents as American even when given an accent
+    // instruction. Fable has been the most reliable OpenAI voice for Mike's
+    // requested Australian delivery, so Australian mode must not silently
+    // produce Cedar's American voice.
+    if ($accent === 'australian' && $voice === 'cedar') return 'fable';
+
+    return $voice;
 }
 
 function wt_social_video_accents(): array
@@ -163,7 +176,6 @@ function wt_social_choose_music(float $videoSeconds, array $recentMusic = []): ?
 {
     $catalog = wt_social_music_catalog();
     if (!$catalog) return null;
-    $bestScore = INF;
     $shortTrackPenalty = min(20.0, max(8.0, $videoSeconds * 0.25));
     $scored = [];
     foreach ($catalog as $track) {
@@ -176,17 +188,18 @@ function wt_social_choose_music(float $videoSeconds, array $recentMusic = []): ?
             : ($videoSeconds - $duration) + $shortTrackPenalty;
         $track['fit_score'] = $score;
         $scored[] = $track;
-        $bestScore = min($bestScore, $score);
     }
     if (!$scored) return $catalog[0];
 
-    // Treat very similar durations as an equally suitable pool. This avoids
-    // choosing the same first 61-second song for every roughly minute-long post.
-    $tieWindow = max(2.0, $videoSeconds * 0.04);
-    $pool = array_values(array_filter(
-        $scored,
-        static fn(array $track): bool => (float)$track['fit_score'] <= $bestScore + $tieWindow
-    ));
+    // Always retain several credible duration matches. The previous narrow
+    // tie-window could leave only one song in the pool, causing that song to be
+    // reused indefinitely even when many licensed tracks were available.
+    usort($scored, static fn(array $a, array $b): int =>
+        ((float)$a['fit_score'] <=> (float)$b['fit_score'])
+        ?: strnatcasecmp((string)$a['name'], (string)$b['name'])
+    );
+    $poolSize = min(count($scored), max(3, (int)ceil(count($scored) / 2)));
+    $pool = array_slice($scored, 0, $poolSize);
 
     $usage = array_count_values(array_values(array_filter(
         array_map('strval', $recentMusic),
@@ -200,9 +213,12 @@ function wt_social_choose_music(float $videoSeconds, array $recentMusic = []): ?
         }
     }
 
-    usort($pool, static function(array $a, array $b) use ($usage, $lastUsedPosition): int {
+    $mostRecent = (string)($recentMusic[0] ?? '');
+    usort($pool, static function(array $a, array $b) use ($usage, $lastUsedPosition, $mostRecent): int {
         $aName = (string)$a['name'];
         $bName = (string)$b['name'];
+        $byImmediateRepeat = (int)($aName === $mostRecent) <=> (int)($bName === $mostRecent);
+        if ($byImmediateRepeat !== 0) return $byImmediateRepeat;
         $byUsage = ($usage[$aName] ?? 0) <=> ($usage[$bName] ?? 0);
         if ($byUsage !== 0) return $byUsage;
 

@@ -126,7 +126,8 @@ for ($run = 0; $run < $limit; $run++) {
             $rawPlan = json_decode((string)($video['raw_plan'] ?? ''), true);
             $voiceAccent = is_array($rawPlan) ? (string)($rawPlan['voice_accent'] ?? 'australian') : 'australian';
             if (!isset(wt_social_video_accents()[$voiceAccent])) $voiceAccent = 'australian';
-            wt_openai_tts(implode("\n\n", $narration), (string)$video['voice_name'], $voicePath, $voiceAccent);
+            $effectiveVoice = wt_social_resolve_voice((string)$video['voice_name'], $voiceAccent);
+            wt_openai_tts(implode("\n\n", $narration), $effectiveVoice, $voicePath, $voiceAccent);
             $voiceDuration = wt_social_media_duration($voicePath);
             svq_progress($pdo,$videoId,52,'timing_captions','Timing slides and closed captions');
         }
