@@ -10,13 +10,17 @@ $tasks = wt_job_tasks($pdo, $id, false);
 $q = $pdo->prepare("
     SELECT *
     FROM work_task_photos
-    WHERE job_id=?
-    ORDER BY task_id,photo_type,created_at,id
+    WHERE job_id=? AND file_deleted_at IS NULL
+    ORDER BY task_id,COALESCE(photo_taken_at,created_at),id
 ");
 $q->execute([$id]);
 
 $by = [];
-foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $p) {
+$allPhotos = $q->fetchAll(PDO::FETCH_ASSOC);
+$duplicateCounts = [];
+foreach ($allPhotos as $p) {
+    $hash = trim((string)($p['sha256'] ?? ''));
+    if ($hash !== '') $duplicateCounts[$hash] = ($duplicateCounts[$hash] ?? 0) + 1;
     $by[(int)$p['task_id']][(string)$p['photo_type']][] = $p;
 }
 
@@ -40,6 +44,7 @@ input,textarea,select{width:100%;box-sizing:border-box;margin:5px 0;padding:9px}
 .row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.notice{background:#e8f6ed;border:1px solid #b9dec4;border-radius:9px;padding:10px;margin:10px 0}.warn{background:#fff5de;border:1px solid #e4c06b;border-radius:9px;padding:10px;margin:10px 0}
 .actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .actions a,.actions button{border:1px solid #ccd;background:#fff;border-radius:7px;padding:5px 7px;color:#17202a;text-decoration:none;font:inherit;font-size:12px;cursor:pointer}
+.photo-manager{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:7px}.photo-manager select{width:auto;margin:0;padding:6px}.danger{background:#9d1c14!important;color:#fff!important;border-color:#9d1c14!important}
 .expired{min-height:120px;display:grid;place-items:center;background:#eef2f5;border-radius:8px;padding:10px;text-align:center}
 .upload-progress{display:none;margin-top:14px;padding:12px;border:1px solid #9db5c8;border-radius:10px;background:#eef7ff}
 .upload-progress.active{display:block}.upload-progress.safe{background:#e8f6ed;border-color:#82bf94}.upload-progress.bad{background:#fff0ef;border-color:#d69a94}
@@ -65,6 +70,8 @@ Bulk upload finished:
 <?php if (!empty($_GET['photo_error'])): ?>
 <div class="warn"><?=wt_html((string)$_GET['photo_error'])?></div>
 <?php endif; ?>
+<?php if (isset($_GET['photo_updated'])): ?><div class="notice">Photo stage updated. Future reels will use the corrected Before / In progress / After label.</div><?php endif; ?>
+<?php if (isset($_GET['photo_deleted'])): ?><div class="notice">Photo hidden from photo lists, social drafts and future reels.</div><?php endif; ?>
 
 <div class="card" id="bulk-upload">
 <h2>Catch-up bulk photo upload</h2>
@@ -148,6 +155,8 @@ $thumbnailUrl = $photoUrl . '&variant=thumbnail';
 <div class="muted">Uploaded by <?=wt_html((string)$p['uploader_type'])?> · <?=wt_html(date('j M Y, g:i a', strtotime((string)$p['created_at'])))?></div>
 <div class="muted">Photo #<?=$photoId?> · <?=wt_html((string)($p['original_name'] ?? 'photo'))?></div>
 <?php if (!empty($p['note'])): ?><div><?=wt_html((string)$p['note'])?></div><?php endif; ?>
+<div class="muted">Sequence time: <?=wt_html(date('j M Y, g:i:s a', strtotime((string)($p['photo_taken_at'] ?: $p['created_at']))))?></div>
+<?php if (($duplicateCounts[trim((string)($p['sha256'] ?? ''))] ?? 0) > 1): ?><div class="warn"><strong>Possible exact duplicate</strong> — another stored photo has the same file fingerprint.</div><?php endif; ?>
 <div class="actions">
 <?php if ($originalAvailable): ?><a target="_blank" href="<?=wt_html($photoUrl)?>">Original</a><a href="<?=wt_html($photoUrl . '&download=1')?>">Download source</a><button type="button" class="share-photo" data-share-url="<?=wt_html($photoUrl)?>" data-download-url="<?=wt_html($photoUrl.'&download=1')?>" data-filename="<?=wt_html((string)($p['original_name']??'job-photo.jpg'))?>">Save to iPhone</button><?php endif; ?>
 <?php if ($socialReady): ?>
@@ -156,6 +165,17 @@ $thumbnailUrl = $photoUrl . '&variant=thumbnail';
 <button type="button" class="share-photo" data-share-url="<?=wt_html($socialUrl)?>" data-download-url="<?=wt_html($socialUrl.'&download=1')?>" data-filename="social-photo.jpg">Share image</button>
 <?php endif; ?>
 </div>
+<form class="photo-manager" method="post" action="../../api/work/manage_task_photo.php">
+<input type="hidden" name="job_id" value="<?=$id?>">
+<input type="hidden" name="photo_id" value="<?=$photoId?>">
+<select name="photo_type" aria-label="Photo stage">
+<?php foreach (['before'=>'Before','progress'=>'In progress','after'=>'After'] as $stageValue=>$stageLabel): ?>
+<option value="<?=$stageValue?>"<?=$stageValue===(string)$p['photo_type']?' selected':''?>><?=$stageLabel?></option>
+<?php endforeach; ?>
+</select>
+<button name="action" value="update_stage">SAVE STAGE</button>
+<button class="danger" name="action" value="delete" onclick="return confirm('Hide this photo from photo lists, social drafts and future reels?');">DELETE / HIDE DUPLICATE</button>
+</form>
 </div>
 <?php endforeach; ?>
 <form method="post" action="../../api/work/upload_task_photo_admin.php" enctype="multipart/form-data">

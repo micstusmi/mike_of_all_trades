@@ -7,7 +7,7 @@ require_once __DIR__ . '/../../includes/work_social_video.php';
 $id = (int)($_GET['id'] ?? 0);
 $queuedId = (int)($_GET['queued'] ?? 0);
 $job = wt_job($pdo, $id);
-$q = $pdo->prepare("SELECT p.*,t.title AS task_title FROM work_task_photos p LEFT JOIN work_tasks t ON t.id=p.task_id WHERE p.job_id=? ORDER BY p.created_at,p.id");
+$q = $pdo->prepare("SELECT p.*,t.title AS task_title FROM work_task_photos p LEFT JOIN work_tasks t ON t.id=p.task_id WHERE p.job_id=? ORDER BY COALESCE(p.photo_taken_at,p.created_at),p.id");
 $q->execute([$id]);
 $photos = array_values(array_filter($q->fetchAll(PDO::FETCH_ASSOC), static function(array $p): bool {
     return empty($p['file_deleted_at']) && !empty($p['relative_path']) && is_file(wt_task_photo_path((string)$p['relative_path']));

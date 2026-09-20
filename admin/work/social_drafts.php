@@ -48,8 +48,8 @@ $photoStmt = $pdo->prepare("
     SELECT p.*,t.title AS task_title
     FROM work_task_photos p
     LEFT JOIN work_tasks t ON t.id=p.task_id
-    WHERE p.job_id=?
-    ORDER BY p.created_at DESC,p.id DESC
+    WHERE p.job_id=? AND p.file_deleted_at IS NULL
+    ORDER BY COALESCE(p.photo_taken_at,p.created_at) DESC,p.id DESC
     LIMIT 72
 ");
 $photoStmt->execute([$id]);
