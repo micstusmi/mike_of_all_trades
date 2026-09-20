@@ -28,10 +28,12 @@ function wt_social_video_platforms(): array
 function wt_social_video_voices(): array
 {
     return [
+        'cedar' => 'Cedar — natural, high quality (recommended)',
+        'marin' => 'Marin — warm, high quality',
         'alloy' => 'Alloy — neutral',
         'ash' => 'Ash — warm',
         'echo' => 'Echo — clear',
-        'fable' => 'Fable — expressive',
+        'fable' => 'Fable — expressive (legacy)',
         'onyx' => 'Onyx — deeper',
         'nova' => 'Nova — bright',
         'sage' => 'Sage — calm',
@@ -53,7 +55,7 @@ function wt_social_video_accents(): array
 function wt_social_voice_accent_instruction(string $accent): string
 {
     $instructions = [
-        'australian' => 'Speak in a natural, contemporary Australian English accent suitable for a Melbourne tradesperson. Use authentic Australian pronunciation without exaggeration, parody or stereotypes.',
+        'australian' => 'Use Australian English throughout. Speak with a clearly recognisable, natural contemporary Melbourne Australian accent, not an American, Canadian or British accent. Keep Australian vowel sounds and non-rhotic pronunciation consistent in every sentence. Sound like a friendly Australian tradesperson speaking naturally, without parody, slang overload or stereotypes.',
         'new_zealand' => 'Speak in a natural, contemporary New Zealand English accent without exaggeration, parody or stereotypes.',
         'british' => 'Speak in a natural, contemporary British English accent without sounding theatrical, exaggerated or stereotyped.',
         'american' => 'Speak in a natural, contemporary American English accent without sounding theatrical, exaggerated or stereotyped.',
@@ -235,6 +237,60 @@ function wt_social_video_wrap(string $text, int $maxChars = 34): array
     return array_slice($lines, 0, 4);
 }
 
+function wt_social_video_text_width(string $font, int $fontSize, string $text): int
+{
+    $box = imagettfbbox($fontSize, 0, $font, $text);
+    return abs((int)($box[2] ?? 0) - (int)($box[0] ?? 0));
+}
+
+function wt_social_video_wrap_pixels(
+    string $text,
+    string $font,
+    int $fontSize,
+    int $maxWidth,
+    int $maxLines = 5
+): array {
+    $words = preg_split('/\s+/u', trim($text)) ?: [];
+    $lines = [];
+    $line = '';
+
+    foreach ($words as $word) {
+        if ($word === '') continue;
+        $candidate = $line === '' ? $word : $line . ' ' . $word;
+        if ($line !== '' && wt_social_video_text_width($font, $fontSize, $candidate) > $maxWidth) {
+            $lines[] = $line;
+            $line = $word;
+        } else {
+            $line = $candidate;
+        }
+
+        // Split an unusually long URL/product code rather than drawing outside
+        // the caption panel and video frame.
+        while ($line !== '' && wt_social_video_text_width($font, $fontSize, $line) > $maxWidth) {
+            $chunk = '';
+            while (mb_strlen($line) > 0) {
+                $next = $chunk . mb_substr($line, 0, 1);
+                if ($chunk !== '' && wt_social_video_text_width($font, $fontSize, $next) > $maxWidth) break;
+                $chunk = $next;
+                $line = mb_substr($line, 1);
+            }
+            if ($chunk !== '') $lines[] = $chunk;
+        }
+    }
+    if ($line !== '') $lines[] = $line;
+
+    if (count($lines) > $maxLines) {
+        $lines = array_slice($lines, 0, $maxLines);
+        $last = rtrim($lines[$maxLines - 1], " .\t\n\r\0\x0B") . '…';
+        while (mb_strlen($last) > 1 && wt_social_video_text_width($font, $fontSize, $last) > $maxWidth) {
+            $last = rtrim(mb_substr($last, 0, -2)) . '…';
+        }
+        $lines[$maxLines - 1] = $last;
+    }
+
+    return $lines;
+}
+
 function wt_social_video_frame(string $sourcePath, string $mime, string $stage, string $caption, string $dest): void
 {
     if (!extension_loaded('gd')) throw new RuntimeException('PHP GD is required to create slideshow frames.');
@@ -259,8 +315,16 @@ function wt_social_video_frame(string $sourcePath, string $mime, string $stage, 
     ]);
 
     $font = wt_social_photo_font();
-    $lines = wt_social_video_wrap($caption, 34);
-    $lineHeight = 58;
+    $fontSize = 38;
+    $maxTextWidth = 884;
+    $lines = $font
+        ? wt_social_video_wrap_pixels($caption, $font, $fontSize, $maxTextWidth, 5)
+        : wt_social_video_wrap($caption, 30);
+    while ($font && count($lines) > 4 && $fontSize > 30) {
+        $fontSize -= 2;
+        $lines = wt_social_video_wrap_pixels($caption, $font, $fontSize, $maxTextWidth, 5);
+    }
+    $lineHeight = $fontSize + 20;
     $panelH = max(150, count($lines) * $lineHeight + 72);
     // Centre embedded captions roughly one quarter of the frame up from the
     // bottom. This avoids the caption/CTA/navigation stack commonly drawn by
@@ -274,11 +338,11 @@ function wt_social_video_frame(string $sourcePath, string $mime, string $stage, 
     foreach ($lines as $index => $line) {
         $y = $panelTop + 58 + ($index * $lineHeight);
         if ($font) {
-            $box = imagettfbbox(38, 0, $font, $line);
+            $box = imagettfbbox($fontSize, 0, $font, $line);
             $w = abs(($box[2] ?? 0) - ($box[0] ?? 0));
-            $x = max(74, (int)((1080 - $w) / 2));
-            imagettftext($canvas, 38, 0, $x + 2, $y + 2, $shadow, $font, $line);
-            imagettftext($canvas, 38, 0, $x, $y, $white, $font, $line);
+            $x = max(98, min(982 - $w, (int)((1080 - $w) / 2)));
+            imagettftext($canvas, $fontSize, 0, $x + 2, $y + 2, $shadow, $font, $line);
+            imagettftext($canvas, $fontSize, 0, $x, $y, $white, $font, $line);
         } else {
             imagestring($canvas, 5, 90, $y - 20, $line, $white);
         }
@@ -322,4 +386,14 @@ function wt_openai_tts(string $text, string $voice, string $dest, string $accent
     $body = curl_exec($ch); $error = curl_error($ch); $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
     if ($body === false || $status < 200 || $status >= 300) throw new RuntimeException($error ?: 'Voice-over request failed with HTTP ' . $status);
     if (file_put_contents($dest, $body) === false) throw new RuntimeException('Voice-over audio could not be saved.');
+}
+
+function wt_social_tts_settings(string $voice, string $accent): array
+{
+    return [
+        'provider' => 'OpenAI Speech',
+        'model' => (string)wt_env('OPENAI_TTS_MODEL', 'gpt-4o-mini-tts'),
+        'voice' => $voice,
+        'accent' => $accent,
+    ];
 }

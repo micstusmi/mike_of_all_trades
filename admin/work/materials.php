@@ -88,7 +88,7 @@ $sourceNetTotal = max(0.0, $actualTotal - $sourceGstTotal);
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Materials / receipts — <?=wt_html($job['customer_name'])?></title>
+<title>Materials, receipts &amp; reimbursements — <?=wt_html($job['customer_name'])?></title>
 <style>
 body{font-family:system-ui;background:#f4f6f8;color:#17202a;margin:0}
 .wrap{max-width:1180px;margin:auto;padding:18px}
@@ -122,7 +122,7 @@ textarea{width:100%}
 <a href="closeout.php?id=<?=$id?>">Job close-out preview</a>
 </p>
 
-<h1>Materials / receipts</h1>
+<h1>Materials, receipts &amp; reimbursements</h1>
 <p>
 <b><?=wt_html($job['customer_name'])?></b>
 <?php if(!empty($job['job_title'])):?>
@@ -165,7 +165,7 @@ It is not GST added by Mike Of All Trades to the customer's charge.
 </div>
 
 <div class="card">
-<h2>Add material / purchase</h2>
+<h2>Add a material, purchase or expense</h2>
 
 <form method="post" action="../../api/work/add_material_v8_4b.php">
 <input type="hidden" name="job_id" value="<?=$id?>">
@@ -291,7 +291,7 @@ JPG, PNG, WEBP and PDF are supported.
 </div>
 
 <div class="card">
-<h2>Recorded materials / purchase ledger</h2>
+<h2>Materials, purchases &amp; reimbursement ledger</h2>
 
 <?php if(!$materials):?>
 <p class="muted">No materials recorded yet.</p>

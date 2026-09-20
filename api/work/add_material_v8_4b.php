@@ -60,6 +60,11 @@ if (!in_array($paid, ['mike','customer','other'], true)) {
     $paid = 'mike';
 }
 
+$cardLast4 = preg_replace('/\D+/', '', (string)($_POST['payment_card_last4'] ?? ''));
+if ($cardLast4 !== '' && strlen($cardLast4) !== 4) {
+    exit('Card last four digits must contain exactly four numbers.');
+}
+
 $reimb = (string)($_POST['reimbursement_status'] ?? 'not_applicable');
 $reimbs = [
     'not_applicable',
@@ -119,6 +124,7 @@ try {
             cost,
             source_type,
             paid_by,
+            payment_card_last4,
             reimbursement_status,
             financial_treatment,
             receipt_gst_amount,
@@ -130,7 +136,7 @@ try {
         )
         VALUES
         (
-            ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW(),NOW()
+            ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW(),NOW()
         )
     ");
 
@@ -145,6 +151,7 @@ try {
         $legacyCost,
         $source,
         $paid,
+        $cardLast4 !== '' ? $cardLast4 : null,
         $reimb,
         $financialTreatment,
         $receiptGst,

@@ -785,9 +785,9 @@ Customer day-before confirmation:
 </div>
 
 
-<!-- V8.4A MATERIALS PLANNING CARD -->
+<!-- Customer-supplied materials are planning instructions, not ledger entries. -->
 <div class="card">
-  <h2>Materials &amp; expenses</h2>
+  <h2>Customer material arrangements</h2>
   <?php
     $matMode = (string)($job['materials_responsibility'] ?? 'mike_advise');
     $matLabels = [
@@ -802,11 +802,11 @@ Customer day-before confirmation:
   <?php if(trim((string)($job['materials_notes'] ?? '')) !== ''):?>
     <p><b>Customer note:</b><br><?=nl2br(wt_html((string)$job['materials_notes']))?></p>
   <?php endif;?>
-  <p class="muted">This is the planning instruction supplied with the job. Actual materials, costs, supplier and reimbursement records will be recorded separately.</p>
+  <p class="muted">This records what the customer says they already have or will supply. Purchases, receipts, card details and reimbursements are managed in the financial manager below.</p>
 </div>
 
 <!-- V8.4B MATERIALS MANAGER -->
-<p><a class="btn" href="materials.php?id=<?=$id?>">🧰 OPEN DETAILED MATERIALS MANAGER</a></p>
+<p><a class="btn" href="materials.php?id=<?=$id?>">🧾 OPEN MATERIALS, RECEIPTS &amp; REIMBURSEMENTS</a></p>
 <div class="card intake-card" id="customer-request">
 <h2>Customer request / intake</h2>
 <p class="small">The customer can edit this list immediately from their live job link. Their revisions are retained instead of silently replacing the history.</p>
@@ -1392,7 +1392,7 @@ Customer day-before confirmation:
 
 <div class="card free-card" id="no-charge-work">
 
-<h2>No-charge work / materials</h2>
+<h2>Goodwill, rectification &amp; free extras</h2>
 
 <p class="small">
 Record anything the customer is not being charged for.
@@ -3872,32 +3872,6 @@ function wb_hours(float $hours): string {
 
 </div>
 <?php endforeach;?>
-</div>
-
-<div class="card">
-<h2>Add material / expense</h2>
-<form method="post" action="../../api/work/add_material.php">
-<input type="hidden" name="job_id" value="<?=$id?>">
-<div class="row">
-    <input name="description" placeholder="Material / item" required>
-    <input name="supplier" placeholder="Supplier">
-    <input name="cost" type="number" step=".01" placeholder="$" required>
-    <select name="paid_by">
-        <option value="mike">Paid by Mike</option>
-        <option value="customer">Paid by customer</option>
-        <option value="other">Other</option>
-    </select>
-
-    <select name="financial_treatment">
-        <option value="charge_customer">Charge customer</option>
-        <option value="included_in_price">Included in agreed price</option>
-        <option value="goodwill">Goodwill — no charge</option>
-        <option value="rectification">Rectification — Mike absorbs cost</option>
-    </select>
-
-    <button class="btn">Add</button>
-</div>
-</form>
 </div>
 
 <div class="card">
