@@ -54,7 +54,8 @@ for ($run=0;$run<$limit;$run++) {
             }
             [$taskId,$photoType,$method]=(string)$item['assignment_mode']==='auto'
                 ? wt_photo_queue_pick_assignment($takenAt,$sessions,$fallbackTaskId,(string)$item['fallback_photo_type'])
-                : [$fallbackTaskId,(string)$item['fallback_photo_type'],'manual_bulk_async'];
+                : [$fallbackTaskId,(string)$item['fallback_photo_type'],
+                    (string)$item['assignment_mode']==='general'?'general_all_tasks_bulk_async':'manual_bulk_async'];
             if (!in_array((int)$taskId,$taskIds,true)) { $taskId=$fallbackTaskId; $photoType=(string)$item['fallback_photo_type']; $method='manual_fallback_invalid_auto_task'; }
             $dir=wt_task_photo_base_dir().'/job_'.$jobId.'/task_'.(int)$taskId;
             if (!is_dir($dir) && !mkdir($dir,0770,true) && !is_dir($dir)) throw new RuntimeException('Could not create the final photo directory.');

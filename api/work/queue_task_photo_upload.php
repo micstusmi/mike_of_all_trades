@@ -21,9 +21,12 @@ $note=trim((string)($_POST['bulk_note']??''));
 $batchToken=preg_replace('/[^a-zA-Z0-9_-]/','',(string)($_POST['batch_token']??''))??'';
 $clientFileKey=preg_replace('/[^a-zA-Z0-9_.-]/','',(string)($_POST['client_file_key']??''))??'';
 $clientMtime=(int)($_POST['client_photo_mtime']??0);
-if ($jobId<=0 || $fallbackTaskId<=0 || strlen($batchToken)<8 || strlen($clientFileKey)<1) qpu_fail('Invalid upload request.');
-if (!in_array($assignmentMode,['auto','manual'],true) || !in_array($fallbackType,['before','progress','after'],true)) qpu_fail('Invalid photo assignment choice.');
+if ($jobId<=0 || strlen($batchToken)<8 || strlen($clientFileKey)<1) qpu_fail('Invalid upload request.');
+if (!in_array($assignmentMode,['general','auto','manual'],true) || !in_array($fallbackType,['before','progress','after'],true)) qpu_fail('Invalid photo assignment choice.');
 wt_job($pdo,$jobId);
+if ($assignmentMode==='general' || $fallbackTaskId<=0) {
+    $fallbackTaskId=wt_get_or_create_general_photo_task($pdo,$jobId);
+}
 $taskIds=array_map(static fn($task)=>(int)$task['id'],wt_job_tasks($pdo,$jobId,false));
 if (!in_array($fallbackTaskId,$taskIds,true)) qpu_fail('Choose a valid fallback task.');
 

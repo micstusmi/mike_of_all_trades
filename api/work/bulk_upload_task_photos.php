@@ -133,8 +133,10 @@ wt_job($pdo, $jobId);
 
 $tasks = wt_job_tasks($pdo, $jobId, false);
 $taskIds = array_map(static fn($task) => (int)$task['id'], $tasks);
-if ($fallbackTaskId <= 0 && $taskIds) {
-    $fallbackTaskId = $taskIds[0];
+if ($assignmentMode === 'general' || $fallbackTaskId <= 0) {
+    $fallbackTaskId = wt_get_or_create_general_photo_task($pdo, $jobId);
+    $tasks = wt_job_tasks($pdo, $jobId, false);
+    $taskIds = array_map(static fn($task) => (int)$task['id'], $tasks);
 }
 
 if (!in_array($fallbackTaskId, $taskIds, true)) {
@@ -216,7 +218,7 @@ foreach ($names as $i => $originalName) {
     $takenAt = bulk_photo_taken_at($tmp, $mime, isset($clientTimes[$i]) ? (int)$clientTimes[$i] : null);
     [$taskId, $photoType, $method] = $assignmentMode === 'auto'
         ? bulk_pick_assignment($takenAt, $sessions, $fallbackTaskId, $fallbackType)
-        : [$fallbackTaskId, $fallbackType, 'manual_bulk'];
+        : [$fallbackTaskId, $fallbackType, $assignmentMode === 'general' ? 'general_all_tasks_bulk' : 'manual_bulk'];
 
     if (!in_array($taskId, $taskIds, true)) {
         $taskId = $fallbackTaskId;

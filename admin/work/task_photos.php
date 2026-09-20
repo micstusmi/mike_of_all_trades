@@ -68,23 +68,22 @@ Bulk upload finished:
 
 <div class="card" id="bulk-upload">
 <h2>Catch-up bulk photo upload</h2>
-<p class="muted">Use this when you took photos quickly during the job but did not have time to attach them to tasks. The automatic mode reads the photo timestamp where possible and compares it with this job's task timers.</p>
-<?php if (!$tasks): ?>
-<div class="warn">No tasks are available yet. Add tasks on the Manage Job page first, then return here to bulk upload photos.</div>
-<?php else: ?>
+<p class="muted">Use this when you took photos quickly during the job but did not have time to attach them to tasks. Choose General / all tasks to keep a large catch-up batch together without sorting it first.</p>
 <form method="post" action="../../api/work/bulk_upload_task_photos.php" enctype="multipart/form-data" id="bulkPhotoForm">
 <input type="hidden" name="job_id" value="<?=$id?>">
 <div class="row">
 <div>
 <label>Assignment mode</label>
 <select name="assignment_mode">
+<option value="general">General / all tasks — keep this batch together</option>
 <option value="auto">Auto-sort using photo timestamp + task timers</option>
 <option value="manual">Put all selected photos into the fallback choice below</option>
 </select>
 </div>
 <div>
 <label>Fallback task</label>
-<select name="fallback_task_id" required>
+<select name="fallback_task_id">
+<option value="0">General job photos / all tasks</option>
 <?php foreach ($tasks as $task): ?>
 <?php if (($task['status'] ?? '') === 'cancelled') continue; ?>
 <option value="<?=(int)$task['id']?>"><?=wt_html((string)$task['title'])?></option>
@@ -112,7 +111,6 @@ Bulk upload finished:
 <div id="bulkUploadFiles" class="upload-files"></div>
 </div>
 </form>
-<?php endif; ?>
 </div>
 
 <?php if (!$tasks): ?>
