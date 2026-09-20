@@ -123,7 +123,10 @@ for ($run = 0; $run < $limit; $run++) {
         if (!empty($video['voiceover_enabled']) && $narration) {
             svq_progress($pdo,$videoId,43,'generating_voice','Generating AI voice-over');
             $voicePath = $temp . '/voice.mp3';
-            wt_openai_tts(implode("\n\n", $narration), (string)$video['voice_name'], $voicePath);
+            $rawPlan = json_decode((string)($video['raw_plan'] ?? ''), true);
+            $voiceAccent = is_array($rawPlan) ? (string)($rawPlan['voice_accent'] ?? 'australian') : 'australian';
+            if (!isset(wt_social_video_accents()[$voiceAccent])) $voiceAccent = 'australian';
+            wt_openai_tts(implode("\n\n", $narration), (string)$video['voice_name'], $voicePath, $voiceAccent);
             $voiceDuration = wt_social_media_duration($voicePath);
             svq_progress($pdo,$videoId,52,'timing_captions','Timing slides and closed captions');
         }

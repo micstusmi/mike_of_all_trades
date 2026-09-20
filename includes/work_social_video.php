@@ -39,6 +39,30 @@ function wt_social_video_voices(): array
     ];
 }
 
+function wt_social_video_accents(): array
+{
+    return [
+        'australian' => 'Australian — natural',
+        'new_zealand' => 'New Zealand — natural',
+        'british' => 'British — natural',
+        'american' => 'American — natural',
+        'neutral' => 'Neutral / international',
+    ];
+}
+
+function wt_social_voice_accent_instruction(string $accent): string
+{
+    $instructions = [
+        'australian' => 'Speak in a natural, contemporary Australian English accent suitable for a Melbourne tradesperson. Use authentic Australian pronunciation without exaggeration, parody or stereotypes.',
+        'new_zealand' => 'Speak in a natural, contemporary New Zealand English accent without exaggeration, parody or stereotypes.',
+        'british' => 'Speak in a natural, contemporary British English accent without sounding theatrical, exaggerated or stereotyped.',
+        'american' => 'Speak in a natural, contemporary American English accent without sounding theatrical, exaggerated or stereotyped.',
+        'neutral' => 'Speak in clear international English with a neutral, easily understood accent.',
+    ];
+
+    return $instructions[$accent] ?? $instructions['australian'];
+}
+
 function wt_social_music_files(): array
 {
     $dir = wt_social_music_dir();
@@ -279,7 +303,7 @@ function wt_run_command(array $parts, string $errorLabel): void
     if ($code !== 0) throw new RuntimeException($errorLabel . ': ' . implode("\n", array_slice($output, -12)));
 }
 
-function wt_openai_tts(string $text, string $voice, string $dest): void
+function wt_openai_tts(string $text, string $voice, string $dest, string $accent = 'australian'): void
 {
     $key = trim((string)wt_env('OPENAI_API_KEY', ''));
     if ($key === '') throw new RuntimeException('OPENAI_API_KEY is required for voice-over.');
@@ -287,7 +311,7 @@ function wt_openai_tts(string $text, string $voice, string $dest): void
         'model' => wt_env('OPENAI_TTS_MODEL', 'gpt-4o-mini-tts'),
         'voice' => $voice,
         'input' => $text,
-        'instructions' => wt_env('WORKTRACKER_SOCIAL_VOICE_STYLE', 'Speak like an enthusiastic, warm and confident Australian home-improvement storyteller revealing a satisfying real-job transformation. Sound genuinely excited and proud, with lively pacing, expressive emphasis, natural rises and falls, and a friendly smile in the voice. Build curiosity and momentum without shouting, sounding fake, rushing, or becoming a hard-sell announcer. Give important before-and-after contrasts and homeowner benefits extra emphasis.'),
+        'instructions' => wt_social_voice_accent_instruction($accent) . ' ' . wt_env('WORKTRACKER_SOCIAL_VOICE_STYLE', 'Speak like an enthusiastic, warm and confident home-improvement storyteller revealing a satisfying real-job transformation. Sound genuinely excited and proud, with lively pacing, expressive emphasis, natural rises and falls, and a friendly smile in the voice. Build curiosity and momentum without shouting, sounding fake, rushing, or becoming a hard-sell announcer. Give important before-and-after contrasts and homeowner benefits extra emphasis.'),
         'response_format' => 'mp3',
     ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
     $ch = curl_init('https://api.openai.com/v1/audio/speech');
