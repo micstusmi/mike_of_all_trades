@@ -3,9 +3,17 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/_auth.php';
 require_once __DIR__ . '/../../includes/work_tracker.php';
+require_once __DIR__ . '/../../includes/work_invoice.php';
 
 $id = (int)($_GET['id'] ?? 0);
 $job = wt_job($pdo, $id);
+$zohoPackage = wt_invoice_package($pdo, $id);
+$latestZohoSnapshot = null;
+try {
+    $zohoStmt = $pdo->prepare("SELECT * FROM work_closeout_snapshots WHERE job_id=? AND zoho_invoice_id IS NOT NULL ORDER BY id DESC LIMIT 1");
+    $zohoStmt->execute([$id]);
+    $latestZohoSnapshot = $zohoStmt->fetch(PDO::FETCH_ASSOC) ?: null;
+} catch (Throwable $error) {}
 $defaultRate = (float)($job['agreed_hourly_rate'] ?? 0);
 
 function ip_money(float $value): string
@@ -331,6 +339,31 @@ body{font-family:system-ui;background:#eef2f4;color:#17202a;margin:0}.wrap{max-w
 <h2>Invoice summary</h2>
 <div class="scroll"><table><tr><td>Labour</td><td class="money"><?=ip_money($labourTotal)?></td></tr><tr><td>Materials</td><td class="money"><?=ip_money($materialsChargeTotal)?></td></tr><tr><td>Reimbursements (gross supplier receipts)</td><td class="money"><?=ip_money($reimbursementTotal)?></td></tr><tr><td>Supplier GST included in reimbursements (information only)</td><td class="money"><?=ip_money($supplierGstTotal)?></td></tr><tr><th>Invoice total — no GST added by Mike</th><th class="money"><?=ip_money($invoiceTotal)?></th></tr><tr><td>Payments received</td><td class="money">−<?=ip_money($paymentTotal)?></td></tr><tr><th>Balance due</th><th class="money"><?=ip_money($balanceDue)?></th></tr></table></div>
 <p class="no-gst">No GST has been charged by Mike of All Trades. Supplier GST is disclosed from the original tax invoices and remains included in the reimbursement amounts.</p>
+</div>
+
+<div class="card no-print" id="zoho-invoice">
+<h2>Zoho invoice</h2>
+<p class="muted">Creating a draft does not email the customer. Review the draft in Zoho, then return here and use the separate send button.</p>
+<?php if(($_GET['zoho_created']??'')==='1'):?><div class="notice good"><b>✓ Zoho draft created.</b> Nothing has been emailed yet.</div><?php endif;?>
+<?php if(($_GET['zoho_existing']??'')==='1'):?><div class="notice"><b>An identical Zoho draft already exists.</b> A duplicate was not created.</div><?php endif;?>
+<?php if(($_GET['zoho_sent']??'')==='1'):?><div class="notice good"><b>✓ Zoho invoice emailed.</b> The customer was sent the Zoho invoice and available supplier receipt attachments.</div><?php endif;?>
+<?php if(($_GET['zoho_already_sent']??'')==='1'):?><div class="notice"><b>This invoice was already sent.</b> It was not emailed twice.</div><?php endif;?>
+<?php if(isset($_GET['zoho_error'])):?><div class="notice danger"><b>Zoho action stopped:</b> <?=wt_html((string)$_GET['zoho_error'])?></div><?php endif;?>
+
+<?php if($zohoPackage['warnings']['unfinished_sessions']>0):?><div class="notice danger">Finish <?=$zohoPackage['warnings']['unfinished_sessions']?> running or incomplete session(s) before creating the invoice.</div><?php endif;?>
+<?php if($zohoPackage['warnings']['missing_supplier_gst']):?><div class="notice danger"><b>Supplier GST must be entered before emailing:</b> <?=wt_html(implode('; ',$zohoPackage['warnings']['missing_supplier_gst']))?>. You may create and inspect the draft now, but sending will remain blocked.</div><?php endif;?>
+<?php if($zohoPackage['warnings']['reconciliation']):?><div class="notice danger"><b>Spreadsheet reconciliation remains unresolved.</b> Draft creation is allowed for inspection; sending is blocked until corrected.</div><?php endif;?>
+
+<?php if($latestZohoSnapshot):
+    $zohoMeta=json_decode((string)($latestZohoSnapshot['zoho_response_json']??''),true);if(!is_array($zohoMeta))$zohoMeta=[];
+    $zohoNumber=(string)($zohoMeta['invoice_number']??$zohoMeta['create_response']['invoice']['invoice_number']??'');
+?>
+<p><b>Zoho draft:</b> <?=wt_html($zohoNumber!==''?$zohoNumber:(string)$latestZohoSnapshot['zoho_invoice_id'])?><br><b>Status:</b> <?=!empty($latestZohoSnapshot['sent_to_zoho_at'])?'EMAILED '.wt_html((string)$latestZohoSnapshot['sent_to_zoho_at']):'DRAFT — NOT EMAILED'?></p>
+<a class="btn secondary" target="_blank" href="https://invoice.zoho.com.au/app#/invoices/<?=rawurlencode((string)$latestZohoSnapshot['zoho_invoice_id'])?>">Open draft in Zoho</a>
+<?php if(empty($latestZohoSnapshot['sent_to_zoho_at'])):?><form method="post" action="../../api/work/send_zoho_invoice.php" style="display:inline" onsubmit="return confirm('EMAIL this Zoho invoice to <?=wt_html((string)$job['customer_email'])?> now? This action sends the invoice to the customer.');"><input type="hidden" name="job_id" value="<?=$id?>"><input type="hidden" name="snapshot_id" value="<?=(int)$latestZohoSnapshot['id']?>"><button class="btn" type="submit">SEND ZOHO INVOICE TO CUSTOMER</button></form><?php endif;?>
+<?php else:?>
+<form method="post" action="../../api/work/create_zoho_invoice.php" onsubmit="return confirm('Create a Zoho DRAFT from the figures shown above? This will not email the customer.');"><input type="hidden" name="job_id" value="<?=$id?>"><button class="btn" type="submit" <?=$zohoPackage['warnings']['unfinished_sessions']>0?'disabled':''?>>CREATE ZOHO DRAFT — DO NOT EMAIL</button></form>
+<?php endif;?>
 </div>
 
 <div class="card no-print">
