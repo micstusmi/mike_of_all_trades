@@ -537,6 +537,11 @@ function createZohoInvoice(array $payload) {
     return zohoRequest("POST", $url, $payload);
 }
 
+function updateZohoInvoice($invoice_id, array $payload) {
+    $url = "https://www.zohoapis.com.au/invoice/v3/invoices/" . rawurlencode((string)$invoice_id) . "?organization_id=" . rawurlencode((string)ZOHO_ORG_ID);
+    return zohoRequest("PUT", $url, $payload);
+}
+
 /** Email an existing Zoho invoice, optionally with supplier receipts. */
 function sendZohoInvoiceWithAttachments($invoice_id, $email, array $attachments = []) {
     $url = "https://www.zohoapis.com.au/invoice/v3/invoices/" . rawurlencode((string)$invoice_id) . "/email?organization_id=" . rawurlencode((string)ZOHO_ORG_ID);

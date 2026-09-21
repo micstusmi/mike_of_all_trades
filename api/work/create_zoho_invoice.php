@@ -30,12 +30,7 @@ try{
 
     $contactId=getOrCreateZohoCustomer($job['customer_name'],$job['customer_email'],$job['customer_phone'],$job['job_address']);
     if(!$contactId)throw new RuntimeException('Zoho could not find or create the customer.');
-    $lines=[];
-    foreach($package['labour_days'] as $day){$lines[]=['name'=>'Labour - '.date('j M Y',strtotime($day['date'])),'description'=>$day['description'],'quantity'=>round((float)$day['hours'],2),'rate'=>round((float)$day['rate'],2),'tax_name'=>'No GST','tax_percentage'=>0];}
-    if((float)($package['totals']['labour']??0)>0&&!$package['labour_days'])$lines[]=['name'=>'Labour','description'=>'Previously recorded property maintenance labour','quantity'=>1,'rate'=>$package['totals']['labour'],'tax_name'=>'No GST','tax_percentage'=>0];
-    foreach($package['reimbursements'] as $g){$gst=$g['gst']>0?'Supplier GST included in this gross reimbursement: $'.number_format($g['gst'],2).'.':'Supplier GST is not yet recorded in the Work Tracker.';$description=implode('; ',array_filter([$g['receipt']!==''?'Supplier receipt '.$g['receipt']:'',$gst,'Original supplier receipt retained and provided where attached.']));$lines[]=['name'=>'Reimbursement - '.$g['supplier'],'description'=>$description,'quantity'=>1,'rate'=>round((float)$g['amount'],2),'tax_name'=>'No GST','tax_percentage'=>0];}
-    $subject=trim($job['job_title'].($job['job_address']!==''?' - '.$job['job_address']:''));
-    $payload=['customer_id'=>$contactId,'date'=>date('Y-m-d'),'due_date'=>date('Y-m-d'),'payment_terms'=>0,'reference_number'=>'Work Tracker job #'.$jobId,'line_items'=>$lines,'notes'=>"Thanks for your business.\n\nNo GST has been charged by Mike Of All Trades. Supplier GST stated within reimbursement descriptions is copied from original supplier tax invoices and is already included in those gross reimbursement amounts.\n\nJob: ".$subject,'terms'=>"If you notice any discrepancies on this invoice, please contact Mike as soon as possible. Payment is due on receipt. Mike Of All Trades' Terms & Conditions are available at https://mikeofalltrades.com.au/terms.php"];
+    $payload=wt_invoice_zoho_payload($package,(string)$contactId);
     $response=createZohoInvoice($payload);$invoice=$response['json']['invoice']??null;$invoiceId=(string)($invoice['invoice_id']??'');
     if($invoiceId==='')throw new RuntimeException('Zoho draft creation failed: '.mb_substr((string)($response['raw']??'Unknown response'),0,1000));
     $stored=json_encode(['create_response'=>$response['json'],'invoice_number'=>$invoice['invoice_number']??null,'created_from_fingerprint'=>$package['fingerprint']],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
@@ -43,4 +38,3 @@ try{
     header('Location: ../../admin/work/invoice_preparation.php?id='.$jobId.'&zoho_created=1#zoho-invoice');
 }catch(Throwable $e){error_log('Zoho invoice creation failed: '.$e->getMessage());header('Location: ../../admin/work/invoice_preparation.php?id='.$jobId.'&zoho_error='.urlencode($e->getMessage()).'#zoho-invoice');}
 finally{$q=$pdo->prepare('SELECT RELEASE_LOCK(?)');$q->execute([$lockName]);}
-
