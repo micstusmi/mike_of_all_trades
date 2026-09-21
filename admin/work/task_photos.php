@@ -44,7 +44,7 @@ input,textarea,select{width:100%;box-sizing:border-box;margin:5px 0;padding:9px}
 .row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.notice{background:#e8f6ed;border:1px solid #b9dec4;border-radius:9px;padding:10px;margin:10px 0}.warn{background:#fff5de;border:1px solid #e4c06b;border-radius:9px;padding:10px;margin:10px 0}
 .actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .actions a,.actions button{border:1px solid #ccd;background:#fff;border-radius:7px;padding:5px 7px;color:#17202a;text-decoration:none;font:inherit;font-size:12px;cursor:pointer}
-.photo-manager{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:7px}.photo-manager select{width:auto;margin:0;padding:6px}.danger{background:#9d1c14!important;color:#fff!important;border-color:#9d1c14!important}
+.photo-manager{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:7px}.photo-manager select{width:auto;max-width:280px;margin:0;padding:6px}.danger{background:#9d1c14!important;color:#fff!important;border-color:#9d1c14!important}
 .expired{min-height:120px;display:grid;place-items:center;background:#eef2f5;border-radius:8px;padding:10px;text-align:center}
 .upload-progress{display:none;margin-top:14px;padding:12px;border:1px solid #9db5c8;border-radius:10px;background:#eef7ff}
 .upload-progress.active{display:block}.upload-progress.safe{background:#e8f6ed;border-color:#82bf94}.upload-progress.bad{background:#fff0ef;border-color:#d69a94}
@@ -168,12 +168,18 @@ $thumbnailUrl = $photoUrl . '&variant=thumbnail';
 <form class="photo-manager" method="post" action="../../api/work/manage_task_photo.php">
 <input type="hidden" name="job_id" value="<?=$id?>">
 <input type="hidden" name="photo_id" value="<?=$photoId?>">
+<select name="task_id" aria-label="Assigned task">
+<?php foreach ($tasks as $taskChoice): ?>
+<?php if (($taskChoice['status'] ?? '') === 'cancelled') continue; ?>
+<option value="<?=(int)$taskChoice['id']?>"<?=(int)$taskChoice['id']===(int)$p['task_id']?' selected':''?>><?=wt_html((string)$taskChoice['title'])?></option>
+<?php endforeach; ?>
+</select>
 <select name="photo_type" aria-label="Photo stage">
 <?php foreach (['before'=>'Before','progress'=>'In progress','after'=>'After'] as $stageValue=>$stageLabel): ?>
 <option value="<?=$stageValue?>"<?=$stageValue===(string)$p['photo_type']?' selected':''?>><?=$stageLabel?></option>
 <?php endforeach; ?>
 </select>
-<button name="action" value="update_stage">SAVE STAGE</button>
+<button name="action" value="update_stage">SAVE TASK + STAGE</button>
 <button class="danger" name="action" value="delete" onclick="return confirm('Hide this photo from photo lists, social drafts and future reels?');">DELETE / HIDE DUPLICATE</button>
 </form>
 </div>

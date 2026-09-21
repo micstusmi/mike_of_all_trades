@@ -21,8 +21,12 @@ if (!$q->fetchColumn()) exit('Photo not found for this job.');
 if ($action === 'update_stage') {
     $type = (string)($_POST['photo_type'] ?? 'progress');
     if (!in_array($type, ['before', 'progress', 'after'], true)) exit('Invalid photo stage.');
-    $pdo->prepare('UPDATE work_task_photos SET photo_type=?,assignment_method=? WHERE id=? AND job_id=?')
-        ->execute([$type, 'manual_stage_correction', $photoId, $jobId]);
+    $taskId = (int)($_POST['task_id'] ?? 0);
+    $taskCheck = $pdo->prepare("SELECT id FROM work_tasks WHERE id=? AND job_id=? AND status<>'cancelled' LIMIT 1");
+    $taskCheck->execute([$taskId, $jobId]);
+    if (!$taskCheck->fetchColumn()) exit('Choose a valid task for this job.');
+    $pdo->prepare('UPDATE work_task_photos SET task_id=?,photo_type=?,assignment_method=? WHERE id=? AND job_id=?')
+        ->execute([$taskId, $type, 'manual_task_and_stage_correction', $photoId, $jobId]);
     header('Location: ../../admin/work/task_photos.php?id=' . $jobId . '&photo_updated=1');
     exit;
 }
