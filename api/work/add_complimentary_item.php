@@ -107,10 +107,20 @@ $stmt->execute([
     $note !== '' ? $note : null,
 ]);
 
-header(
-    'Location: ../../admin/work/manage_job.php?id=' .
-    $jobId .
-    '&free_added=1#no-charge-work'
-);
+$returnTo = (string)($_POST['return_to'] ?? '');
+
+if ($returnTo === 'invoice_preparation') {
+    header(
+        'Location: ../../admin/work/invoice_preparation.php?id=' .
+        $jobId .
+        '&free_added=1#free-materials'
+    );
+} else {
+    header(
+        'Location: ../../admin/work/manage_job.php?id=' .
+        $jobId .
+        '&free_added=1#no-charge-work'
+    );
+}
 
 exit;

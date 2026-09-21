@@ -1390,6 +1390,12 @@ Customer day-before confirmation:
 <div class="card notice-good"><b>✓ COMPLIMENTARY VALUE RECORDED.</b> It is visible to the customer but is not added to the billable job total.</div>
 <?php endif;?>
 
+<div class="card">
+<h2>Invoice preparation &amp; billing audit</h2>
+<p class="small">Review labour grouped by day, receipt-level reimbursements, materials, payments and free extras in an invoice-style table before billing the customer.</p>
+<a class="btn" href="invoice_preparation.php?id=<?=$id?>">OPEN INVOICE PREPARATION</a>
+</div>
+
 <div class="card free-card" id="no-charge-work">
 
 <h2>Goodwill, rectification &amp; free extras</h2>

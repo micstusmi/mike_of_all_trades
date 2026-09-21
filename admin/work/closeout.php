@@ -126,6 +126,8 @@ th{font-size:12px;text-transform:uppercase;color:#61707a}
 <a href="manage_job.php?id=<?=$id?>">← Manage job</a>
 &nbsp; · &nbsp;
 <a href="materials.php?id=<?=$id?>">Materials / receipts</a>
+&nbsp; · &nbsp;
+<a href="invoice_preparation.php?id=<?=$id?>"><b>Invoice preparation</b></a>
 </div>
 
 <h1>Job Close-Out Preview</h1>
@@ -140,6 +142,12 @@ th{font-size:12px;text-transform:uppercase;color:#61707a}
 <p class="muted">
 Review this record before creating or sending any final invoice.
 Nothing on this page sends anything to Zoho.
+</p>
+
+<p class="no-print">
+<a class="btn" href="invoice_preparation.php?id=<?=$id?>">
+Open invoice-style billing review
+</a>
 </p>
 
 <div class="metrics">
