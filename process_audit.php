@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/includes/config.php';
+
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
@@ -13,12 +15,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     try {
         // --- Zoho SMTP Settings ---
         $mail->isSMTP();
-        $mail->Host       = 'smtp.zoho.com.au'; 
+        $mail->Host       = SMTP_HOST;
         $mail->SMTPAuth   = true;
-        $mail->Username   = 'mike@mikeofalltrades.com.au'; 
-        $mail->Password   = 'WWXrU4C4xQdH'; 
+        $mail->Username   = SMTP_USERNAME;
+        $mail->Password   = SMTP_PASSWORD;
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
-        $mail->Port       = 465; 
+        $mail->Port       = 465;
 
         // --- The Handshake ---
         $mail->setFrom('mike@mikeofalltrades.com.au', 'Mike of All Trades');
