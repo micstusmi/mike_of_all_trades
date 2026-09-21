@@ -545,6 +545,6 @@ function updateZohoInvoice($invoice_id, array $payload) {
 /** Email an existing Zoho invoice, optionally with supplier receipts. */
 function sendZohoInvoiceWithAttachments($invoice_id, $email, array $attachments = []) {
     $url = "https://www.zohoapis.com.au/invoice/v3/invoices/" . rawurlencode((string)$invoice_id) . "/email?organization_id=" . rawurlencode((string)ZOHO_ORG_ID);
-    $payload = ["to_mail_ids"=>[$email],"cc_mail_ids"=>["mike@mikeofalltrades.com.au"],"send_from_org_email_id"=>true];
+    $payload = ["to_mail_ids"=>[$email],"cc_mail_ids"=>["michaelssmith@icloud.com"],"send_from_org_email_id"=>true];
     return $attachments ? zohoMultipartRequest($url,$payload,$attachments,'attachments') : zohoRequest("POST",$url,$payload);
 }
