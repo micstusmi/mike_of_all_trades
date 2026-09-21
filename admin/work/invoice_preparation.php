@@ -94,7 +94,9 @@ foreach ($sessions as $session) {
 }
 
 $materialsStmt = $pdo->prepare("
-    SELECT m.*,t.title AS task_title
+    SELECT m.*,t.title AS task_title,
+           (SELECT rl.receipt_id FROM work_receipt_lines rl
+            WHERE rl.material_id=m.id ORDER BY rl.id LIMIT 1) AS scanned_receipt_id
     FROM work_materials m
     LEFT JOIN work_tasks t ON t.id=m.task_id
     WHERE m.job_id=?
@@ -129,12 +131,16 @@ foreach ($materials as $material) {
             'gst_source' => 0.0,
             'items' => [],
             'ids' => [],
+            'receipt_ids' => [],
         ];
     }
     $receiptGroups[$key]['amount'] += (float)($material['actual_cost'] ?? $material['cost'] ?? 0);
     $receiptGroups[$key]['gst_source'] += (float)($material['receipt_gst_amount'] ?? 0);
     $receiptGroups[$key]['items'][] = (string)$material['description'];
     $receiptGroups[$key]['ids'][] = (int)$material['id'];
+    if (!empty($material['scanned_receipt_id'])) {
+        $receiptGroups[$key]['receipt_ids'][(int)$material['scanned_receipt_id']] = true;
+    }
 }
 
 $complimentaryStmt = $pdo->prepare("
@@ -176,17 +182,21 @@ foreach ($daily as $day) {
 
 $materialsChargeTotal = (float)($job['materials_already_value'] ?? 0);
 $reimbursementTotal = 0.0;
+$supplierGstTotal = 0.0;
 $excludedMaterialTotal = 0.0;
 foreach ($receiptGroups as &$group) {
     $isChargeable = $group['paid_by'] === 'mike'
         && $group['treatment'] === 'charge_customer'
         && in_array($group['reimbursement'], ['not_applicable','reimbursement_due'], true);
     $group['included'] = $isChargeable;
-    $group['invoice_type'] = $group['reimbursement'] === 'reimbursement_due'
-        ? 'Reimbursement'
-        : 'Materials';
-    if ($isChargeable && $group['reimbursement'] === 'reimbursement_due') {
+    // Mike-paid supplier purchases charged at their source-receipt cost are
+    // reimbursements. The supplier GST is already inside the gross amount;
+    // Mike does not add GST because Mike of All Trades is not GST registered.
+    $isReimbursement = $isChargeable && $group['paid_by'] === 'mike';
+    $group['invoice_type'] = $isReimbursement ? 'Reimbursement' : 'Materials';
+    if ($isReimbursement) {
         $reimbursementTotal += $group['amount'];
+        $supplierGstTotal += $group['gst_source'];
     } elseif ($isChargeable) {
         $materialsChargeTotal += $group['amount'];
     } else {
@@ -208,7 +218,7 @@ foreach ($complimentary as $item) {
 
 $copyLines = [];
 $copyLines[] = 'INVOICE PREPARATION — ' . (string)$job['customer_name'];
-$copyLines[] = 'No GST has been charged. Mike of All Trades is not registered for GST.';
+$copyLines[] = 'No GST has been charged by Mike of All Trades. Supplier GST shown on reimbursements is already included in the supplier receipt totals.';
 $unresolvedImportDifference = 0.0;
 foreach ($spreadsheetImports as $import) {
     $unresolvedImportDifference += abs((float)($import['reconciliation_difference'] ?? 0));
@@ -227,12 +237,16 @@ foreach ($daily as $date => $day) {
 foreach ($receiptGroups as $group) {
     if (!$group['included']) continue;
     $reference = $group['receipt'] !== '' ? ' — Receipt ' . $group['receipt'] : '';
-    $copyLines[] = ip_date($group['date']) . ' — ' . $group['invoice_type'] . ': ' . $group['supplier'] . $reference . ' — ' . ip_money($group['amount']);
+    $gstText = $group['invoice_type'] === 'Reimbursement'
+        ? ' (supplier GST included: ' . ($group['gst_source'] > 0 ? ip_money($group['gst_source']) : 'not recorded') . ')'
+        : '';
+    $copyLines[] = ip_date($group['date']) . ' — ' . $group['invoice_type'] . ': ' . $group['supplier'] . $reference . ' — ' . ip_money($group['amount']) . $gstText;
 }
 $copyLines[] = '';
 $copyLines[] = 'Labour: ' . ip_money($labourTotal) . ' (' . number_format($labourHours,2) . ' tracked billable hrs)';
 $copyLines[] = 'Materials: ' . ip_money($materialsChargeTotal);
 $copyLines[] = 'Reimbursements: ' . ip_money($reimbursementTotal);
+$copyLines[] = 'Supplier GST included in reimbursements: ' . ip_money($supplierGstTotal) . ' (not added again)';
 $copyLines[] = 'TOTAL — NO GST: ' . ip_money($invoiceTotal);
 $copyLines[] = 'Payments received: ' . ip_money($paymentTotal);
 $copyLines[] = 'BALANCE DUE: ' . ip_money($balanceDue);
@@ -253,7 +267,10 @@ body{font-family:system-ui;background:#eef2f4;color:#17202a;margin:0}.wrap{max-w
 <div class="toplinks no-print"><a href="manage_job.php?id=<?=$id?>">← Manage job</a><a href="closeout.php?id=<?=$id?>">Close-out preview</a><a href="materials.php?id=<?=$id?>">Materials / receipts</a></div>
 <h1>Invoice preparation</h1>
 <p><b><?=wt_html($job['customer_name'])?></b><?=!empty($job['job_title'])?' — '.wt_html($job['job_title']):''?></p>
-<p class="no-gst">No GST has been charged. Mike of All Trades is not registered for GST.</p>
+<p class="no-gst">No GST has been charged by Mike of All Trades. Supplier GST shown on reimbursements is copied from the original supplier tax invoices and is already included in the reimbursement totals.</p>
+
+<?php $customerPreviewUrl=wt_base_url().'/work/invoice_preview.php?t='.urlencode((string)$job['public_token']);?>
+<div class="card no-print"><h2>Customer read-only invoice preview</h2><p class="muted">This private link lets the customer review the invoice-style summary and source receipts. It cannot edit your records.</p><input id="customer-preview-url" readonly value="<?=wt_html($customerPreviewUrl)?>"><br><br><button class="btn" type="button" onclick="navigator.clipboard.writeText(document.getElementById('customer-preview-url').value).then(()=>this.textContent='LINK COPIED')">Copy customer preview link</button> <a class="btn secondary" target="_blank" href="<?=wt_html($customerPreviewUrl)?>">Open preview</a></div>
 
 <?php if(($_GET['free_added'] ?? '')==='1'):?><div class="notice good"><b>✓ Free material recorded.</b> It is shown as customer value but excluded from the amount payable.</div><?php endif;?>
 <?php if(($_GET['group_excluded'] ?? '')==='1'):?><div class="notice good"><b>✓ Duplicate group excluded.</b> Every underlying item in that grouped charge was removed from the invoice total. Its audit history was preserved.</div><?php endif;?>
@@ -267,6 +284,7 @@ body{font-family:system-ui;background:#eef2f4;color:#17202a;margin:0}.wrap{max-w
 <div class="metric">Billable labour<b><?=ip_money($labourTotal)?></b><span><?=number_format($labourHours,2)?> tracked hours</span></div>
 <div class="metric">Chargeable materials<b><?=ip_money($materialsChargeTotal)?></b></div>
 <div class="metric">Reimbursements due<b><?=ip_money($reimbursementTotal)?></b></div>
+<div class="metric">Supplier GST included<b><?=ip_money($supplierGstTotal)?></b><span>Already inside reimbursements</span></div>
 <div class="metric">Invoice total — no GST<b><?=ip_money($invoiceTotal)?></b></div>
 <div class="metric">Payments recorded<b><?=ip_money($paymentTotal)?></b></div>
 <div class="metric">Balance due<b><?=ip_money($balanceDue)?></b></div>
@@ -285,13 +303,13 @@ body{font-family:system-ui;background:#eef2f4;color:#17202a;margin:0}.wrap{max-w
 
 <div class="card">
 <h2>Materials and reimbursements grouped by receipt</h2>
-<p class="muted">Multiple spreadsheet product rows from the same receipt are combined here. Supplier-receipt GST is internal source information only and is not GST charged by Mike of All Trades.</p>
-<div class="scroll"><table><thead><tr><th>Status</th><th>Date</th><th>Type</th><th>Supplier / receipt</th><th>Paid by</th><th>Ledger treatment</th><th class="money">Amount</th><th>Actions</th></tr></thead><tbody>
+<p class="muted">Supplier GST is copied from the original tax invoice and is already included in the gross reimbursement. It is not GST charged by Mike and is never added a second time.</p>
+<div class="scroll"><table><thead><tr><th>Status</th><th>Date</th><th>Type</th><th>Supplier / receipt</th><th>Paid by</th><th class="money">Net</th><th class="money">Supplier GST</th><th class="money">Gross due</th><th>Actions</th></tr></thead><tbody>
 <?php foreach($receiptGroups as $group):?>
-<tr><td class="<?=$group['included']?'included':'excluded'?>"><?=$group['included']?'INCLUDED':'EXCLUDED'?></td><td><?=wt_html(ip_date($group['date']))?></td><td><?=wt_html($group['invoice_type'])?></td><td><b><?=wt_html($group['supplier'])?></b><?=($group['receipt']!=='')?'<br>Receipt '.wt_html($group['receipt']):''?><details><summary class="details"><?=count($group['items'])?> underlying item(s)</summary><div class="details"><?=wt_html(implode('; ',$group['items']))?></div></details></td><td><?=wt_html(ucfirst($group['paid_by']))?></td><td><?=wt_html(str_replace('_',' ',$group['treatment']))?><br><span class="details"><?=wt_html(str_replace('_',' ',$group['reimbursement']))?></span></td><td class="money"><b><?=ip_money($group['amount'])?></b></td><td><a href="materials.php?id=<?=$id?>#material-<?=$group['ids'][0]?>">Review/edit</a><?php if($group['included']):?><form class="no-print" method="post" action="../../api/work/exclude_material_group.php" style="margin-top:8px" onsubmit="return confirm('Exclude this entire grouped charge of <?=wt_html(ip_money($group['amount']))?> as a duplicate? All <?=count($group['ids'])?> underlying item(s) will be removed from the invoice total. The audit history and any receipt image will be preserved.');"><input type="hidden" name="job_id" value="<?=$id?>"><input type="hidden" name="material_ids" value="<?=wt_html(implode(',', $group['ids']))?>"><input type="hidden" name="group_label" value="<?=wt_html($group['supplier'].($group['receipt']!==''?' receipt '.$group['receipt']:'').' '.ip_money($group['amount']))?>"><button class="btn" style="background:#a31919;padding:7px 9px;font-size:12px">EXCLUDE DUPLICATE</button></form><?php endif;?></td></tr>
+<tr><td class="<?=$group['included']?'included':'excluded'?>"><?=$group['included']?'INCLUDED':'EXCLUDED'?></td><td><?=wt_html(ip_date($group['date']))?></td><td><?=wt_html($group['invoice_type'])?></td><td><b><?=wt_html($group['supplier'])?></b><?=($group['receipt']!=='')?'<br>Receipt '.wt_html($group['receipt']):''?><details><summary class="details"><?=count($group['items'])?> underlying item(s)</summary><div class="details"><?=wt_html(implode('; ',$group['items']))?></div></details></td><td><?=wt_html(ucfirst($group['paid_by']))?></td><td class="money"><?=ip_money(max(0,$group['amount']-$group['gst_source']))?></td><td class="money"><?=$group['gst_source']>0?ip_money($group['gst_source']):'<span class="excluded">Not recorded</span>'?></td><td class="money"><b><?=ip_money($group['amount'])?></b></td><td><?php foreach(array_keys($group['receipt_ids']) as $receiptId):?><a target="_blank" href="receipt_file.php?job_id=<?=$id?>&amp;receipt_id=<?=$receiptId?>">View receipt</a><br><?php endforeach;?><a href="materials.php?id=<?=$id?>#material-<?=$group['ids'][0]?>">Review/edit GST</a><?php if($group['included']):?><form class="no-print" method="post" action="../../api/work/exclude_material_group.php" style="margin-top:8px" onsubmit="return confirm('Exclude this entire grouped charge of <?=wt_html(ip_money($group['amount']))?> as a duplicate? All <?=count($group['ids'])?> underlying item(s) will be removed from the invoice total. The audit history and any receipt image will be preserved.');"><input type="hidden" name="job_id" value="<?=$id?>"><input type="hidden" name="material_ids" value="<?=wt_html(implode(',', $group['ids']))?>"><input type="hidden" name="group_label" value="<?=wt_html($group['supplier'].($group['receipt']!==''?' receipt '.$group['receipt']:'').' '.ip_money($group['amount']))?>"><button class="btn" style="background:#a31919;padding:7px 9px;font-size:12px">EXCLUDE DUPLICATE</button></form><?php endif;?></td></tr>
 <?php endforeach;?>
-<?php if(!$receiptGroups):?><tr><td colspan="8">No material records have been entered.</td></tr><?php endif;?>
-</tbody><tfoot><tr><th colspan="6">Included materials + reimbursements</th><th class="money"><?=ip_money($materialsChargeTotal+$reimbursementTotal)?></th><th></th></tr></tfoot></table></div>
+<?php if(!$receiptGroups):?><tr><td colspan="9">No material records have been entered.</td></tr><?php endif;?>
+</tbody><tfoot><tr><th colspan="5">Included totals</th><th class="money"><?=ip_money(($materialsChargeTotal+$reimbursementTotal)-$supplierGstTotal)?></th><th class="money"><?=ip_money($supplierGstTotal)?></th><th class="money"><?=ip_money($materialsChargeTotal+$reimbursementTotal)?></th><th></th></tr></tfoot></table></div>
 <?php if($excludedMaterialTotal>0):?><p class="notice"><b><?=ip_money($excludedMaterialTotal)?> of material records are excluded</b> because they were customer-paid, already reimbursed, included in the agreed price, goodwill or rectification. Check these classifications before billing.</p><?php endif;?>
 </div>
 
@@ -311,8 +329,8 @@ body{font-family:system-ui;background:#eef2f4;color:#17202a;margin:0}.wrap{max-w
 
 <div class="card">
 <h2>Invoice summary</h2>
-<div class="scroll"><table><tr><td>Labour</td><td class="money"><?=ip_money($labourTotal)?></td></tr><tr><td>Materials</td><td class="money"><?=ip_money($materialsChargeTotal)?></td></tr><tr><td>Reimbursements</td><td class="money"><?=ip_money($reimbursementTotal)?></td></tr><tr><th>Invoice total — no GST</th><th class="money"><?=ip_money($invoiceTotal)?></th></tr><tr><td>Payments received</td><td class="money">−<?=ip_money($paymentTotal)?></td></tr><tr><th>Balance due</th><th class="money"><?=ip_money($balanceDue)?></th></tr></table></div>
-<p class="no-gst">No GST has been charged. Mike of All Trades is not registered for GST.</p>
+<div class="scroll"><table><tr><td>Labour</td><td class="money"><?=ip_money($labourTotal)?></td></tr><tr><td>Materials</td><td class="money"><?=ip_money($materialsChargeTotal)?></td></tr><tr><td>Reimbursements (gross supplier receipts)</td><td class="money"><?=ip_money($reimbursementTotal)?></td></tr><tr><td>Supplier GST included in reimbursements (information only)</td><td class="money"><?=ip_money($supplierGstTotal)?></td></tr><tr><th>Invoice total — no GST added by Mike</th><th class="money"><?=ip_money($invoiceTotal)?></th></tr><tr><td>Payments received</td><td class="money">−<?=ip_money($paymentTotal)?></td></tr><tr><th>Balance due</th><th class="money"><?=ip_money($balanceDue)?></th></tr></table></div>
+<p class="no-gst">No GST has been charged by Mike of All Trades. Supplier GST is disclosed from the original tax invoices and remains included in the reimbursement amounts.</p>
 </div>
 
 <div class="card no-print">
