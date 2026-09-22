@@ -1,0 +1,20 @@
+V10 patch files (starting from Git commit b8f1937)
+
+README_INSTALL_V10_CUSTOMERS_PROPERTIES_INVOICING.txt
+V10_PATCH_MANIFEST.txt
+admin/work/combined_invoice_preparation.php
+admin/work/customer.php
+admin/work/invoice_preparation.php
+admin/work/manage_job.php
+admin/work/new.php
+api/work/admin_search.php
+api/work/create_zoho_invoice.php
+api/work/search_zoho_customers.php
+api/work/send_zoho_invoice.php
+api/work/sync_zoho_invoice.php
+api/work/update_customer.php
+includes/admin_nav.php
+includes/work_invoice.php
+includes/work_tracker.php
+tools/install_v10.php
+tools/migration_v10_customers_properties.sql

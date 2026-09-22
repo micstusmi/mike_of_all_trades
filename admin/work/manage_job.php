@@ -15,6 +15,7 @@ try {
     http_response_code(404);
     die('Admin job not found.');
 }
+$customerRecord=wt_customer_for_job($pdo,$id);
 
 /*
  * Opening a job should affect recent-open ordering without pretending
@@ -527,12 +528,8 @@ box-shadow:0 8px 28px #0003;
 <?php endif;?>
 <div class="wrap">
 
-<p>
-    <a href="index.php">← All jobs</a>
-    · <a href="task_photos.php?id=<?=$id?>">Task photos</a>
-    · <a href="social_drafts.php?id=<?=$id?>">Social drafts</a>
-</p>
-<h1 class="page-local-title">Manage Job #<?=$id?> — <?=wt_html($job['customer_name'])?></h1>
+<h1 class="page-local-title">Manage Job #<?=$id?> — <?php if(!empty($job['customer_id'])):?><a href="customer.php?id=<?=(int)$job['customer_id']?>"><?=wt_html($job['customer_name'])?></a><?php else:?><?=wt_html($job['customer_name'])?><?php endif;?></h1>
+<?php if(!empty($job['customer_id'])):?><p><a class="btn" href="customer.php?id=<?=(int)$job['customer_id']?>">EDIT CUSTOMER</a></p><?php endif;?>
 <p><?=wt_html($job['job_address'])?></p>
 <?php $archiveReturn='manage_job.php?id='.$id;require __DIR__.'/media_archive_panel.php';?>
 
@@ -670,50 +667,7 @@ if ($quickSession && !empty($quickSession['task_id']) && isset($taskById[(int)$q
 
 <div class="card" id="customer-details">
 <h2>Customer details</h2>
-
-<?php if(!empty($_GET['customer_saved'])):?>
-<div class="notice-good" style="padding:10px;border-radius:9px;margin-bottom:12px">
-Customer details saved.
-</div>
-<?php endif;?>
-
-<form method="post" action="../../api/work/update_customer_details.php">
-<input type="hidden" name="job_id" value="<?=$id?>">
-
-<div class="row">
-  <div class="field">
-    <label>Customer name</label>
-    <input
-      type="text"
-      name="customer_name"
-      required
-      value="<?=wt_html((string)($job['customer_name']??''))?>"
-    >
-  </div>
-
-  <div class="field">
-    <label>Mobile / phone</label>
-    <input
-      type="tel"
-      name="customer_phone"
-      value="<?=wt_html((string)($job['customer_phone']??''))?>"
-      placeholder="e.g. 0467 123 456"
-    >
-    <span class="small">Spaces and Australian 04 numbers are automatically normalised for SMS.</span>
-  </div>
-
-  <div class="field">
-    <label>Email</label>
-    <input
-      type="email"
-      name="customer_email"
-      value="<?=wt_html((string)($job['customer_email']??''))?>"
-    >
-  </div>
-</div>
-
-<button class="btn" type="submit">SAVE CUSTOMER DETAILS</button>
-</form>
+<?php if($customerRecord):?><p><b>Billing name:</b> <?=wt_html($customerRecord['display_name'])?><br><b>Job/source name:</b> <?=wt_html($job['customer_name'])?><br><b>Email:</b> <?=wt_html((string)$customerRecord['email'])?><br><b>Phone:</b> <?=wt_html((string)$customerRecord['phone'])?><br><b>Invoice terms:</b> <?=wt_html(wt_payment_terms_label((int)$customerRecord['payment_terms_days']))?></p><a class="btn" href="customer.php?id=<?=(int)$customerRecord['id']?>">EDIT CUSTOMER, PROPERTIES &amp; ZOHO LINK</a><?php else:?><p class="notice-warn" style="padding:10px;border-radius:9px">Run the V10 database installer to create the shared customer record for this job.</p><?php endif;?>
 </div>
 
 <div class="card" id="schedule-access">

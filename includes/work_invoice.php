@@ -9,6 +9,7 @@ declare(strict_types=1);
 function wt_invoice_package(PDO $pdo, int $jobId): array
 {
     $job = wt_job($pdo, $jobId);
+    $customer = wt_customer_for_job($pdo, $jobId);
     $defaultRate = (float)($job['agreed_hourly_rate'] ?? 0);
 
     $q = $pdo->prepare("SELECT s.*,COALESCE(w.hourly_rate,?) effective_rate,t.title task_title,
@@ -54,16 +55,31 @@ function wt_invoice_package(PDO $pdo, int $jobId): array
     $payments=(float)($job['payments_received']??0);$q=$pdo->prepare('SELECT amount FROM work_payments WHERE job_id=?');$q->execute([$jobId]);foreach($q->fetchAll(PDO::FETCH_ASSOC) as $p)$payments+=(float)$p['amount'];
     $reconciliation=[];try{$q=$pdo->prepare("SELECT id,original_name,reconciliation_difference FROM work_receipt_imports WHERE job_id=? AND status IN ('ready','applied') AND ABS(COALESCE(reconciliation_difference,0))>=0.01");$q->execute([$jobId]);$reconciliation=$q->fetchAll(PDO::FETCH_ASSOC);}catch(Throwable $e){}
     $total=$labourTotal+$reimbursementTotal;$balance=$total-$payments;
-    $package=['schema_version'=>2,'job'=>['id'=>$jobId,'customer_name'=>(string)($job['customer_name']??''),'customer_email'=>(string)($job['customer_email']??''),'customer_phone'=>(string)($job['customer_phone']??''),'job_address'=>(string)($job['job_address']??''),'job_title'=>(string)($job['job_title']??$job['title']??'Property maintenance')],'labour_days'=>array_values($daily),'reimbursements'=>$reimbursements,'totals'=>['labour_hours'=>round($labourHours,4),'labour'=>round($labourTotal,2),'reimbursements'=>round($reimbursementTotal,2),'supplier_gst_included'=>round($supplierGst,2),'payments'=>round($payments,2),'invoice_total'=>round($total,2),'balance_due'=>round($balance,2)],'warnings'=>['unfinished_sessions'=>$unfinished,'missing_supplier_gst'=>$missingGst,'reconciliation'=>$reconciliation]];
+    $package=['schema_version'=>3,'customer'=>['id'=>(int)($customer['id']??0),'name'=>(string)($customer['display_name']??$job['customer_name']??''),'source_alias'=>(string)($customer['source_alias']??$job['customer_name']??''),'email'=>(string)($customer['email']??$job['customer_email']??''),'phone'=>(string)($customer['phone']??$job['customer_phone']??''),'billing_address'=>(string)($customer['billing_address']??''),'payment_terms_days'=>(int)($customer['payment_terms_days']??0),'zoho_contact_id'=>(string)($customer['zoho_contact_id']??'')],'job'=>['id'=>$jobId,'customer_name'=>(string)($customer['display_name']??$job['customer_name']??''),'customer_alias'=>(string)($job['customer_name']??''),'customer_email'=>(string)($customer['email']??$job['customer_email']??''),'customer_phone'=>(string)($customer['phone']??$job['customer_phone']??''),'job_address'=>(string)($job['job_address']??''),'job_title'=>(string)($job['job_title']??$job['title']??'Property maintenance')],'jobs'=>[['id'=>$jobId,'address'=>(string)($job['job_address']??''),'alias'=>(string)($job['customer_name']??'')]],'labour_days'=>array_values($daily),'reimbursements'=>$reimbursements,'totals'=>['labour_hours'=>round($labourHours,4),'labour'=>round($labourTotal,2),'reimbursements'=>round($reimbursementTotal,2),'supplier_gst_included'=>round($supplierGst,2),'payments'=>round($payments,2),'invoice_total'=>round($total,2),'balance_due'=>round($balance,2)],'warnings'=>['unfinished_sessions'=>$unfinished,'missing_supplier_gst'=>$missingGst,'reconciliation'=>$reconciliation]];
     $fingerprintData=$package;unset($fingerprintData['totals']['payments'],$fingerprintData['totals']['balance_due']);$package['fingerprint']=hash('sha256',json_encode($fingerprintData,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));
     return $package;
+}
+
+function wt_invoice_package_for_jobs(PDO $pdo,array $jobIds): array
+{
+    $jobIds=array_values(array_unique(array_filter(array_map('intval',$jobIds),fn($id)=>$id>0)));
+    if(!$jobIds)throw new InvalidArgumentException('Select at least one job.');
+    if(count($jobIds)===1)return wt_invoice_package($pdo,$jobIds[0]);
+    $marks=implode(',',array_fill(0,count($jobIds),'?'));$q=$pdo->prepare("SELECT DISTINCT job_id FROM work_closeout_snapshots WHERE job_id IN ($marks) AND sent_to_zoho_at IS NOT NULL");$q->execute($jobIds);$already=array_map('intval',$q->fetchAll(PDO::FETCH_COLUMN));if($already)throw new RuntimeException('These jobs already have an emailed invoice and cannot be included again: #'.implode(', #',$already).'.');
+    $packages=array_map(fn($id)=>wt_invoice_package($pdo,$id),$jobIds);$customerId=(int)($packages[0]['customer']['id']??0);
+    if($customerId<=0)throw new RuntimeException('Install the V10 customer migration before preparing a combined invoice.');
+    foreach($packages as $p)if((int)($p['customer']['id']??0)!==$customerId)throw new RuntimeException('Combined invoices may only contain jobs linked to the same customer.');
+    $out=$packages[0];$out['jobs']=[];$out['labour_days']=[];$out['reimbursements']=[];$out['totals']=['labour_hours'=>0.0,'labour'=>0.0,'reimbursements'=>0.0,'supplier_gst_included'=>0.0,'payments'=>0.0,'invoice_total'=>0.0,'balance_due'=>0.0];$out['warnings']=['unfinished_sessions'=>0,'missing_supplier_gst'=>[],'reconciliation'=>[]];
+    foreach($packages as $p){$j=$p['job'];$out['jobs'][]=['id'=>(int)$j['id'],'address'=>$j['job_address'],'alias'=>$j['customer_alias']??$j['customer_name']];foreach($p['labour_days'] as $d){$d['job_id']=(int)$j['id'];$d['description']='Job #'.$j['id'].' — '.$j['job_address'].': '.$d['description'];$out['labour_days'][]=$d;}foreach($p['reimbursements'] as $g){$g['job_id']=(int)$j['id'];$g['items']=array_map(fn($x)=>'Job #'.$j['id'].' — '.$j['job_address'].': '.$x,$g['items']);$out['reimbursements'][]=$g;}foreach($out['totals'] as $k=>$_)$out['totals'][$k]+=((float)($p['totals'][$k]??0));$out['warnings']['unfinished_sessions']+=(int)$p['warnings']['unfinished_sessions'];$out['warnings']['missing_supplier_gst']=array_merge($out['warnings']['missing_supplier_gst'],$p['warnings']['missing_supplier_gst']);$out['warnings']['reconciliation']=array_merge($out['warnings']['reconciliation'],$p['warnings']['reconciliation']);}
+    foreach($out['totals'] as $k=>$v)$out['totals'][$k]=round($v,$k==='labour_hours'?4:2);$out['job']['id']=$jobIds[0];$out['job']['job_title']='Combined property work';$out['job']['job_address']=implode(' | ',array_column($out['jobs'],'address'));
+    $fingerprint=$out;unset($fingerprint['totals']['payments'],$fingerprint['totals']['balance_due']);$out['fingerprint']=hash('sha256',json_encode($fingerprint,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));return $out;
 }
 
 function wt_invoice_receipt_attachments(PDO $pdo,array $package): array
 {
     $ids=[];foreach($package['reimbursements'] as $g)foreach($g['receipt_ids'] as $id)$ids[(int)$id]=true;if(!$ids)return[];
-    $marks=implode(',',array_fill(0,count($ids),'?'));$params=array_keys($ids);array_unshift($params,(int)$package['job']['id']);
-    $q=$pdo->prepare("SELECT * FROM work_receipts WHERE job_id=? AND id IN ($marks)");$q->execute($params);$files=[];
+    $jobIds=array_column($package['jobs']??[['id'=>$package['job']['id']]],'id');$idMarks=implode(',',array_fill(0,count($ids),'?'));$jobMarks=implode(',',array_fill(0,count($jobIds),'?'));$params=array_merge(array_map('intval',$jobIds),array_keys($ids));
+    $q=$pdo->prepare("SELECT * FROM work_receipts WHERE job_id IN ($jobMarks) AND id IN ($idMarks)");$q->execute($params);$files=[];
     foreach($q->fetchAll(PDO::FETCH_ASSOC) as $r){$path=dirname(__DIR__).'/'.ltrim((string)$r['relative_path'],'/');if(is_file($path))$files[]=['tmp_name'=>$path,'name'=>(string)$r['original_name'],'mime'=>(string)$r['mime_type']];}
     return $files;
 }
@@ -85,8 +101,15 @@ function wt_invoice_zoho_payload(array $package,string $contactId,string $zeroTa
     foreach($package['reimbursements'] as $g){$gst=$g['gst']>0?'Supplier GST included in this gross reimbursement: $'.number_format($g['gst'],2).'.':'Supplier GST is not yet recorded in the Work Tracker.';$description=implode('; ',array_filter([$g['receipt']!==''?'Supplier receipt '.$g['receipt']:'',$gst,'Original supplier receipt retained and provided where attached.']));$lines[]=array_merge(['name'=>'Reimbursement - '.$g['supplier'],'description'=>$description,'quantity'=>1,'rate'=>round((float)$g['amount'],2)],$noTax);}
     $gstTotal=(float)$package['totals']['supplier_gst_included'];
     $lines[]=array_merge(['name'=>'Supplier GST included in reimbursements','description'=>'Information only: $'.number_format($gstTotal,2).' supplier GST is already included in the gross reimbursement lines above. It is not GST charged by Mike Of All Trades and is not added again. Refer to the attached original supplier tax invoices.','quantity'=>1,'rate'=>0],$noTax);
-    $subject=trim($job['job_title'].($job['job_address']!==''?' - '.$job['job_address']:''));
-    return ['customer_id'=>$contactId,'date'=>date('Y-m-d'),'due_date'=>date('Y-m-d'),'payment_terms'=>0,'reference_number'=>'Work Tracker job #'.$job['id'],'is_inclusive_tax'=>false,'line_items'=>$lines,'notes'=>"Thanks for your business.\n\nNo GST has been charged by Mike Of All Trades. Total supplier GST already included in reimbursements: $".number_format($gstTotal,2).". This is copied from the original supplier tax invoices and is not added again.\n\nJob: ".$subject,'terms'=>"If you notice any discrepancies on this invoice, please contact Mike as soon as possible. Payment is due on receipt. Mike Of All Trades' Terms & Conditions are available at https://mikeofalltrades.com.au/terms.php"];
+    $subject=trim($job['job_title'].($job['job_address']!==''?' - '.$job['job_address']:''));$days=max(0,(int)($package['customer']['payment_terms_days']??0));$date=date('Y-m-d');$references=array_map(fn($j)=>'#'.(int)$j['id'],$package['jobs']??[['id'=>$job['id']]]);$termsLabel=wt_payment_terms_label($days);
+    return ['customer_id'=>$contactId,'date'=>$date,'due_date'=>date('Y-m-d',strtotime($date.' +'.$days.' days')),'payment_terms'=>$days,'payment_terms_label'=>$termsLabel,'reference_number'=>'Work Tracker job'.(count($references)>1?'s ':' ').implode(', ',$references),'is_inclusive_tax'=>false,'line_items'=>$lines,'notes'=>"Thanks for your business.\n\nNo GST has been charged by Mike Of All Trades. Total supplier GST already included in reimbursements: $".number_format($gstTotal,2).". This is copied from the original supplier tax invoices and is not added again.\n\nJob: ".$subject,'terms'=>"If you notice any discrepancies on this invoice, please contact Mike as soon as possible. Payment terms: $termsLabel. Mike Of All Trades' Terms & Conditions are available at https://mikeofalltrades.com.au/terms.php"];
+}
+
+function wt_invoice_zoho_contact_id(array $package): string
+{
+    $id=trim((string)($package['customer']['zoho_contact_id']??''));
+    if($id==='')throw new RuntimeException('Link this Work Tracker customer to an existing Zoho customer before creating an invoice. This prevents duplicate Zoho contacts.');
+    getZohoCustomerById($id);return $id;
 }
 
 /** Refuse approval/email when Zoho has changed the GST-free figures. */
@@ -98,4 +121,13 @@ function wt_assert_zoho_invoice_no_gst(array $invoice,float $expectedTotal): voi
     $actual=(float)($invoice['total']??0);
     if($tax>0.004)throw new RuntimeException('Safety stop: Zoho added $'.number_format($tax,2).' GST. This draft cannot be emailed.');
     if($actual>0&&abs($actual-$expectedTotal)>0.01)throw new RuntimeException('Safety stop: Zoho total $'.number_format($actual,2).' does not match the GST-free Work Tracker total $'.number_format($expectedTotal,2).'. This draft cannot be emailed.');
+}
+
+function wt_assert_zoho_invoice_matches(array $invoice,array $package): void
+{
+    wt_assert_zoho_invoice_no_gst($invoice,(float)$package['totals']['invoice_total']);
+    $expectedContact=trim((string)($package['customer']['zoho_contact_id']??''));$actualContact=trim((string)($invoice['customer_id']??''));
+    if($expectedContact!==''&&$actualContact!==''&&$actualContact!==$expectedContact)throw new RuntimeException('Safety stop: the Zoho draft is attached to a different customer. It cannot be emailed.');
+    $days=max(0,(int)($package['customer']['payment_terms_days']??0));$invoiceDate=(string)($invoice['date']??'');$dueDate=(string)($invoice['due_date']??'');
+    if($invoiceDate!==''){$expectedDue=date('Y-m-d',strtotime($invoiceDate.' +'.$days.' days'));if($dueDate!==''&&$dueDate!==$expectedDue)throw new RuntimeException('Safety stop: Zoho due date '.$dueDate.' does not match '.wt_payment_terms_label($days).' (expected '.$expectedDue.'). This draft cannot be emailed.');}
 }

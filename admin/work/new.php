@@ -65,15 +65,9 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
             throw new InvalidArgumentException('Expected finish cannot be before planned start.');
         }
 
+        $selectedZohoContact = null;
         if ($selectedZohoContactId !== '') {
-            getZohoCustomerById($selectedZohoContactId);
-        } else {
-            getOrCreateZohoCustomer(
-                $customerName,
-                $customerEmail,
-                $customerPhone,
-                $jobAddress
-            );
+            $selectedZohoContact = getZohoCustomerById($selectedZohoContactId);
         }
 
         $stmt=$pdo->prepare("INSERT INTO work_jobs
@@ -121,6 +115,11 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
         ]);
 
         $id=(int)$pdo->lastInsertId();
+        $customerId=0;
+        if($selectedZohoContactId!==''){$q=$pdo->prepare('SELECT id FROM work_customers WHERE zoho_contact_id=? LIMIT 1');$q->execute([$selectedZohoContactId]);$customerId=(int)($q->fetchColumn()?:0);}
+        if($customerId===0){$q=$pdo->prepare("INSERT INTO work_customers(display_name,source_alias,email,phone,billing_address,payment_terms_days,zoho_contact_id,zoho_contact_name) VALUES(?,?,?,?,?,0,?,?)");$q->execute([$customerName,$customerName,$customerEmail?:null,$customerPhone?:null,$jobAddress,$selectedZohoContactId?:null,$selectedZohoContact?(string)($selectedZohoContact['contact_name']??$selectedZohoContact['company_name']??''):null]);$customerId=(int)$pdo->lastInsertId();}
+        $q=$pdo->prepare("INSERT INTO work_properties(customer_id,label,address) VALUES(?,NULL,?)");$q->execute([$customerId,$jobAddress]);$propertyId=(int)$pdo->lastInsertId();
+        $pdo->prepare("UPDATE work_jobs SET customer_id=?,property_id=? WHERE id=?")->execute([$customerId,$propertyId,$id]);
         // V8: log the customer request immediately, send the live job link, then build AI tasks after the admin page loads.
         wt_initialise_job_intake($pdo, $id, trim((string)($_POST['original_scope'] ?? '')), true);
         header("Location: manage_job.php?id=".$id."&run_ai=1&job_logged=1"); exit;
@@ -209,9 +208,9 @@ to fill the customer fields automatically.
 <div id="zohoSearchStatus" class="zoho-status"></div>
 <div id="zohoSearchResults" class="zoho-results"></div>
 <p class="help">
-If no customer is selected, the website will check the completed email
-and mobile when the job is saved. It will create a new Zoho customer only
-when neither matches an existing customer.
+If no Zoho customer is selected, the job will be saved locally but invoicing
+will remain blocked until you deliberately link the correct Zoho customer.
+This prevents accidental duplicate Zoho contacts.
 </p>
 </div>
 

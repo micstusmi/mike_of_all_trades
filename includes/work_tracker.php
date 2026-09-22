@@ -77,6 +77,27 @@ function wt_job(PDO $pdo, int $jobId): array {
     return $row;
 }
 
+function wt_customer_for_job(PDO $pdo, int $jobId): ?array {
+    try {
+        $s=$pdo->prepare("SELECT c.* FROM work_customers c JOIN work_jobs j ON j.customer_id=c.id WHERE j.id=?");
+        $s->execute([$jobId]);
+        return $s->fetch(PDO::FETCH_ASSOC) ?: null;
+    } catch (Throwable $e) { return null; }
+}
+
+function wt_customer(PDO $pdo, int $customerId): array {
+    $s=$pdo->prepare("SELECT * FROM work_customers WHERE id=?");$s->execute([$customerId]);
+    $row=$s->fetch(PDO::FETCH_ASSOC);if(!$row)throw new RuntimeException('Customer not found.');return $row;
+}
+
+function wt_payment_terms_label(int $days): string {
+    return $days > 0 ? 'Net '.$days : 'Due on Receipt';
+}
+
+function wt_customer_url(int $customerId): string {
+    return wt_base_url().'/admin/work/customer.php?id='.$customerId;
+}
+
 function wt_job_by_token(PDO $pdo, string $token): array {
     $s = $pdo->prepare("SELECT * FROM work_jobs WHERE public_token=?");
     $s->execute([$token]);
