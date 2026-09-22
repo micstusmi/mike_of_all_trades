@@ -200,7 +200,7 @@ textarea{width:100%;box-sizing:border-box;min-height:120px;border:1px solid #ccd
 @media(max-width:560px){.photo-grid{grid-template-columns:1fr}.wrap{padding:12px}}
 </style>
 </head>
-<body>
+<body><?php $adminPageTitle='Social Drafts';$adminBreadcrumbs=['Work Tracker'=>'index.php','Social drafts'=>''];$adminJob=$job??null;require __DIR__.'/../../includes/admin_nav.php';?>
 <div class="wrap">
 <div class="top">
 <div>

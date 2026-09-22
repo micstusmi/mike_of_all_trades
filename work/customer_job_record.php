@@ -326,6 +326,7 @@ textarea,input{box-sizing:border-box;width:100%;padding:11px;border:1px solid #c
 .time-summary div{background:#f7f9fa;border:1px solid #e2e7ea;border-radius:9px;padding:10px;text-align:center}
 .goodwill{background:#f3fbef;border:1px solid #b9dda9}
 .goodwill-total{font-size:23px;font-weight:900;color:#2b6a1f}
+.customer-find{position:sticky;top:0;z-index:50;background:#edf6fb;border:1px solid #9fc5db;border-radius:12px;padding:12px;margin:12px 0}.customer-find input{width:100%;box-sizing:border-box;padding:11px;border:1px solid #8ca8b8;border-radius:8px;font:inherit}.customer-find-results{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}.customer-find-results button{border:1px solid #8ca8b8;background:#fff;border-radius:8px;padding:7px 9px;cursor:pointer}.customer-find-empty{color:#66717c;font-size:13px}
 @media(max-width:700px){.today-plan-grid,.time-summary{grid-template-columns:1fr 1fr}}
 @media(max-width:500px){.today-plan-grid,.time-summary{grid-template-columns:1fr}}
 </style>
@@ -346,6 +347,7 @@ textarea,input{box-sizing:border-box;width:100%;padding:11px;border:1px solid #c
     </div>
 </div>
 <div class="wrap">
+<div class="customer-find"><label for="customerSectionSearch"><b>Find something in your job record</b></label><input id="customerSectionSearch" type="search" placeholder="Try tasks, schedule, agreement, photos, payments or progress"><div id="customerSectionResults" class="customer-find-results" aria-live="polite"></div></div>
 
 <?php if($customerNoChargeTotal > 0):?>
 <div
@@ -1112,5 +1114,6 @@ if(c){
 }
 </script>
 <script src="assets/customer_workspace_v8_6.js?v=2"></script>
+<script>(()=>{const input=document.getElementById('customerSectionSearch'),out=document.getElementById('customerSectionResults');const sections=[...document.querySelectorAll('.wrap h2')].map((heading,i)=>{const target=heading.closest('.card')||heading;target.id=target.id||'job-section-'+i;return{heading,target,text:(heading.textContent+' '+target.textContent).toLowerCase()}});function render(){const words=input.value.toLowerCase().trim().split(/\s+/).filter(Boolean);out.innerHTML='';if(!words.length)return;const found=sections.filter(s=>words.every(w=>s.text.includes(w))).slice(0,8);if(!found.length){out.innerHTML='<span class="customer-find-empty">No matching section in this job record.</span>';return}found.forEach(s=>{const b=document.createElement('button');b.type='button';b.textContent=s.heading.textContent.trim();b.onclick=()=>s.target.scrollIntoView({behavior:'smooth',block:'start'});out.appendChild(b)})}input.addEventListener('input',render)})();</script>
 </body>
 </html>

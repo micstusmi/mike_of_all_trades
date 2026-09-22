@@ -12,7 +12,7 @@ input,textarea{width:100%;box-sizing:border-box;padding:11px;border:1px solid #c
 .btn{border:0;border-radius:10px;padding:12px 15px;background:#17202a;color:#fff;font-weight:800;cursor:pointer}
 .good{background:#eaf7ee;border:1px solid #8fd19e}.warn{background:#fff7df;border:1px solid #e8c96d}.small{font-size:13px;color:#667085}
 </style></head><body><div class="wrap">
-<p><a href="index.php">← Work Tracker</a></p><h1>SMS Broadcast test</h1>
+<?php $adminPageTitle='SMS Test';$adminBreadcrumbs=['Work Tracker'=>'index.php','SMS test'=>''];require __DIR__.'/../../includes/admin_nav.php';?><p><a href="index.php">← Work Tracker</a></p><h1>SMS Broadcast test</h1>
 <div class="card <?=$enabled?'good':'warn'?>">
 <b>Gateway sending: <?=$enabled?'ENABLED':'OFF'?></b>
 <p class="small">This page sends one controlled test. It does not yet wire Start/Stop automatically.</p>

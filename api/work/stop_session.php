@@ -191,6 +191,19 @@ function wt_save_finish_photos(PDO $pdo, int $jobId, int $taskId, string $photoT
 }
 
 $stopNote = trim((string)($_POST['stop_note'] ?? ''));
+$stopMode = (string)($_POST['stop_time_mode'] ?? 'now');
+$requestedStopLocal = trim((string)($_POST['stopped_at'] ?? ''));
+$stopAtUtc = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+if ($stopMode === 'earlier') {
+    if ($requestedStopLocal === '') exit('Choose the actual finish date and time.');
+    $melbourne = new DateTimeZone('Australia/Melbourne');
+    $parsed = DateTimeImmutable::createFromFormat('Y-m-d\TH:i', $requestedStopLocal, $melbourne);
+    $parseErrors = DateTimeImmutable::getLastErrors();
+    if (!$parsed || (is_array($parseErrors) && ($parseErrors['warning_count'] || $parseErrors['error_count']))) exit('The finish date and time is invalid.');
+    $stopAtUtc = $parsed->setTimezone(new DateTimeZone('UTC'));
+    if ($stopAtUtc > new DateTimeImmutable('now', new DateTimeZone('UTC'))) exit('The finish time cannot be in the future.');
+}
+$stopAtSql = $stopAtUtc->format('Y-m-d H:i:s');
 $nextTaskId = (int)($_POST['next_task_id'] ?? 0);
 $nextNotes = trim((string)($_POST['next_notes'] ?? ''));
 $nextLocation = (string)($_POST['next_start_location'] ?? 'onsite');
@@ -260,6 +273,24 @@ try {
     $workerName = (string)($session['worker_name'] ?: 'Mike');
     $currentTaskId = (int)($session['task_id'] ?? 0);
 
+    $sessionStart = new DateTimeImmutable((string)$session['started_at'], new DateTimeZone('UTC'));
+    if ($stopAtUtc <= $sessionStart) throw new RuntimeException('The finish time must be after the activity started.');
+
+    if ($stopMode === 'earlier') {
+        $workerClause = $session['worker_id'] === null ? 'worker_id IS NULL' : 'worker_id = ?';
+        $overlap = $pdo->prepare("SELECT id FROM work_sessions WHERE id<>? AND {$workerClause} AND started_at < ? AND COALESCE(ended_at,UTC_TIMESTAMP()) > ? LIMIT 1 FOR UPDATE");
+        $overlapParams = [$sessionId];
+        if ($session['worker_id'] !== null) $overlapParams[] = (int)$session['worker_id'];
+        $overlapParams[] = $stopAtSql;
+        $overlapParams[] = $session['started_at'];
+        $overlap->execute($overlapParams);
+        if ($overlap->fetchColumn()) throw new RuntimeException('That finish time overlaps another recorded activity for this worker. Choose a different time or correct the recorded sessions first.');
+
+        $lateBreak = $pdo->prepare('SELECT id FROM work_session_breaks WHERE session_id=? AND started_at>=? LIMIT 1');
+        $lateBreak->execute([$sessionId,$stopAtSql]);
+        if ($lateBreak->fetchColumn()) throw new RuntimeException('A recorded break begins after that finish time. Correct the break or choose a later finish time.');
+    }
+
     if ($currentTaskId > 0) {
         $taskStmt = $pdo->prepare("SELECT title FROM work_tasks WHERE id=? AND job_id=? LIMIT 1");
         $taskStmt->execute([$currentTaskId, $jobId]);
@@ -290,11 +321,11 @@ try {
 
     $closeBreak = $pdo->prepare("
         UPDATE work_session_breaks
-        SET ended_at = UTC_TIMESTAMP()
+        SET ended_at = ?
         WHERE session_id = ?
           AND ended_at IS NULL
     ");
-    $closeBreak->execute([$sessionId]);
+    $closeBreak->execute([$stopAtSql,$sessionId]);
 
     $stopReason = $action === 'change'
         ? 'changed_activity'
@@ -302,16 +333,19 @@ try {
 
     $stop = $pdo->prepare("
         UPDATE work_sessions
-        SET ended_at = UTC_TIMESTAMP(),
+        SET ended_at = ?,
             stop_reason = ?,
-            stop_note = ?
+            stop_note = ?,
+            entry_note = CASE WHEN ?='earlier' THEN CONCAT_WS('\n',NULLIF(entry_note,''),'Finish time corrected retrospectively by admin at ',UTC_TIMESTAMP()) ELSE entry_note END
         WHERE id = ?
           AND job_id = ?
           AND ended_at IS NULL
     ");
     $stop->execute([
+        $stopAtSql,
         $stopReason,
         $stopNote !== '' ? $stopNote : null,
+        $stopMode,
         $sessionId,
         $jobId,
     ]);

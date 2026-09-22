@@ -457,6 +457,7 @@ textarea{width:100%;box-sizing:border-box}
 
 </head>
 <body>
+<?php $adminPageTitle='Manage Job #'.$id;$adminBreadcrumbs=['Work Tracker'=>'index.php','Manage job'=>''];$adminJob=$job;require __DIR__.'/../../includes/admin_nav.php';?>
 
 <?php
 $smsFlash = $_SESSION['work_sms_flash'] ?? null;
@@ -531,8 +532,10 @@ box-shadow:0 8px 28px #0003;
     · <a href="task_photos.php?id=<?=$id?>">Task photos</a>
     · <a href="social_drafts.php?id=<?=$id?>">Social drafts</a>
 </p>
-<h1>Manage Job #<?=$id?> — <?=wt_html($job['customer_name'])?></h1>
+<h1 class="page-local-title">Manage Job #<?=$id?> — <?=wt_html($job['customer_name'])?></h1>
 <p><?=wt_html($job['job_address'])?></p>
+
+<nav class="card" aria-label="Jump to job section" style="padding:12px;position:sticky;top:112px;z-index:20"><b>Jump to:</b> <a href="#quick-actions">Quick actions</a> · <a href="#customer-details">Customer</a> · <a href="#schedule-access">Schedule</a> · <a href="#pricing-agreement">Pricing &amp; agreement</a> · <a href="#tasks">Tasks</a> · <a href="#work-time">Time &amp; workers</a> · <a href="#materials-media">Materials &amp; media</a> · <a href="#billing">Billing</a></nav>
 
 <?php
 $quickLabels = [
@@ -1042,6 +1045,17 @@ Customer day-before confirmation:
                 >
                     <input type="hidden" name="job_id" value="<?=$id?>">
                     <input type="hidden" name="session_id" value="<?=$rs['id']?>">
+                    <fieldset style="border:1px solid #d9dee3;border-radius:9px;padding:10px;margin:0 0 12px">
+                        <legend><b>Finish time</b></legend>
+                        <label style="display:block;margin:5px 0"><input type="radio" name="stop_time_mode" value="now" checked> Stop now</label>
+                        <label style="display:block;margin:5px 0"><input type="radio" name="stop_time_mode" value="earlier"> I actually stopped earlier</label>
+                        <div class="earlier-stop-fields" hidden style="margin-top:8px">
+                            <label>Actual finish date and time</label>
+                            <input type="datetime-local" name="stopped_at" max="<?=date('Y-m-d\TH:i')?>">
+                            <div class="small">Duration and totals will be recalculated. Overlapping work is blocked and the correction is recorded for audit.</div>
+                            <div class="earlier-stop-preview small" style="font-weight:700;margin-top:5px"></div>
+                        </div>
+                    </fieldset>
                     <div class="field">
                         <label>What do you want to do?</label>
 
@@ -1263,8 +1277,8 @@ Customer day-before confirmation:
 </div>
 <?php endif;?>
 
-<div class="card info">
-<h2>Pricing / agreement status</h2>
+<div class="card info" id="pricing-agreement">
+<h2>Scope, pricing &amp; agreement</h2>
 <p><span class="tag"><?=wt_html($pricingLabel)?></span></p>
 
 <?php if(!empty($job['original_scope'])):?>
@@ -2053,8 +2067,8 @@ No no-charge items recorded yet.
 
 </div>
 
-<div class="card">
-<h2>Pricing &amp; agreement</h2>
+<div class="card" id="pricing-agreement-settings">
+<h2>Pricing &amp; agreement settings</h2>
 
 <?php if(isset($_GET['pricing_saved'])):?><p style="color:#087830"><b>✓ Pricing settings saved.</b></p><?php endif;?>
 
@@ -3950,6 +3964,13 @@ function wb_hours(float $hours): string {
     updateTimers();
     setInterval(updateTimers,1000);
 })();
+</script>
+<script>
+document.querySelectorAll('form[action*="stop_session.php"]').forEach(form=>{
+ const fields=form.querySelector('.earlier-stop-fields'),input=form.querySelector('[name="stopped_at"]'),preview=form.querySelector('.earlier-stop-preview');
+ const refresh=()=>{const earlier=form.querySelector('[name="stop_time_mode"]:checked')?.value==='earlier';fields.hidden=!earlier;input.required=earlier;if(earlier&&!input.value){const now=new Date(Date.now()-60000);input.value=new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,16)};if(earlier&&input.value){const start=new Date(form.closest('.running-card')?.querySelector('.live-timer')?.dataset.start+'Z');const end=new Date(input.value);const mins=Math.floor((end-start)/60000);preview.textContent=mins>0?'Recorded activity duration before breaks: '+Math.floor(mins/60)+'h '+(mins%60)+'m':'Finish time must be after the start time.'}else preview.textContent=''};
+ form.querySelectorAll('[name="stop_time_mode"]').forEach(x=>x.addEventListener('change',refresh));input.addEventListener('input',refresh);
+});
 </script>
 
 <script>

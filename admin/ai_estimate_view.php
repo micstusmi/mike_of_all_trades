@@ -63,7 +63,7 @@ function pretty_answer($json) {
         @media(max-width:900px){.grid{grid-template-columns:1fr}}
     </style>
 </head>
-<body>
+<body><?php $adminPageTitle='AI Estimate';$adminBreadcrumbs=['AI Estimates'=>'ai_estimates.php','Estimate'=>''];require __DIR__.'/../includes/admin_nav.php';?>
 <div class="wrap">
 
     <div class="card">

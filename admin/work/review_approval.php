@@ -132,7 +132,7 @@ pre{
 </style>
 </head>
 
-<body>
+<body><?php $adminPageTitle='Approval Review';$adminBreadcrumbs=['Work Tracker'=>'index.php','Approval'=>''];$adminJob=$job??null;require __DIR__.'/../../includes/admin_nav.php';?>
 
 <div class="wrap">
 

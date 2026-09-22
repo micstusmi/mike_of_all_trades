@@ -39,7 +39,7 @@ $conversations = $stmt->fetchAll(PDO::FETCH_ASSOC);
         .btn{display:inline-block;background:#1d72b8;color:#fff;padding:8px 12px;border-radius:7px;text-decoration:none}
     </style>
 </head>
-<body>
+<body><?php $adminPageTitle='AI Estimates';$adminBreadcrumbs=['AI Estimates'=>''];require __DIR__.'/../includes/admin_nav.php';?>
 <div class="wrap">
     <div class="card">
         <h1>🤖 AI Estimate Requests</h1>

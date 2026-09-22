@@ -163,9 +163,7 @@ textarea{min-height:90px}
 @media(max-width:650px){.grid{grid-template-columns:1fr}.zoho-row{display:block}.zoho-search-btn{width:100%;margin-top:8px}}
 </style>
 </head>
-<body>
-
-<?php require __DIR__ . '/../../includes/admin_nav.php'; ?>
+<body><?php $adminPageTitle='New or Current Job';$adminBreadcrumbs=['Work Tracker'=>'index.php','New job'=>''];require __DIR__.'/../../includes/admin_nav.php';?>
 
 <div class="wrap"><div class="card">
 <h1>New / Current Job</h1>

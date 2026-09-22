@@ -119,7 +119,7 @@ th{font-size:12px;text-transform:uppercase;color:#61707a}
 @media print{body{background:#fff}.no-print{display:none!important}.card{box-shadow:none;border:1px solid #ddd;break-inside:avoid}.wrap{max-width:none}}
 </style>
 </head>
-<body>
+<body><?php $adminPageTitle='Job Closeout';$adminBreadcrumbs=['Work Tracker'=>'index.php','Closeout'=>''];$adminJob=$job??null;require __DIR__.'/../../includes/admin_nav.php';?>
 <div class="wrap">
 
 <div class="no-print">

@@ -53,7 +53,7 @@ input,textarea,select{width:100%;box-sizing:border-box;margin:5px 0;padding:9px}
 @media(max-width:850px){.cols,.row{grid-template-columns:1fr}}
 </style>
 </head>
-<body>
+<body><?php $adminPageTitle='Task Photos';$adminBreadcrumbs=['Work Tracker'=>'index.php','Task photos'=>''];$adminJob=$job??null;require __DIR__.'/../../includes/admin_nav.php';?>
 <div class="wrap">
 <p><a href="manage_job.php?id=<?=$id?>">&larr; Manage job</a> · <a href="social_drafts.php?id=<?=$id?>">Social drafts</a></p>
 <h1>Task photos - <?=wt_html((string)$job['customer_name'])?></h1>

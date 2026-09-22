@@ -113,7 +113,7 @@ textarea{width:100%}
 @media(max-width:800px){.metrics{grid-template-columns:1fr 1fr}.wrap{padding:11px}.row>*{flex:1 1 100%}input,select{width:100%!important}}
 </style>
 </head>
-<body>
+<body><?php $adminPageTitle='Materials, Receipts &amp; Reimbursements';$adminBreadcrumbs=['Work Tracker'=>'index.php','Materials'=>''];$adminJob=$job??null;require __DIR__.'/../../includes/admin_nav.php';?>
 <div class="wrap">
 
 <p>
