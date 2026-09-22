@@ -73,7 +73,14 @@ function wt_invoice_zoho_payload(array $package,string $contactId,string $zeroTa
     $job=$package['job'];$lines=[];
     if($zeroTaxId==='')throw new RuntimeException('A valid Zoho 0% tax ID is required.');
     $noTax=['tax_id'=>$zeroTaxId];
-    foreach($package['labour_days'] as $day)$lines[]=array_merge(['name'=>'Labour - '.date('j M Y',strtotime($day['date'])),'description'=>$day['description'],'quantity'=>round((float)$day['hours'],2),'rate'=>round((float)$day['rate'],2)],$noTax);
+    foreach($package['labour_days'] as $day){
+        // Keep sufficient precision for Zoho to reproduce Work Tracker's
+        // authoritative amount. Rounding hours to 2 decimals changed this
+        // job from $150.46 to $150.50 (2.149... hours at $70/hour).
+        $quantity=round((float)$day['hours'],6);
+        $rate=$quantity>0?round((float)$day['amount']/$quantity,6):round((float)$day['rate'],6);
+        $lines[]=array_merge(['name'=>'Labour - '.date('j M Y',strtotime($day['date'])),'description'=>$day['description'],'quantity'=>$quantity,'rate'=>$rate],$noTax);
+    }
     if((float)($package['totals']['labour']??0)>0&&!$package['labour_days'])$lines[]=array_merge(['name'=>'Labour','description'=>'Previously recorded property maintenance labour','quantity'=>1,'rate'=>$package['totals']['labour']],$noTax);
     foreach($package['reimbursements'] as $g){$gst=$g['gst']>0?'Supplier GST included in this gross reimbursement: $'.number_format($g['gst'],2).'.':'Supplier GST is not yet recorded in the Work Tracker.';$description=implode('; ',array_filter([$g['receipt']!==''?'Supplier receipt '.$g['receipt']:'',$gst,'Original supplier receipt retained and provided where attached.']));$lines[]=array_merge(['name'=>'Reimbursement - '.$g['supplier'],'description'=>$description,'quantity'=>1,'rate'=>round((float)$g['amount'],2)],$noTax);}
     $gstTotal=(float)$package['totals']['supplier_gst_included'];
