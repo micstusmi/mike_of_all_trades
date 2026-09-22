@@ -1,0 +1,11 @@
+<?php
+declare(strict_types=1);
+require_once __DIR__.'/_auth.php';
+require_once __DIR__.'/../../includes/work_tracker.php';
+$rows=$pdo->query("SELECT s.*,j.customer_name,j.job_address FROM work_closeout_snapshots s JOIN work_jobs j ON j.id=s.job_id WHERE s.zoho_invoice_id IS NOT NULL ORDER BY (s.sent_to_zoho_at IS NULL) DESC,s.created_at DESC LIMIT 150")->fetchAll(PDO::FETCH_ASSOC);
+?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Invoice drafts</title><style>body{font-family:system-ui;background:#f4f6f8;color:#17202a;margin:0}.wrap{max-width:1050px;margin:auto;padding:18px}.card{background:#fff;border-radius:12px;padding:16px;margin:12px 0;box-shadow:0 2px 10px #0001;display:grid;grid-template-columns:1fr auto;gap:12px}.status{font-size:12px;font-weight:900;text-transform:uppercase;color:#856000}.sent{color:#08742d}.btn{display:inline-block;background:#17202a;color:#fff;text-decoration:none;border-radius:8px;padding:10px 13px;font-weight:800}.muted{color:#66717c}@media(max-width:650px){.card{grid-template-columns:1fr}}</style></head><body>
+<?php $adminPageTitle='Invoice drafts';$adminBreadcrumbs=['Invoice drafts'=>''];require __DIR__.'/../../includes/admin_nav.php';?>
+<main class="wrap"><h1>Invoice drafts</h1><p class="muted">Unsent drafts are shown first. Every invoice is GST-free and is checked again against Zoho before it can be emailed.</p>
+<?php if(!$rows):?><div class="card">No Zoho invoice drafts have been created yet.</div><?php endif;?>
+<?php foreach($rows as $r):$meta=json_decode((string)($r['zoho_response_json']??''),true);if(!is_array($meta))$meta=[];$number=(string)($meta['invoice_number']??$meta['create_response']['invoice']['invoice_number']??$r['zoho_invoice_id']);$sent=!empty($r['sent_to_zoho_at']);?><article class="card"><div><div class="status <?=$sent?'sent':''?>"><?=$sent?'Emailed':'Draft — not emailed'?></div><h2><?=wt_html($number)?> · <?=wt_html((string)$r['customer_name'])?></h2><div><?=wt_html((string)$r['job_address'])?></div><p><b><?=wt_money((float)$r['gross_job_amount'])?></b> · Job #<?=(int)$r['job_id']?></p></div><div><a class="btn" href="invoice_preparation.php?id=<?=(int)$r['job_id']?>#zoho-invoice">Open invoice draft</a></div></article><?php endforeach;?>
+</main></body></html>

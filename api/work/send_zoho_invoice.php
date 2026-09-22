@@ -16,6 +16,7 @@ try{
     if(!empty($package['warnings']['missing_supplier_gst']))throw new RuntimeException('Enter supplier GST for every reimbursement before sending: '.implode(', ',$package['warnings']['missing_supplier_gst']));
     if(!empty($package['warnings']['reconciliation']))throw new RuntimeException('Resolve the spreadsheet reconciliation warning before sending this invoice.');
     $email=trim((string)$package['job']['customer_email']);if($email==='')throw new RuntimeException('Customer email is missing.');
+    $fresh=getZohoInvoice((string)$snapshot['zoho_invoice_id']);$freshInvoice=$fresh['json']['invoice']??null;if(!is_array($freshInvoice))throw new RuntimeException('Safety stop: the Zoho draft could not be checked before emailing.');wt_assert_zoho_invoice_no_gst($freshInvoice,(float)$package['totals']['invoice_total']);
     $attachments=wt_invoice_receipt_attachments($pdo,$package);$response=sendZohoInvoiceWithAttachments((string)$snapshot['zoho_invoice_id'],$email,$attachments);
     if(($response['code']??500)>=400||(($response['json']['code']??0)!==0))throw new RuntimeException('Zoho email failed: '.mb_substr((string)($response['raw']??'Unknown response'),0,1000));
     $prior=json_decode((string)($snapshot['zoho_response_json']??''),true);if(!is_array($prior))$prior=[];$prior['email_response']=$response['json'];$prior['receipt_attachment_count']=count($attachments);$prior['emailed_at']=date('c');

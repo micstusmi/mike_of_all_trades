@@ -733,6 +733,12 @@ function updateZohoInvoice($invoice_id, array $payload) {
     return zohoRequest("PUT", $url, $payload);
 }
 
+/** Fetch the saved draft so tax and totals can be checked before email. */
+function getZohoInvoice($invoice_id) {
+    $url = "https://www.zohoapis.com.au/invoice/v3/invoices/" . rawurlencode((string)$invoice_id) . "?organization_id=" . rawurlencode((string)ZOHO_ORG_ID);
+    return zohoRequest("GET", $url, null);
+}
+
 /** Email an existing Zoho invoice, optionally with supplier receipts. */
 function sendZohoInvoiceWithAttachments($invoice_id, $email, array $attachments = []) {
     $url = "https://www.zohoapis.com.au/invoice/v3/invoices/" . rawurlencode((string)$invoice_id) . "/email?organization_id=" . rawurlencode((string)ZOHO_ORG_ID);

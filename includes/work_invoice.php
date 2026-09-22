@@ -71,11 +71,25 @@ function wt_invoice_receipt_attachments(PDO $pdo,array $package): array
 function wt_invoice_zoho_payload(array $package,string $contactId): array
 {
     $job=$package['job'];$lines=[];
-    foreach($package['labour_days'] as $day)$lines[]=['name'=>'Labour - '.date('j M Y',strtotime($day['date'])),'description'=>$day['description'],'quantity'=>round((float)$day['hours'],2),'rate'=>round((float)$day['rate'],2),'tax_name'=>'No GST','tax_percentage'=>0];
-    if((float)($package['totals']['labour']??0)>0&&!$package['labour_days'])$lines[]=['name'=>'Labour','description'=>'Previously recorded property maintenance labour','quantity'=>1,'rate'=>$package['totals']['labour'],'tax_name'=>'No GST','tax_percentage'=>0];
-    foreach($package['reimbursements'] as $g){$gst=$g['gst']>0?'Supplier GST included in this gross reimbursement: $'.number_format($g['gst'],2).'.':'Supplier GST is not yet recorded in the Work Tracker.';$description=implode('; ',array_filter([$g['receipt']!==''?'Supplier receipt '.$g['receipt']:'',$gst,'Original supplier receipt retained and provided where attached.']));$lines[]=['name'=>'Reimbursement - '.$g['supplier'],'description'=>$description,'quantity'=>1,'rate'=>round((float)$g['amount'],2),'tax_name'=>'No GST','tax_percentage'=>0];}
+    // An empty tax_id explicitly overrides any taxable item default in Zoho.
+    // tax_name and tax_percentage alone are not reliable write controls.
+    $noTax=['tax_id'=>'','tax_name'=>'','tax_percentage'=>0];
+    foreach($package['labour_days'] as $day)$lines[]=array_merge(['name'=>'Labour - '.date('j M Y',strtotime($day['date'])),'description'=>$day['description'],'quantity'=>round((float)$day['hours'],2),'rate'=>round((float)$day['rate'],2)],$noTax);
+    if((float)($package['totals']['labour']??0)>0&&!$package['labour_days'])$lines[]=array_merge(['name'=>'Labour','description'=>'Previously recorded property maintenance labour','quantity'=>1,'rate'=>$package['totals']['labour']],$noTax);
+    foreach($package['reimbursements'] as $g){$gst=$g['gst']>0?'Supplier GST included in this gross reimbursement: $'.number_format($g['gst'],2).'.':'Supplier GST is not yet recorded in the Work Tracker.';$description=implode('; ',array_filter([$g['receipt']!==''?'Supplier receipt '.$g['receipt']:'',$gst,'Original supplier receipt retained and provided where attached.']));$lines[]=array_merge(['name'=>'Reimbursement - '.$g['supplier'],'description'=>$description,'quantity'=>1,'rate'=>round((float)$g['amount'],2)],$noTax);}
     $gstTotal=(float)$package['totals']['supplier_gst_included'];
-    $lines[]=['name'=>'Supplier GST included in reimbursements','description'=>'Information only: $'.number_format($gstTotal,2).' supplier GST is already included in the gross reimbursement lines above. It is not GST charged by Mike Of All Trades and is not added again. Refer to the attached original supplier tax invoices.','quantity'=>1,'rate'=>0,'tax_name'=>'No GST','tax_percentage'=>0];
+    $lines[]=array_merge(['name'=>'Supplier GST included in reimbursements','description'=>'Information only: $'.number_format($gstTotal,2).' supplier GST is already included in the gross reimbursement lines above. It is not GST charged by Mike Of All Trades and is not added again. Refer to the attached original supplier tax invoices.','quantity'=>1,'rate'=>0],$noTax);
     $subject=trim($job['job_title'].($job['job_address']!==''?' - '.$job['job_address']:''));
-    return ['customer_id'=>$contactId,'date'=>date('Y-m-d'),'due_date'=>date('Y-m-d'),'payment_terms'=>0,'reference_number'=>'Work Tracker job #'.$job['id'],'line_items'=>$lines,'notes'=>"Thanks for your business.\n\nNo GST has been charged by Mike Of All Trades. Total supplier GST already included in reimbursements: $".number_format($gstTotal,2).". This is copied from the original supplier tax invoices and is not added again.\n\nJob: ".$subject,'terms'=>"If you notice any discrepancies on this invoice, please contact Mike as soon as possible. Payment is due on receipt. Mike Of All Trades' Terms & Conditions are available at https://mikeofalltrades.com.au/terms.php"];
+    return ['customer_id'=>$contactId,'date'=>date('Y-m-d'),'due_date'=>date('Y-m-d'),'payment_terms'=>0,'reference_number'=>'Work Tracker job #'.$job['id'],'is_inclusive_tax'=>false,'line_items'=>$lines,'notes'=>"Thanks for your business.\n\nNo GST has been charged by Mike Of All Trades. Total supplier GST already included in reimbursements: $".number_format($gstTotal,2).". This is copied from the original supplier tax invoices and is not added again.\n\nJob: ".$subject,'terms'=>"If you notice any discrepancies on this invoice, please contact Mike as soon as possible. Payment is due on receipt. Mike Of All Trades' Terms & Conditions are available at https://mikeofalltrades.com.au/terms.php"];
+}
+
+/** Refuse approval/email when Zoho has changed the GST-free figures. */
+function wt_assert_zoho_invoice_no_gst(array $invoice,float $expectedTotal): void
+{
+    $tax=(float)($invoice['tax_total']??$invoice['total_tax']??0);$lineTax=0.0;
+    foreach(($invoice['line_items']??[]) as $line)$lineTax+=max(0,(float)($line['tax_amount']??0));
+    $tax=max($tax,$lineTax);
+    $actual=(float)($invoice['total']??0);
+    if($tax>0.004)throw new RuntimeException('Safety stop: Zoho added $'.number_format($tax,2).' GST. This draft cannot be emailed.');
+    if($actual>0&&abs($actual-$expectedTotal)>0.01)throw new RuntimeException('Safety stop: Zoho total $'.number_format($actual,2).' does not match the GST-free Work Tracker total $'.number_format($expectedTotal,2).'. This draft cannot be emailed.');
 }
