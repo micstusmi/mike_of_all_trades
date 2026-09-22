@@ -1,9 +1,43 @@
 <?php
 require_once __DIR__ . '/../../includes/auth_admin.php';
 require_once __DIR__ . '/../../includes/work_tracker.php';
+require_once __DIR__ . '/../../includes/zoho_functions.php';
 $error='';
 if ($_SERVER['REQUEST_METHOD']==='POST') {
     try {
+        $customerName = trim((string)($_POST['customer_name'] ?? ''));
+        $customerPhone = wt_normalise_phone(
+            (string)($_POST['customer_phone'] ?? '')
+        );
+        $customerEmail = strtolower(
+            trim((string)($_POST['customer_email'] ?? ''))
+        );
+        $jobAddress = trim((string)($_POST['job_address'] ?? ''));
+        $selectedZohoContactId = trim(
+            (string)($_POST['zoho_contact_id'] ?? '')
+        );
+
+        if ($customerName === '') {
+            throw new InvalidArgumentException('Customer name is required.');
+        }
+
+        if ($customerPhone === '') {
+            throw new InvalidArgumentException('Customer mobile is required.');
+        }
+
+        if (
+            $customerEmail !== ''
+            && !filter_var($customerEmail, FILTER_VALIDATE_EMAIL)
+        ) {
+            throw new InvalidArgumentException(
+                'Enter a valid customer email address.'
+            );
+        }
+
+        if ($jobAddress === '') {
+            throw new InvalidArgumentException('Job address is required.');
+        }
+
         $token = bin2hex(random_bytes(32));
         $pricingType = $_POST['original_pricing_type'] ?? 'unspecified';
         $variationRequired = ($pricingType === 'fixed_price' && !empty($_POST['variation_required'])) ? 1 : 0;
@@ -31,6 +65,17 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
             throw new InvalidArgumentException('Expected finish cannot be before planned start.');
         }
 
+        if ($selectedZohoContactId !== '') {
+            getZohoCustomerById($selectedZohoContactId);
+        } else {
+            getOrCreateZohoCustomer(
+                $customerName,
+                $customerEmail,
+                $customerPhone,
+                $jobAddress
+            );
+        }
+
         $stmt=$pdo->prepare("INSERT INTO work_jobs
         (public_token,customer_name,customer_phone,customer_email,job_address,
          original_scope,original_pricing_type,current_scope,unforeseen_conditions,
@@ -43,10 +88,10 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
 
         $stmt->execute([
             $token,
-            trim($_POST['customer_name']),
-            wt_normalise_phone((string)($_POST['customer_phone'] ?? '')),
-            trim($_POST['customer_email'] ?: ''),
-            trim($_POST['job_address']),
+            $customerName,
+            $customerPhone,
+            $customerEmail,
+            $jobAddress,
             trim($_POST['original_scope']),
             $pricingType,
             trim($_POST['current_scope']),
@@ -104,7 +149,18 @@ textarea{min-height:90px}
 .variation{background:#fff4ef;border:1px solid #f0ad8b;padding:14px;border-radius:12px;margin-top:18px}
 .inlinecheck{display:flex;gap:9px;align-items:flex-start;margin-top:12px}.inlinecheck input{width:auto;margin-top:4px}
 .hidden{display:none}
-@media(max-width:650px){.grid{grid-template-columns:1fr}}
+.zoho-box{margin:18px 0;padding:16px;border:2px solid #63a77b;background:#f0fff5;border-radius:12px}
+.zoho-row{display:flex;gap:8px;align-items:flex-end}
+.zoho-row>div{flex:1}
+.zoho-search-btn{padding:12px 16px;border:0;border-radius:9px;background:#08783e;color:#fff;font-weight:800;cursor:pointer}
+.zoho-results{margin-top:10px;display:grid;gap:7px}
+.zoho-result{display:block;width:100%;text-align:left;padding:11px;border:1px solid #a9cdb6;border-radius:9px;background:#fff;cursor:pointer}
+.zoho-result:hover{background:#e8f8ee}
+.zoho-result small{display:block;color:#52636f;margin-top:3px}
+.zoho-status{margin-top:9px;font-size:13px;font-weight:700}
+.zoho-selected{color:#08783e}
+.zoho-error{color:#a40000}
+@media(max-width:650px){.grid{grid-template-columns:1fr}.zoho-row{display:block}.zoho-search-btn{width:100%;margin-top:8px}}
 </style>
 </head>
 <body>
@@ -123,13 +179,84 @@ textarea{min-height:90px}
 <?php if($error):?><p style="color:#b00"><?=wt_html($error)?></p><?php endif;?>
 
 <form method="post" id="jobForm">
+<input
+    type="hidden"
+    name="zoho_contact_id"
+    id="zohoContactId"
+    value="<?=wt_html((string)($_POST['zoho_contact_id'] ?? ''))?>"
+>
+
+<div class="zoho-box">
+<h2 style="margin-top:0">Find customer in Zoho Invoice</h2>
+<p class="help">
+Search by customer name, email address or mobile number. Select a result
+to fill the customer fields automatically.
+</p>
+<div class="zoho-row">
+<div>
+<label for="zohoCustomerSearch">Customer search</label>
+<input
+    id="zohoCustomerSearch"
+    type="search"
+    autocomplete="off"
+    placeholder="Start typing a name, email or mobile"
+>
+</div>
+<button
+    class="zoho-search-btn"
+    type="button"
+    id="zohoSearchButton"
+>SEARCH ZOHO</button>
+</div>
+<div id="zohoSearchStatus" class="zoho-status"></div>
+<div id="zohoSearchResults" class="zoho-results"></div>
+<p class="help">
+If no customer is selected, the website will check the completed email
+and mobile when the job is saved. It will create a new Zoho customer only
+when neither matches an existing customer.
+</p>
+</div>
+
 <div class="grid">
-<div><label>Customer</label><input name="customer_name" required></div>
-<div><label>Mobile</label><input name="customer_phone" required placeholder="04..."></div>
+<div>
+<label>Customer</label>
+<input
+    name="customer_name"
+    id="customerName"
+    required
+    value="<?=wt_html((string)($_POST['customer_name'] ?? ''))?>"
+>
+</div>
+<div>
+<label>Mobile</label>
+<input
+    name="customer_phone"
+    id="customerPhone"
+    required
+    placeholder="04..."
+    value="<?=wt_html((string)($_POST['customer_phone'] ?? ''))?>"
+>
+</div>
 </div>
 <div class="grid">
-<div><label>Email</label><input name="customer_email" type="email"></div>
-<div><label>Job address</label><input name="job_address" required></div>
+<div>
+<label>Email</label>
+<input
+    name="customer_email"
+    id="customerEmail"
+    type="email"
+    value="<?=wt_html((string)($_POST['customer_email'] ?? ''))?>"
+>
+</div>
+<div>
+<label>Job address</label>
+<input
+    name="job_address"
+    id="jobAddress"
+    required
+    value="<?=wt_html((string)($_POST['job_address'] ?? ''))?>"
+>
+</div>
 </div>
 
 <h3>Booking / schedule</h3>
@@ -260,6 +387,172 @@ textarea{min-height:90px}
 </div></div>
 
 <script>
+const zohoSearchInput = document.getElementById('zohoCustomerSearch');
+const zohoSearchButton = document.getElementById('zohoSearchButton');
+const zohoSearchStatus = document.getElementById('zohoSearchStatus');
+const zohoSearchResults = document.getElementById('zohoSearchResults');
+const zohoContactId = document.getElementById('zohoContactId');
+const customerName = document.getElementById('customerName');
+const customerPhone = document.getElementById('customerPhone');
+const customerEmail = document.getElementById('customerEmail');
+const jobAddress = document.getElementById('jobAddress');
+let zohoSearchTimer = null;
+let applyingZohoCustomer = false;
+
+function setZohoStatus(message, type = ''){
+    zohoSearchStatus.textContent = message;
+    zohoSearchStatus.className =
+        'zoho-status' +
+        (type === 'selected' ? ' zoho-selected' : '') +
+        (type === 'error' ? ' zoho-error' : '');
+}
+
+function clearZohoSelection(){
+    if(applyingZohoCustomer) return;
+
+    if(zohoContactId.value !== ''){
+        zohoContactId.value = '';
+        setZohoStatus(
+            'Customer details were changed. Zoho will check them again when the job is saved.'
+        );
+    }
+}
+
+[customerName, customerPhone, customerEmail, jobAddress]
+    .forEach(field => field.addEventListener('input', clearZohoSelection));
+
+function selectZohoCustomer(customer){
+    applyingZohoCustomer = true;
+
+    zohoContactId.value = customer.contact_id || '';
+
+    if(customer.name) customerName.value = customer.name;
+    if(customer.phone) customerPhone.value = customer.phone;
+    if(customer.email) customerEmail.value = customer.email;
+    if(customer.address) jobAddress.value = customer.address;
+
+    applyingZohoCustomer = false;
+    zohoSearchResults.replaceChildren();
+
+    setZohoStatus(
+        'Selected existing Zoho customer: ' +
+        (customer.name || customer.email || customer.phone),
+        'selected'
+    );
+}
+
+function showZohoResults(customers){
+    zohoSearchResults.replaceChildren();
+
+    if(!customers.length){
+        setZohoStatus(
+            'No matching Zoho customer found. Complete the fields below and a new customer will be created when the job is saved.'
+        );
+        return;
+    }
+
+    setZohoStatus(
+        customers.length === 1
+            ? '1 matching Zoho customer found.'
+            : customers.length + ' matching Zoho customers found.'
+    );
+
+    customers.forEach(customer => {
+        const button = document.createElement('button');
+        const title = document.createElement('strong');
+        const details = document.createElement('small');
+
+        button.type = 'button';
+        button.className = 'zoho-result';
+
+        title.textContent =
+            customer.name ||
+            customer.email ||
+            customer.phone ||
+            'Zoho customer';
+
+        details.textContent = [
+            customer.phone,
+            customer.email,
+            customer.address
+        ].filter(Boolean).join(' • ');
+
+        button.append(title, details);
+        button.addEventListener(
+            'click',
+            () => selectZohoCustomer(customer)
+        );
+
+        zohoSearchResults.appendChild(button);
+    });
+}
+
+async function searchZohoCustomers(){
+    const query = zohoSearchInput.value.trim();
+
+    if(query.length < 2){
+        zohoSearchResults.replaceChildren();
+        setZohoStatus('Enter at least 2 characters to search Zoho.');
+        return;
+    }
+
+    zohoSearchButton.disabled = true;
+    setZohoStatus('Searching Zoho…');
+    zohoSearchResults.replaceChildren();
+
+    try{
+        const response = await fetch(
+            '../../api/work/search_zoho_customers.php?q=' +
+            encodeURIComponent(query),
+            {
+                credentials: 'same-origin',
+                headers: {'Accept': 'application/json'}
+            }
+        );
+
+        const data = await response.json();
+
+        if(!response.ok || !data.ok){
+            throw new Error(
+                data.message || 'Zoho customer search failed.'
+            );
+        }
+
+        showZohoResults(
+            Array.isArray(data.customers) ? data.customers : []
+        );
+    }catch(error){
+        setZohoStatus(
+            error.message || 'Zoho customer search failed.',
+            'error'
+        );
+    }finally{
+        zohoSearchButton.disabled = false;
+    }
+}
+
+zohoSearchButton.addEventListener('click', searchZohoCustomers);
+
+zohoSearchInput.addEventListener('input', () => {
+    clearTimeout(zohoSearchTimer);
+
+    if(zohoSearchInput.value.trim().length < 2){
+        zohoSearchResults.replaceChildren();
+        setZohoStatus('');
+        return;
+    }
+
+    zohoSearchTimer = setTimeout(searchZohoCustomers, 450);
+});
+
+zohoSearchInput.addEventListener('keydown', event => {
+    if(event.key === 'Enter'){
+        event.preventDefault();
+        clearTimeout(zohoSearchTimer);
+        searchZohoCustomers();
+    }
+});
+
 function toggleVariation(){
  const isFixed=document.getElementById('pricingType').value==='fixed_price';
  document.getElementById('fixedVariation').classList.toggle('hidden',!isFixed);

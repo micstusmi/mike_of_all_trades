@@ -321,65 +321,256 @@ function sendZohoContactEmailWithAttachments(
 
 /**
  * ---------------------------------------------------------
- * FIND CUSTOMER BY EMAIL
- * PREVENT DUPLICATES
+ * ZOHO CUSTOMER SEARCH AND DUPLICATE PROTECTION
  * ---------------------------------------------------------
  */
-function findZohoCustomerByEmail($email) {
 
-    $url = "https://www.zohoapis.com.au/invoice/v3/contacts"
-         . "?organization_id=" . ZOHO_ORG_ID
-         . "&email=" . urlencode($email);
+function zohoNormaliseContactPhone(string $phone): string
+{
+    $digits = preg_replace('/\D+/', '', $phone) ?? '';
 
-    $res = zohoRequest("GET", $url);
-
-    return $res['json']['contacts'][0]['contact_id'] ?? null;
-}
-
-/**
- * ---------------------------------------------------------
- * GET OR CREATE CUSTOMER
- * ---------------------------------------------------------
- */
-function getOrCreateZohoCustomer($name, $email, $phone, $address) {
-
-    $existing = findZohoCustomerByEmail($email);
-
-    if ($existing) {
-        return $existing;
+    if (str_starts_with($digits, '61') && strlen($digits) >= 11) {
+        $digits = '0' . substr($digits, 2);
     }
 
-    $url = "https://www.zohoapis.com.au/invoice/v3/contacts"
-         . "?organization_id=" . ZOHO_ORG_ID;
-
-    $payload = [
-
-        "contact_name" => $name,
-
-        "company_name" => $name,
-
-        "contact_type" => "customer",
-
-        "contact_persons" => [
-            [
-                "first_name" => $name,
-                "email"      => $email,
-                "phone"      => $phone,
-                "is_primary_contact" => true
-            ]
-        ],
-
-        "billing_address" => [
-            "attention" => $name,
-            "address"   => $address
-        ]
-    ];
-
-    $res = zohoRequest("POST", $url, $payload);
-
-    return $res['json']['contact']['contact_id'] ?? null;
+    return $digits;
 }
 
+function zohoContactEmailValues(array $contact): array
+{
+    $values = [];
+
+    if (!empty($contact['email'])) {
+        $values[] = strtolower(trim((string)$contact['email']));
+    }
+
+    foreach (($contact['contact_persons'] ?? []) as $person) {
+        if (!empty($person['email'])) {
+            $values[] = strtolower(trim((string)$person['email']));
+        }
+    }
+
+    return array_values(array_unique(array_filter($values)));
+}
+
+function zohoContactPhoneValues(array $contact): array
+{
+    $values = [];
+
+    foreach (['phone', 'mobile'] as $field) {
+        if (!empty($contact[$field])) {
+            $values[] = zohoNormaliseContactPhone((string)$contact[$field]);
+        }
+    }
+
+    foreach (($contact['contact_persons'] ?? []) as $person) {
+        foreach (['phone', 'mobile'] as $field) {
+            if (!empty($person[$field])) {
+                $values[] = zohoNormaliseContactPhone((string)$person[$field]);
+            }
+        }
+    }
+
+    return array_values(array_unique(array_filter($values)));
+}
+
+function zohoListContacts(array $filters): array
+{
+    $url = 'https://www.zohoapis.com.au/invoice/v3/contacts?'
+         . http_build_query(
+             array_merge(
+                 ['organization_id' => ZOHO_ORG_ID],
+                 $filters
+             )
+         );
+
+    $response = zohoRequest('GET', $url);
+
+    if (
+        ($response['code'] ?? 500) < 200
+        || ($response['code'] ?? 500) >= 300
+        || !is_array($response['json'] ?? null)
+    ) {
+        throw new RuntimeException(
+            'Zoho customer search failed. No customer was created. '
+            . mb_substr((string)($response['raw'] ?? 'Unknown Zoho response'), 0, 500)
+        );
+    }
+
+    return is_array($response['json']['contacts'] ?? null)
+        ? $response['json']['contacts']
+        : [];
+}
+
+function findZohoCustomersByEmail(string $email): array
+{
+    $email = strtolower(trim($email));
+
+    if ($email === '') {
+        return [];
+    }
+
+    $contacts = zohoListContacts(['email' => $email]);
+
+    return array_values(
+        array_filter(
+            $contacts,
+            static fn(array $contact): bool =>
+                in_array($email, zohoContactEmailValues($contact), true)
+        )
+    );
+}
+
+function findZohoCustomersByPhone(string $phone): array
+{
+    $normalised = zohoNormaliseContactPhone($phone);
+
+    if ($normalised === '') {
+        return [];
+    }
+
+    $searchDigits = strlen($normalised) > 8
+        ? substr($normalised, -8)
+        : $normalised;
+
+    $contacts = zohoListContacts(['phone_contains' => $searchDigits]);
+
+    return array_values(
+        array_filter(
+            $contacts,
+            static fn(array $contact): bool =>
+                in_array($normalised, zohoContactPhoneValues($contact), true)
+        )
+    );
+}
+
+function findZohoCustomerByEmail($email)
+{
+    $matches = findZohoCustomersByEmail((string)$email);
+
+    return $matches[0]['contact_id'] ?? null;
+}
+
+function findZohoCustomerMatch(string $email, string $phone): ?array
+{
+    $matches = [];
+
+    foreach (findZohoCustomersByEmail($email) as $contact) {
+        if (!empty($contact['contact_id'])) {
+            $matches[(string)$contact['contact_id']] = $contact;
+        }
+    }
+
+    foreach (findZohoCustomersByPhone($phone) as $contact) {
+        if (!empty($contact['contact_id'])) {
+            $matches[(string)$contact['contact_id']] = $contact;
+        }
+    }
+
+    if (count($matches) > 1) {
+        throw new RuntimeException(
+            'The supplied email and mobile match different Zoho customers. '
+            . 'Please review the Zoho customer records before creating this job.'
+        );
+    }
+
+    return $matches ? reset($matches) : null;
+}
+
+function getZohoCustomerById(string $contactId): array
+{
+    $contactId = trim($contactId);
+
+    if ($contactId === '' || !ctype_digit($contactId)) {
+        throw new InvalidArgumentException('Invalid Zoho customer selection.');
+    }
+
+    $url = 'https://www.zohoapis.com.au/invoice/v3/contacts/'
+         . rawurlencode($contactId)
+         . '?'
+         . http_build_query(['organization_id' => ZOHO_ORG_ID]);
+
+    $response = zohoRequest('GET', $url);
+    $contact = $response['json']['contact'] ?? null;
+
+    if (
+        ($response['code'] ?? 500) < 200
+        || ($response['code'] ?? 500) >= 300
+        || !is_array($contact)
+        || (string)($contact['contact_id'] ?? '') !== $contactId
+    ) {
+        throw new RuntimeException(
+            'The selected Zoho customer could not be verified. '
+            . 'Please search for the customer again.'
+        );
+    }
+
+    return $contact;
+}
+/**
+ * Find an existing Zoho customer by exact email or normalized phone.
+ * Create one only when neither value matches an existing customer.
+ */
+function getOrCreateZohoCustomer($name, $email, $phone, $address)
+{
+    $name = trim((string)$name);
+    $email = strtolower(trim((string)$email));
+    $phone = trim((string)$phone);
+    $address = trim((string)$address);
+
+    if ($name === '') {
+        throw new InvalidArgumentException('Customer name is required.');
+    }
+
+    $existing = findZohoCustomerMatch($email, $phone);
+
+    if ($existing) {
+        return $existing['contact_id'];
+    }
+
+    $person = [
+        'first_name' => $name,
+        'is_primary_contact' => true
+    ];
+
+    if ($email !== '') {
+        $person['email'] = $email;
+    }
+
+    if ($phone !== '') {
+        $person['phone'] = $phone;
+        $person['mobile'] = $phone;
+    }
+
+    $payload = [
+        'contact_name' => $name,
+        'company_name' => $name,
+        'contact_type' => 'customer',
+        'contact_persons' => [$person]
+    ];
+
+    if ($address !== '') {
+        $payload['billing_address'] = [
+            'attention' => $name,
+            'address' => $address
+        ];
+    }
+
+    $url = 'https://www.zohoapis.com.au/invoice/v3/contacts?'
+         . http_build_query(['organization_id' => ZOHO_ORG_ID]);
+
+    $response = zohoRequest('POST', $url, $payload);
+    $contactId = $response['json']['contact']['contact_id'] ?? null;
+
+    if (!$contactId) {
+        throw new RuntimeException(
+            'Zoho customer creation failed: '
+            . mb_substr((string)($response['raw'] ?? 'Unknown Zoho response'), 0, 500)
+        );
+    }
+
+    return $contactId;
+}
 /**
  * ---------------------------------------------------------
  * CREATE ESTIMATE
