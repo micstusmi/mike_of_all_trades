@@ -534,6 +534,7 @@ box-shadow:0 8px 28px #0003;
 </p>
 <h1 class="page-local-title">Manage Job #<?=$id?> — <?=wt_html($job['customer_name'])?></h1>
 <p><?=wt_html($job['job_address'])?></p>
+<?php $archiveReturn='manage_job.php?id='.$id;require __DIR__.'/media_archive_panel.php';?>
 
 <?php
 $quickLabels = [

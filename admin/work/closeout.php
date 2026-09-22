@@ -143,6 +143,7 @@ th{font-size:12px;text-transform:uppercase;color:#61707a}
 Review this record before creating or sending any final invoice.
 Nothing on this page sends anything to Zoho.
 </p>
+<?php $archiveReturn='closeout.php?id='.$id;require __DIR__.'/media_archive_panel.php';?>
 
 <p class="no-print">
 <a class="btn" href="invoice_preparation.php?id=<?=$id?>">

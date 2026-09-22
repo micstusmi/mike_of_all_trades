@@ -58,6 +58,7 @@ input,textarea,select{width:100%;box-sizing:border-box;margin:5px 0;padding:9px}
 <p><a href="manage_job.php?id=<?=$id?>">&larr; Manage job</a> · <a href="social_drafts.php?id=<?=$id?>">Social drafts</a></p>
 <h1>Task photos - <?=wt_html((string)$job['customer_name'])?></h1>
 <p class="muted">The website stores reduced web copies to save Lightsail space. Keep your full-size originals in iPhone Photos / Google Photos. If server copies expire later, this record keeps the original filename and job reference.</p>
+<?php $archiveReturn='task_photos.php?id='.$id;require __DIR__.'/media_archive_panel.php';?>
 
 <?php if (isset($_GET['bulk_uploaded'])): ?>
 <div class="notice">

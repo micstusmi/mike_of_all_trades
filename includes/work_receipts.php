@@ -18,6 +18,36 @@ function wr_normalise_uploads(array $files): array {
 
 function wr_safe_name(string $name): string { $name=basename(str_replace('\\','/',$name)); return mb_substr(preg_replace('/[^A-Za-z0-9._-]+/','_',$name)?:'receipt',0,180); }
 
+function wr_normalise_match_text(?string $value): string {
+    $value=mb_strtolower(trim((string)$value));
+    return preg_replace('/[^a-z0-9]+/u','',$value)?:'';
+}
+
+/**
+ * Finds an already-approved receipt represented by one or more material rows.
+ * A receipt number + supplier is treated as a strong match. When a receipt
+ * number is unavailable, supplier + purchase date + receipt total must match.
+ */
+function wr_find_ledger_duplicate(PDO $pdo,int $jobId,string $supplier,string $receiptNumber,?string $purchaseDate,?float $grossTotal): ?array {
+    $supplierKey=wr_normalise_match_text($supplier);$numberKey=wr_normalise_match_text($receiptNumber);
+    if($supplierKey===''||($numberKey===''&&($purchaseDate===null||$grossTotal===null)))return null;
+    $q=$pdo->prepare("SELECT id,supplier,receipt_number,purchase_date,COALESCE(actual_cost,cost,0) amount FROM work_materials WHERE job_id=? AND COALESCE(material_status,'')<>'not_required' AND supplier IS NOT NULL ORDER BY id");
+    $q->execute([$jobId]);$groups=[];
+    foreach($q->fetchAll(PDO::FETCH_ASSOC) as $row){
+        $s=wr_normalise_match_text((string)($row['supplier']??''));$n=wr_normalise_match_text((string)($row['receipt_number']??''));$d=(string)($row['purchase_date']??'');
+        if($s!==$supplierKey)continue;
+        if($numberKey!==''){if($n!==$numberKey)continue;$key=$s.'|'.$n;}
+        else{if($n!==''||$d!==$purchaseDate)continue;$key=$s.'|'.$d;}
+        if(!isset($groups[$key]))$groups[$key]=['material_ids'=>[],'supplier'=>(string)$row['supplier'],'receipt_number'=>(string)($row['receipt_number']??''),'purchase_date'=>$d,'gross_total'=>0.0];
+        $groups[$key]['material_ids'][]=(int)$row['id'];$groups[$key]['gross_total']+=(float)$row['amount'];
+    }
+    foreach($groups as $group){
+        $group['gross_total']=round((float)$group['gross_total'],2);
+        if($numberKey!==''||($grossTotal!==null&&abs($group['gross_total']-round($grossTotal,2))<0.01))return $group;
+    }
+    return null;
+}
+
 function wr_store_one(PDO $pdo,int $jobId,?int $taskId,?int $sessionId,string $sourcePath,string $originalName,bool $uploaded): array {
     if(!is_file($sourcePath)) throw new RuntimeException('A receipt source file is missing.');
     $size=(int)(filesize($sourcePath)?:0);if($size<1||$size>15*1024*1024)throw new RuntimeException($originalName.' must be between 1 byte and 15 MB.');

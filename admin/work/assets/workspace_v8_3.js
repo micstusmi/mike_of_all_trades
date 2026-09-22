@@ -62,6 +62,7 @@
     if (!(el instanceof HTMLElement)) return false;
     if (el.closest('.wt83-section')) return false;
     if (el.classList.contains('wt83-jumpbar')) return false;
+    if (el.classList.contains('media-archive-panel')) return false;
 
     const h = directHeading(el);
     if (!h) return false;
@@ -294,6 +295,11 @@
       a.innerHTML = `<strong>${label}</strong><span>Open page →</span>`;
       hub.appendChild(a);
     }
+    const receipts = document.createElement('a');
+    receipts.className = 'wt-job-hub-card';
+    receipts.href = `receipt_images.php?id=${encodeURIComponent(jobId)}`;
+    receipts.innerHTML = '<strong>View receipt images</strong><span>Browse every stored receipt →</span>';
+    hub.appendChild(receipts);
     firstSection.parentNode.insertBefore(hub, firstSection);
     sections.forEach(s => s.el.hidden = true);
     return;

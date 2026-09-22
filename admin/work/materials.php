@@ -153,6 +153,7 @@ It is not GST added by Mike Of All Trades to the customer's charge.
 
 <div class="card" id="receipts">
 <h2>📄 Scan or bulk upload receipts</h2>
+<p><a class="btn" href="receipt_images.php?id=<?=$id?>">VIEW ALL RECEIPT IMAGES</a> <a class="btn secondary" href="receipt_review.php?id=<?=$id?>">REVIEW SCANNED RECEIPTS</a></p>
 <p>Take receipt photos while shopping, choose several existing photos/PDFs, or upload a ZIP containing up to 60 receipt images/PDFs. OCR runs in the background and <b>nothing affects job totals until you review and approve it.</b></p>
 <form method="post" action="../../api/work/upload_receipts_bulk.php" enctype="multipart/form-data">
 <input type="hidden" name="job_id" value="<?=$id?>">
@@ -161,7 +162,7 @@ It is not GST added by Mike Of All Trades to the customer's charge.
 <p class="muted">Duplicates are detected using the original file contents. Each receipt stays private and must be checked against the original before approval.</p><button class="btn" type="submit">UPLOAD &amp; SCAN RECEIPTS</button>
 </form>
 <p id="receiptOcrStatus"><b>OCR status:</b> <?=$receiptCounts['processing']?> processing · <?=$receiptCounts['ready']?> ready to review · <?=$receiptCounts['failed']?> failed · <?=$receiptCounts['applied']?> approved</p>
-<?php if($receiptCounts['ready']+$receiptCounts['failed']+$receiptCounts['applied']>0):?><p><a class="btn secondary" href="receipt_review.php?id=<?=$id?>">REVIEW SCANNED RECEIPTS</a></p><?php endif;?>
+<?php if($receiptCounts['ready']+$receiptCounts['failed']+$receiptCounts['applied']>0):?><p><a class="btn secondary" href="receipt_review.php?id=<?=$id?>">REVIEW SCANNED RECEIPTS</a> <a class="btn secondary" href="receipt_images.php?id=<?=$id?>">BROWSE RECEIPT IMAGES</a></p><?php endif;?>
 </div>
 
 <div class="card">

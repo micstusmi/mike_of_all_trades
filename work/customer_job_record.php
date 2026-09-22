@@ -348,6 +348,7 @@ textarea,input{box-sizing:border-box;width:100%;padding:11px;border:1px solid #c
 </div>
 <div class="wrap">
 <div class="customer-find"><label for="customerSectionSearch"><b>🔍 Search your job record</b></label><input id="customerSectionSearch" type="search" placeholder="Search tasks, schedule, agreement, photos, payments or progress"><div id="customerSectionResults" class="customer-find-results" aria-live="polite"></div></div><nav class="customer-page-nav" id="customerPageNav" aria-label="Your job pages"></nav>
+<?php if(!empty($job['media_archive_customer_visible'])&&!empty($job['media_archive_url'])):?><div class="card"><h2>Complete original photo/video archive</h2><p>This Google Drive folder contains the complete original archive. Photos displayed on this website may be reduced, website-optimised copies.</p><?php if(!empty($job['media_archive_description'])):?><p><?=nl2br(wt_html((string)$job['media_archive_description']))?></p><?php endif;?><p><a class="btn" href="<?=wt_html((string)$job['media_archive_url'])?>" target="_blank" rel="noopener">Open Google Drive archive</a></p><?php if(!empty($job['media_archive_verified_at'])):?><p class="muted">Link last verified <?=wt_html((string)$job['media_archive_verified_at'])?>.</p><?php endif;?></div><?php endif;?>
 
 <?php if($customerNoChargeTotal > 0):?>
 <div

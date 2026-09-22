@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/_auth.php';
-require_once __DIR__ . '/../../includes/work_tracker.php';
+require_once __DIR__ . '/../../includes/work_receipts.php';
 
 $jobId = (int)($_GET['id'] ?? 0);
 $job = wt_job($pdo, $jobId);
@@ -112,9 +112,12 @@ body{font-family:system-ui;background:#f4f6f8;color:#17202a;margin:0}.wrap{max-w
     $isCredit=!empty($receipt['is_credit_or_return']);
     $lines=array_values(array_filter((array)($receipt['lines']??[]),'is_array'));
     if(!$lines){$lines=[['description'=>trim((string)($receipt['source_label']??''))?:'Receipt purchase','gross_amount'=>$receipt['gross_total']??null,'gst_amount'=>$receipt['gst_total']??null,'is_credit_or_return'=>$isCredit]];}
+    $candidateGross=0.0;$hasCandidate=false;foreach($lines as $candidate){if(array_key_exists('include_default',$candidate)&&empty($candidate['include_default']))continue;if(is_numeric($candidate['gross_amount']??null)){$candidateGross+=(float)$candidate['gross_amount'];$hasCandidate=true;}}
+    $possibleDuplicate=wr_find_ledger_duplicate($pdo,$jobId,(string)($receipt['supplier']??''),(string)($receipt['receipt_number']??''),irdate($receipt['purchase_date']??'')?:null,$hasCandidate?round($candidateGross,2):null);
 ?>
 <div class="receipt <?=$isCredit?'credit':''?>">
-<label class="check"><input type="checkbox" name="receipts[<?=$receiptIndex?>][include]" value="1" checked> Include receipt / credit <?=($receiptIndex+1)?>: <?=irh($receipt['source_label']??$receipt['supplier']??'Unlabelled')?></label>
+<?php if($possibleDuplicate):?><div class="bad"><b>Possible duplicate receipt — unticked and blocked by default.</b><br>It matches material record(s) #<?=irh(implode(', #',$possibleDuplicate['material_ids']))?> with a recorded total of <?=irm($possibleDuplicate['gross_total'])?>.<br><label class="confirm"><input type="checkbox" name="receipts[<?=$receiptIndex?>][allow_duplicate]" value="1"> I compared the source and confirm this is genuinely a different purchase.</label></div><?php endif;?>
+<label class="check"><input type="checkbox" name="receipts[<?=$receiptIndex?>][include]" value="1" <?=$possibleDuplicate?'':'checked'?>> Include receipt / credit <?=($receiptIndex+1)?>: <?=irh($receipt['source_label']??$receipt['supplier']??'Unlabelled')?></label>
 <input type="hidden" name="receipts[<?=$receiptIndex?>][is_credit_or_return]" value="<?=$isCredit?'1':'0'?>">
 <?php if($isCredit):?><p class="bad"><b>Credit / return:</b> retained as negative values. Positive amounts will be rejected rather than silently changed.</p><?php endif;?>
 

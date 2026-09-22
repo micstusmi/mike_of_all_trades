@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/_admin_auth.php';
-require_once __DIR__ . '/../../includes/work_tracker.php';
+require_once __DIR__ . '/../../includes/work_receipts.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -192,6 +192,11 @@ try {
             ? array_values($source['lines'])
             : [];
         $approvedLines = [];
+
+        $candidateGross=0.0;$hasCandidate=false;
+        foreach($lineInputs as $candidate){if(!is_array($candidate)||empty($candidate['include']))continue;$amount=sri_money($candidate['gross_amount']??'','Selected line gross amount');if($amount!==null){$candidateGross+=$amount;$hasCandidate=true;}}
+        $duplicate=wr_find_ledger_duplicate($pdo,$jobId,$supplier,$number,$date,$hasCandidate?round($candidateGross,2):null);
+        if($duplicate&&empty($fields['allow_duplicate']))throw new RuntimeException('Possible duplicate receipt blocked: '.$supplier.($number!==''?' #'.$number:'').' '.$date.' $'.number_format($candidateGross,2).'. Return to review and use the override only if it is genuinely a different purchase.');
 
         foreach ($lineInputs as $lineIndexRaw => $lineFields) {
             $lineIndex = filter_var(
