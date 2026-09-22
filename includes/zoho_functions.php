@@ -739,6 +739,27 @@ function getZohoInvoice($invoice_id) {
     return zohoRequest("GET", $url, null);
 }
 
+/** Return the organisation's real 0% tax ID; Zoho ignores a blank tax_id. */
+function getZohoZeroTaxId(): string {
+    $url = "https://www.zohoapis.com.au/invoice/v3/settings/taxes?organization_id=" . rawurlencode((string)ZOHO_ORG_ID) . "&per_page=200";
+    $response = zohoRequest("GET", $url, null);
+    $taxes = $response['json']['taxes'] ?? null;
+    if (!is_array($taxes)) {
+        throw new RuntimeException('Zoho could not list organisation taxes. The OAuth connection needs ZohoInvoice.settings.READ permission.');
+    }
+    $fallback = '';
+    foreach ($taxes as $tax) {
+        if (!is_array($tax) || abs((float)($tax['tax_percentage'] ?? -1)) > 0.0001 || empty($tax['tax_id'])) continue;
+        if (array_key_exists('is_active', $tax) && !$tax['is_active']) continue;
+        $id = (string)$tax['tax_id'];
+        $name = mb_strtolower((string)($tax['tax_name'] ?? ''));
+        if (str_contains($name, 'no gst') || str_contains($name, 'gst free') || str_contains($name, 'gst-free') || str_contains($name, 'exempt')) return $id;
+        if ($fallback === '') $fallback = $id;
+    }
+    if ($fallback !== '') return $fallback;
+    throw new RuntimeException('Zoho has no active 0% tax. Create a 0% tax named "No GST" in Zoho Settings, then sync this draft again.');
+}
+
 /** Email an existing Zoho invoice, optionally with supplier receipts. */
 function sendZohoInvoiceWithAttachments($invoice_id, $email, array $attachments = []) {
     $url = "https://www.zohoapis.com.au/invoice/v3/invoices/" . rawurlencode((string)$invoice_id) . "/email?organization_id=" . rawurlencode((string)ZOHO_ORG_ID);

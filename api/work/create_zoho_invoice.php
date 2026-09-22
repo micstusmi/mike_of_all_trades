@@ -30,7 +30,7 @@ try{
 
     $contactId=getOrCreateZohoCustomer($job['customer_name'],$job['customer_email'],$job['customer_phone'],$job['job_address']);
     if(!$contactId)throw new RuntimeException('Zoho could not find or create the customer.');
-    $payload=wt_invoice_zoho_payload($package,(string)$contactId);
+    $payload=wt_invoice_zoho_payload($package,(string)$contactId,getZohoZeroTaxId());
     $response=createZohoInvoice($payload);$invoice=$response['json']['invoice']??null;$invoiceId=(string)($invoice['invoice_id']??'');
     if($invoiceId==='')throw new RuntimeException('Zoho draft creation failed: '.mb_substr((string)($response['raw']??'Unknown response'),0,1000));
     wt_assert_zoho_invoice_no_gst($invoice,(float)$package['totals']['invoice_total']);

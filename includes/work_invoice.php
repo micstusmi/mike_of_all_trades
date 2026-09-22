@@ -68,12 +68,11 @@ function wt_invoice_receipt_attachments(PDO $pdo,array $package): array
     return $files;
 }
 
-function wt_invoice_zoho_payload(array $package,string $contactId): array
+function wt_invoice_zoho_payload(array $package,string $contactId,string $zeroTaxId): array
 {
     $job=$package['job'];$lines=[];
-    // An empty tax_id explicitly overrides any taxable item default in Zoho.
-    // tax_name and tax_percentage alone are not reliable write controls.
-    $noTax=['tax_id'=>'','tax_name'=>'','tax_percentage'=>0];
+    if($zeroTaxId==='')throw new RuntimeException('A valid Zoho 0% tax ID is required.');
+    $noTax=['tax_id'=>$zeroTaxId];
     foreach($package['labour_days'] as $day)$lines[]=array_merge(['name'=>'Labour - '.date('j M Y',strtotime($day['date'])),'description'=>$day['description'],'quantity'=>round((float)$day['hours'],2),'rate'=>round((float)$day['rate'],2)],$noTax);
     if((float)($package['totals']['labour']??0)>0&&!$package['labour_days'])$lines[]=array_merge(['name'=>'Labour','description'=>'Previously recorded property maintenance labour','quantity'=>1,'rate'=>$package['totals']['labour']],$noTax);
     foreach($package['reimbursements'] as $g){$gst=$g['gst']>0?'Supplier GST included in this gross reimbursement: $'.number_format($g['gst'],2).'.':'Supplier GST is not yet recorded in the Work Tracker.';$description=implode('; ',array_filter([$g['receipt']!==''?'Supplier receipt '.$g['receipt']:'',$gst,'Original supplier receipt retained and provided where attached.']));$lines[]=array_merge(['name'=>'Reimbursement - '.$g['supplier'],'description'=>$description,'quantity'=>1,'rate'=>round((float)$g['amount'],2)],$noTax);}
