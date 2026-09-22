@@ -1,5 +1,9 @@
 /* Mike of All Trades Work Tracker V8.8 */
 
+.wt-job-page-nav{display:flex;gap:7px;overflow-x:auto;padding:10px;margin:14px 0;background:#fff;border:1px solid #d9e1e7;border-radius:12px;position:sticky;top:108px;z-index:45}.wt-job-page-nav a{flex:0 0 auto;text-decoration:none;color:#17202a;border:1px solid #cbd5dc;border-radius:9px;padding:9px 11px;font-weight:800;background:#f8fafb}.wt-job-page-nav a.active,.wt-job-page-nav a:hover{background:#17202a;color:#fff}.wt-job-hub{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:14px 0}.wt-job-hub-heading{grid-column:1/-1;background:#eef7ff;border:1px solid #b8d5e8;border-radius:13px;padding:15px}.wt-job-hub-heading h2,.wt-job-hub-heading p{margin:0}.wt-job-hub-heading p{margin-top:4px;color:#5f6d78}.wt-job-hub-card{display:flex;min-height:92px;flex-direction:column;justify-content:space-between;text-decoration:none;color:#17202a;background:#fff;border:1px solid #d4dde4;border-radius:13px;padding:16px;box-shadow:0 2px 8px #0000000b}.wt-job-hub-card:hover{border-color:#f39200;box-shadow:0 4px 14px #0002}.wt-job-hub-card strong{font-size:17px}.wt-job-hub-card span{font-size:13px;color:#596873}.wt-job-merged-divider{border:0;border-top:2px solid #dce4e9;margin:22px 0}.wt-job-dedicated-page .wt83-jumpbar,.wt-job-dedicated-page .wt88-section-controls{display:none!important}.wt-job-dedicated-page .wt83-section{margin-top:14px}
+@media(max-width:850px){.wt-job-hub{grid-template-columns:repeat(2,minmax(0,1fr))}.wt-job-page-nav{top:0}}
+@media(max-width:520px){.wt-job-hub{grid-template-columns:1fr}.wt-job-hub-card{min-height:70px}.wt-job-page-nav{margin-left:-8px;margin-right:-8px;border-radius:0}}
+
 .wt88-toolbar{
     position:sticky;
     top:0;

@@ -127,7 +127,7 @@
   }
 
   const state = stateLoad();
-  const sections = [];
+  let sections = [];
 
   for (const el of findCandidates()) {
     const heading = directHeading(el);
@@ -215,6 +215,102 @@
   }
 
   if (!sections.length) return;
+
+  // Consolidate cards that resolve to the same workspace destination.
+  // This prevents separate "status" and "settings" cards from creating
+  // duplicate Pricing & agreement destinations while preserving every form.
+  const firstByTitle = new Map();
+  for (const section of sections) {
+    const key = section.title.toLowerCase();
+    const first = firstByTitle.get(key);
+    if (!first) {
+      firstByTitle.set(key, section);
+      continue;
+    }
+    const firstBody = first.el.querySelector(':scope > .wt83-section-body');
+    const extraBody = section.el.querySelector(':scope > .wt83-section-body');
+    if (firstBody && extraBody) {
+      const divider = document.createElement('hr');
+      divider.className = 'wt-job-merged-divider';
+      firstBody.appendChild(divider);
+      while (extraBody.firstChild) firstBody.appendChild(extraBody.firstChild);
+    }
+    section.el.remove();
+  }
+  sections = Array.from(firstByTitle.values());
+
+  const viewKey = (title) => {
+    const t = title.toLowerCase();
+    if (t.includes('customer detail')) return 'customer';
+    if (t.includes('schedule') || t.includes("today's work plan")) return 'schedule';
+    if (t.includes('pricing') || t.includes('agreement')) return 'pricing';
+    if (t.includes('task') || t.includes('approval') || t.includes('request') || t.includes('intake')) return 'tasks';
+    if (t.includes('time') || t.includes('worker') || t.includes('history') || t.includes('session') || t.includes('past work')) return 'time';
+    if (t.includes('material') || t.includes('expense') || t.includes('receipt')) return 'materials';
+    if (t.includes('photo') || t.includes('social') || t.includes('media')) return 'media';
+    if (t.includes('invoice') || t.includes('billing') || t.includes('payment') || t.includes('financial')) return 'billing';
+    if (t.includes('communication') || t.includes('report') || t.includes('update')) return 'messages';
+    if (t.includes('goodwill') || t.includes('rectification') || t.includes('free')) return 'goodwill';
+    if (t.includes('source') || t.includes('came from')) return 'settings';
+    return 'overview';
+  };
+
+  const pageNames = {
+    overview:'Overview', customer:'Customer & schedule', schedule:'Schedule & daily plan',
+    pricing:'Scope, pricing & agreement', tasks:'Tasks & progress', time:'Time & workers',
+    materials:'Materials & receipts', media:'Photos & social media', billing:'Billing & payments',
+    messages:'Messages & reports', goodwill:'Goodwill & rectification', settings:'Job settings'
+  };
+  const selectedView = params.get('view') || 'overview';
+  const workspaceNav = document.createElement('nav');
+  workspaceNav.className = 'wt-job-page-nav';
+  workspaceNav.setAttribute('aria-label','Job pages');
+  for (const [key,label] of Object.entries(pageNames)) {
+    const a = document.createElement('a');
+    a.href = `job.php?id=${encodeURIComponent(jobId)}&view=${encodeURIComponent(key)}`;
+    a.textContent = label;
+    if (key === selectedView) a.className = 'active';
+    workspaceNav.appendChild(a);
+  }
+  const receiptLink = document.createElement('a');
+  receiptLink.href = `receipt_images.php?id=${encodeURIComponent(jobId)}`;
+  receiptLink.textContent = 'Receipt images';
+  workspaceNav.appendChild(receiptLink);
+  const firstSection = sections[0].el;
+  firstSection.parentNode.insertBefore(workspaceNav, firstSection);
+
+  if (selectedView === 'overview') {
+    const hub = document.createElement('section');
+    hub.className = 'wt-job-hub';
+    const heading = document.createElement('div');
+    heading.className = 'wt-job-hub-heading';
+    heading.innerHTML = '<h2>Job management</h2><p>Choose the area you need instead of scrolling through the entire job.</p>';
+    hub.appendChild(heading);
+    for (const [key,label] of Object.entries(pageNames)) {
+      if (key === 'overview') continue;
+      const a = document.createElement('a');
+      a.className = 'wt-job-hub-card';
+      a.href = `job.php?id=${encodeURIComponent(jobId)}&view=${encodeURIComponent(key)}`;
+      a.innerHTML = `<strong>${label}</strong><span>Open page →</span>`;
+      hub.appendChild(a);
+    }
+    firstSection.parentNode.insertBefore(hub, firstSection);
+    sections.forEach(s => s.el.hidden = true);
+    return;
+  }
+
+  const visible = sections.filter(s => viewKey(s.title) === selectedView);
+  sections.forEach(s => {
+    const show = visible.includes(s);
+    s.el.hidden = !show;
+    if (show) {
+      s.el.dataset.wt83Open = '1';
+      s.el.querySelector(':scope > .wt83-section-toggle')?.setAttribute('aria-expanded','true');
+      const chevron = s.el.querySelector(':scope > .wt83-section-toggle .wt83-chevron');
+      if (chevron) chevron.textContent = '▼';
+    }
+  });
+  document.body.classList.add('wt-job-dedicated-page');
 
   // Add compact sticky jump bar immediately before the first managed section.
   const bar = document.createElement('nav');

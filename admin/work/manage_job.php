@@ -453,7 +453,7 @@ textarea{width:100%;box-sizing:border-box}
 <link rel="stylesheet" href="assets/workspace_v8_3.css?v=1">
 <link rel="stylesheet" href="assets/task_photos_inline_v8_4c.css?v=1">
 
-<link rel="stylesheet" href="assets/workspace_v8_8.css">
+<link rel="stylesheet" href="assets/workspace_v8_8.css?v=46">
 
 </head>
 <body>
@@ -534,8 +534,6 @@ box-shadow:0 8px 28px #0003;
 </p>
 <h1 class="page-local-title">Manage Job #<?=$id?> — <?=wt_html($job['customer_name'])?></h1>
 <p><?=wt_html($job['job_address'])?></p>
-
-<nav class="card" aria-label="Jump to job section" style="padding:12px;position:sticky;top:112px;z-index:20"><b>Jump to:</b> <a href="#quick-actions">Quick actions</a> · <a href="#customer-details">Customer</a> · <a href="#schedule-access">Schedule</a> · <a href="#pricing-agreement">Pricing &amp; agreement</a> · <a href="#tasks">Tasks</a> · <a href="#work-time">Time &amp; workers</a> · <a href="#materials-media">Materials &amp; media</a> · <a href="#billing">Billing</a></nav>
 
 <?php
 $quickLabels = [
@@ -4149,7 +4147,7 @@ document.querySelectorAll('form[action*="stop_session.php"]').forEach(form=>{
 })();
 </script>
 
-<script src="assets/workspace_v8_3.js?v=4" defer></script>
+<script src="assets/workspace_v8_3.js?v=46" defer></script>
 <script src="assets/workspace_v8_4b.js?v=1" defer></script>
 <script src="assets/task_photos_inline_v8_4c.js?v=1" defer></script>
 
