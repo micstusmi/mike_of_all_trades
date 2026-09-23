@@ -739,6 +739,27 @@ function getZohoInvoice($invoice_id) {
     return zohoRequest("GET", $url, null);
 }
 
+/** List invoices for one verified Zoho contact without creating anything. */
+function listZohoInvoicesForCustomer(string $contactId): array {
+    $contactId = trim($contactId);
+    if ($contactId === '' || !ctype_digit($contactId)) {
+        throw new InvalidArgumentException('Invalid Zoho customer selection.');
+    }
+    $url = "https://www.zohoapis.com.au/invoice/v3/invoices?" . http_build_query([
+        'organization_id' => ZOHO_ORG_ID,
+        'customer_id' => $contactId,
+        'per_page' => 200,
+        'sort_column' => 'date',
+        'sort_order' => 'D',
+    ]);
+    $response = zohoRequest('GET', $url, null);
+    $invoices = $response['json']['invoices'] ?? null;
+    if (($response['code'] ?? 500) < 200 || ($response['code'] ?? 500) >= 300 || !is_array($invoices)) {
+        throw new RuntimeException('Zoho could not list invoices for this customer.');
+    }
+    return $invoices;
+}
+
 /** Return the organisation's real 0% tax ID; Zoho ignores a blank tax_id. */
 function getZohoZeroTaxId(): string {
     $url = "https://www.zohoapis.com.au/invoice/v3/settings/taxes?organization_id=" . rawurlencode((string)ZOHO_ORG_ID) . "&per_page=200";

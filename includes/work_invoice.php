@@ -17,7 +17,7 @@ function wt_invoice_package(PDO $pdo, int $jobId): array
         WHEN s.session_source='retrospective' AND s.retrospective_hours IS NOT NULL THEN s.retrospective_hours
         ELSE GREATEST(0,TIMESTAMPDIFF(SECOND,s.started_at,s.ended_at)-COALESCE((SELECT SUM(TIMESTAMPDIFF(SECOND,b.started_at,COALESCE(b.ended_at,s.ended_at))) FROM work_session_breaks b WHERE b.session_id=s.id),0))/3600 END calculated_hours
         FROM work_sessions s LEFT JOIN work_workers w ON w.id=s.worker_id LEFT JOIN work_tasks t ON t.id=s.task_id
-        WHERE s.job_id=? ORDER BY s.started_at,s.id");
+        WHERE s.job_id=? AND NOT EXISTS(SELECT 1 FROM work_invoice_sessions bis WHERE bis.session_id=s.id) ORDER BY s.started_at,s.id");
     $q->execute([$defaultRate,$jobId]);
     $sessions=$q->fetchAll(PDO::FETCH_ASSOC);$daily=[];$unfinished=0;
     foreach($sessions as $s){
@@ -35,6 +35,7 @@ function wt_invoice_package(PDO $pdo, int $jobId): array
 
     $q=$pdo->prepare("SELECT m.*,(SELECT rl.receipt_id FROM work_receipt_lines rl WHERE rl.material_id=m.id ORDER BY rl.id LIMIT 1) scanned_receipt_id
         FROM work_materials m WHERE m.job_id=? AND COALESCE(m.material_status,'')<>'not_required'
+        AND NOT EXISTS(SELECT 1 FROM work_invoice_materials bim WHERE bim.material_id=m.id)
         ORDER BY COALESCE(m.purchase_date,DATE(m.purchased_at)),m.id");
     $q->execute([$jobId]);$groups=[];
     foreach($q->fetchAll(PDO::FETCH_ASSOC) as $m){
@@ -65,7 +66,6 @@ function wt_invoice_package_for_jobs(PDO $pdo,array $jobIds): array
     $jobIds=array_values(array_unique(array_filter(array_map('intval',$jobIds),fn($id)=>$id>0)));
     if(!$jobIds)throw new InvalidArgumentException('Select at least one job.');
     if(count($jobIds)===1)return wt_invoice_package($pdo,$jobIds[0]);
-    $marks=implode(',',array_fill(0,count($jobIds),'?'));$q=$pdo->prepare("SELECT DISTINCT job_id FROM work_closeout_snapshots WHERE job_id IN ($marks) AND sent_to_zoho_at IS NOT NULL");$q->execute($jobIds);$already=array_map('intval',$q->fetchAll(PDO::FETCH_COLUMN));if($already)throw new RuntimeException('These jobs already have an emailed invoice and cannot be included again: #'.implode(', #',$already).'.');
     $packages=array_map(fn($id)=>wt_invoice_package($pdo,$id),$jobIds);$customerId=(int)($packages[0]['customer']['id']??0);
     if($customerId<=0)throw new RuntimeException('Install the V10 customer migration before preparing a combined invoice.');
     foreach($packages as $p)if((int)($p['customer']['id']??0)!==$customerId)throw new RuntimeException('Combined invoices may only contain jobs linked to the same customer.');
@@ -73,6 +73,22 @@ function wt_invoice_package_for_jobs(PDO $pdo,array $jobIds): array
     foreach($packages as $p){$j=$p['job'];$out['jobs'][]=['id'=>(int)$j['id'],'address'=>$j['job_address'],'alias'=>$j['customer_alias']??$j['customer_name']];foreach($p['labour_days'] as $d){$d['job_id']=(int)$j['id'];$d['description']='Job #'.$j['id'].' — '.$j['job_address'].': '.$d['description'];$out['labour_days'][]=$d;}foreach($p['reimbursements'] as $g){$g['job_id']=(int)$j['id'];$g['items']=array_map(fn($x)=>'Job #'.$j['id'].' — '.$j['job_address'].': '.$x,$g['items']);$out['reimbursements'][]=$g;}foreach($out['totals'] as $k=>$_)$out['totals'][$k]+=((float)($p['totals'][$k]??0));$out['warnings']['unfinished_sessions']+=(int)$p['warnings']['unfinished_sessions'];$out['warnings']['missing_supplier_gst']=array_merge($out['warnings']['missing_supplier_gst'],$p['warnings']['missing_supplier_gst']);$out['warnings']['reconciliation']=array_merge($out['warnings']['reconciliation'],$p['warnings']['reconciliation']);}
     foreach($out['totals'] as $k=>$v)$out['totals'][$k]=round($v,$k==='labour_hours'?4:2);$out['job']['id']=$jobIds[0];$out['job']['job_title']='Combined property work';$out['job']['job_address']=implode(' | ',array_column($out['jobs'],'address'));
     $fingerprint=$out;unset($fingerprint['totals']['payments'],$fingerprint['totals']['balance_due']);$out['fingerprint']=hash('sha256',json_encode($fingerprint,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));return $out;
+}
+
+/** Persist an immutable invoice header and its job/source-record relationships. */
+function wt_record_invoice_ledger(PDO $pdo,array $invoice,array $package,string $source='eztradie'): int
+{
+    $invoiceId=trim((string)($invoice['invoice_id']??''));
+    if($invoiceId==='')throw new InvalidArgumentException('Zoho invoice ID is required.');
+    $customerId=(int)($package['customer']['id']??0);if($customerId<=0)throw new InvalidArgumentException('Customer is required.');
+    $total=round((float)($invoice['total']??$package['totals']['invoice_total']??0),2);$balance=round((float)($invoice['balance']??$invoice['balance_due']??$total),2);
+    $paid=max(0,round((float)($invoice['payment_made']??($total-$balance)),2));$status=$balance<=0.01?'paid':strtolower((string)($invoice['status']??'sent'));
+    $q=$pdo->prepare("INSERT INTO work_invoice_ledger(customer_id,zoho_invoice_id,invoice_number,invoice_date,due_date,status,total_amount,paid_amount,balance_amount,tax_amount,source,zoho_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,NOW(),NOW()) ON DUPLICATE KEY UPDATE invoice_number=VALUES(invoice_number),invoice_date=VALUES(invoice_date),due_date=VALUES(due_date),status=VALUES(status),total_amount=VALUES(total_amount),paid_amount=VALUES(paid_amount),balance_amount=VALUES(balance_amount),tax_amount=VALUES(tax_amount),zoho_json=VALUES(zoho_json),updated_at=NOW(),id=LAST_INSERT_ID(id)");
+    $q->execute([$customerId,$invoiceId,(string)($invoice['invoice_number']??$invoiceId),($invoice['date']??null)?:null,($invoice['due_date']??null)?:null,$status,$total,$paid,$balance,round((float)($invoice['tax_total']??$invoice['total_tax']??0),2),$source,json_encode($invoice,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE)]);$ledgerId=(int)$pdo->lastInsertId();
+    foreach(($package['jobs']??[['id'=>$package['job']['id']]]) as $job)$pdo->prepare('INSERT IGNORE INTO work_invoice_jobs(invoice_id,job_id) VALUES(?,?)')->execute([$ledgerId,(int)$job['id']]);
+    foreach($package['labour_days']??[] as $day)foreach($day['session_ids']??[] as $id)$pdo->prepare('INSERT IGNORE INTO work_invoice_sessions(invoice_id,session_id) VALUES(?,?)')->execute([$ledgerId,(int)$id]);
+    foreach($package['reimbursements']??[] as $group)foreach($group['material_ids']??[] as $id)$pdo->prepare('INSERT IGNORE INTO work_invoice_materials(invoice_id,material_id) VALUES(?,?)')->execute([$ledgerId,(int)$id]);
+    return $ledgerId;
 }
 
 function wt_invoice_receipt_attachments(PDO $pdo,array $package): array

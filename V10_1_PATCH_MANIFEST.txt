@@ -1,0 +1,17 @@
+ezTradie V10.1 patch manifest
+Base commit: e44e8e2
+
+Modified
+admin/work/customer.php
+api/work/send_zoho_invoice.php
+includes/work_invoice.php
+includes/zoho_functions.php
+
+Added
+README_INSTALL_V10_1_PROGRESS_INVOICES.txt
+V10_1_PATCH_MANIFEST.txt
+admin/work/invoice_reconciliation.php
+api/work/import_zoho_invoice.php
+api/work/save_invoice_reconciliation.php
+tools/install_v10_1.php
+tools/migration_v10_1_invoice_ledger.sql

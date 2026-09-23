@@ -22,6 +22,7 @@ try{
     if(($response['code']??500)>=400||(($response['json']['code']??0)!==0))throw new RuntimeException('Zoho email failed: '.mb_substr((string)($response['raw']??'Unknown response'),0,1000));
     $prior=json_decode((string)($snapshot['zoho_response_json']??''),true);if(!is_array($prior))$prior=[];$prior['email_response']=$response['json'];$prior['receipt_attachment_count']=count($attachments);$prior['emailed_at']=date('c');
     $q=$pdo->prepare("UPDATE work_closeout_snapshots SET status='sent_to_zoho',sent_to_zoho_at=NOW(),zoho_response_json=? WHERE id=? AND job_id=? AND sent_to_zoho_at IS NULL");$q->execute([json_encode($prior,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),$snapshotId,$jobId]);
+    try{wt_record_invoice_ledger($pdo,$freshInvoice,$package,'eztradie');}catch(Throwable $ledgerError){error_log('Invoice was emailed but ledger recording failed: '.$ledgerError->getMessage());}
     header('Location: '.$returnUrl.'&zoho_sent=1#zoho-invoice');
 }catch(Throwable $e){error_log('Zoho invoice email failed: '.$e->getMessage());header('Location: '.$returnUrl.'&zoho_error='.urlencode($e->getMessage()).'#zoho-invoice');}
 finally{$q=$pdo->prepare('SELECT RELEASE_LOCK(?)');$q->execute([$lockName]);}
