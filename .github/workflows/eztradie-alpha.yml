@@ -27,6 +27,9 @@ jobs:
       EZ_ALPHA_DB_USER: root
       EZ_ALPHA_DB_PASSWORD: test-only-password
       EZ_ALPHA_TEST_DATABASE: 'YES'
+      EZ_MIKE_READONLY_DSN: mysql:host=127.0.0.1;dbname=mike_disposable;charset=utf8mb4
+      EZ_MIKE_READONLY_USER: root
+      EZ_MIKE_READONLY_PASSWORD: test-only-password
     steps:
       - uses: actions/checkout@v5
       - name: Install PHP and MySQL client
@@ -39,10 +42,13 @@ jobs:
           node --check alpha/public/assets/app.js
       - name: Build disposable database
         run: |
+          mysql -h 127.0.0.1 -uroot -ptest-only-password -e 'CREATE DATABASE mike_disposable CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci'
+          mysql -h 127.0.0.1 -uroot -ptest-only-password mike_disposable < alpha/tests/mike_fixture.sql
           for file in alpha/schema/*.sql; do
             mysql -h 127.0.0.1 -uroot -ptest-only-password eztradie_disposable < "$file"
           done
       - name: Run isolation and catalogue checks
         run: |
           php alpha/tests/isolation.php
+          php alpha/tests/import.php
           python3 alpha/tools/check_catalog.py

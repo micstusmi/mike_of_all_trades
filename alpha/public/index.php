@@ -4,6 +4,7 @@ require_once __DIR__.'/../src/core.php';
 require_once __DIR__.'/../src/services.php';
 require_once __DIR__.'/../src/catalog.php';
 require_once __DIR__.'/../src/integrations.php';
+require_once __DIR__.'/../src/legacy_import.php';
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
@@ -66,6 +67,7 @@ try {
     if ($method === 'GET' && $path === '/calendar/drafts') reply(200,['drafts'=>alpha_calendar_drafts($db,$ctx)]);
     if ($method === 'GET' && $path === '/integrations') reply(200,alpha_integration_status($db,$ctx));
     if ($method === 'GET' && $path === '/sms/drafts') reply(200,['drafts'=>alpha_sms_drafts($db,$ctx)]);
+    if ($method === 'GET' && $path === '/migration/summary') reply(200,['migration'=>alpha_mike_import_summary($db,$ctx)]);
     if ($method === 'GET' && $path === '/customers') reply(200, ['customers'=>alpha_customers($db,$businessId)]);
     if ($method === 'GET' && $path === '/jobs') reply(200, ['jobs'=>alpha_jobs($db,$businessId)]);
     if ($method === 'GET' && $path === '/properties') {

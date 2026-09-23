@@ -93,7 +93,7 @@ function alpha_customer(PDO $db, int $businessId, int $customerId): ?array {
 }
 
 function alpha_job(PDO $db, int $businessId, int $jobId): ?array {
-    $q = $db->prepare('SELECT id,customer_id,property_id,title,status FROM alpha_jobs WHERE business_id=? AND id=?');
+    $q = $db->prepare('SELECT j.id,j.customer_id,j.property_id,j.title,j.status,d.original_scope,d.current_scope,d.planned_start_at,d.planned_finish_at,d.original_estimate_amount,d.agreed_hourly_rate,d.payment_mode,d.media_archive_url,l.source_id AS mike_job_id FROM alpha_jobs j LEFT JOIN alpha_job_legacy_details d ON d.business_id=j.business_id AND d.job_id=j.id LEFT JOIN alpha_legacy_links l ON l.business_id=j.business_id AND l.entity=\'job\' AND l.target_id=j.id WHERE j.business_id=? AND j.id=?');
     $q->execute([$businessId,$jobId]);
     return $q->fetch() ?: null;
 }

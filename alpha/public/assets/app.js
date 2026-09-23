@@ -38,7 +38,7 @@ async function load(nextView) {
     content.innerHTML = '<h3>Customers</h3><p class="muted">Only this business’s customers appear here.</p>' + data.customers.map(x=>`<div class="card">${safe(x.name)} ${x.email ? '· '+safe(x.email):''}</div>`).join('') + '<form id="customer-form"><label>Customer name <input name="name" maxlength="190" required></label><button>Add customer</button></form>';
   } else if (view === 'jobs') {
     const [jobs,customers] = await Promise.all([api('/jobs'),api('/customers')]);
-    content.innerHTML = '<h3>Jobs</h3>' + jobs.jobs.map(x=>`<div class="card"><strong>${safe(x.title)}</strong> · ${safe(x.status)} · Job #${safe(x.id)}</div>`).join('') + '<details><summary>Add job</summary><form id="job-form"><label>Customer <select name="customer_id" required><option value="">Choose customer</option>' + customers.customers.map(x=>`<option value="${safe(x.id)}">${safe(x.name)}</option>`).join('') + '</select></label><label>Property <select name="property_id" required><option value="">Choose a customer first</option></select></label><label>Job title <input name="title" maxlength="190" required></label><button>Add draft job</button></form></details><details><summary>Add a property</summary><form id="property-form"><label>Customer <select name="customer_id" required><option value="">Choose customer</option>' + customers.customers.map(x=>`<option value="${safe(x.id)}">${safe(x.name)}</option>`).join('') + '</select></label><label>Address <input name="address" maxlength="500" required></label><button>Add property</button></form></details>';
+    content.innerHTML = '<h3>Jobs</h3>' + jobs.jobs.map(x=>`<div class="card"><strong>${safe(x.title)}</strong> · ${safe(x.status)} · Job #${safe(x.id)} <button type="button" data-job="${safe(x.id)}">Details</button><div id="job-detail-${safe(x.id)}"></div></div>`).join('') + '<details><summary>Add job</summary><form id="job-form"><label>Customer <select name="customer_id" required><option value="">Choose customer</option>' + customers.customers.map(x=>`<option value="${safe(x.id)}">${safe(x.name)}</option>`).join('') + '</select></label><label>Property <select name="property_id" required><option value="">Choose a customer first</option></select></label><label>Job title <input name="title" maxlength="190" required></label><button>Add draft job</button></form></details><details><summary>Add a property</summary><form id="property-form"><label>Customer <select name="customer_id" required><option value="">Choose customer</option>' + customers.customers.map(x=>`<option value="${safe(x.id)}">${safe(x.name)}</option>`).join('') + '</select></label><label>Address <input name="address" maxlength="500" required></label><button>Add property</button></form></details>';
   } else if (view === 'calendar') {
     const data = await api('/calendar/drafts');
     content.innerHTML = '<h3>Quick booking drafts</h3><p class="muted">Capture a booking now and complete the job details later. These drafts send no SMS and create no invoice. iPhone Calendar import is not connected yet.</p>' + data.drafts.map(x=>`<div class="card"><strong>${safe(x.title)}</strong> · ${safe(x.state)}<p>${safe(x.notes)}</p><small>${safe(x.starts_at_utc)} UTC · ${safe(x.timezone)}</small></div>`).join('') + '<form id="calendar-form"><label>Title <input name="title" maxlength="190" required></label><label>Notes <textarea name="notes" maxlength="10000"></textarea></label><label>Start <input name="start" type="datetime-local" required></label><label>End <input name="end" type="datetime-local" required></label><button>Save draft</button></form>';
@@ -55,6 +55,11 @@ async function load(nextView) {
     if (role === 'staff') { content.textContent = 'Member management is for owners and admins.'; return; }
     const data = await api('/members');
     content.innerHTML = '<h3>Members</h3><p class="muted">Disabling a member prevents their next request from accessing this business. Jobs remain owned by the business.</p>' + data.members.map(x=>`<div class="card">${safe(x.email)} · ${safe(x.role)}${x.disabled_at ? ' · disabled' : ''}${!x.disabled_at && (x.role === 'staff' || role === 'owner' && x.role === 'admin') && x.user_id != data.current_user_id ? ` <button data-disable="${safe(x.user_id)}" type="button">Disable access</button>` : ''}</div>`).join('');
+  } else if (view === 'migration') {
+    if (role !== 'owner') { content.textContent = 'Migration reports are for the business owner.'; return; }
+    const data = await api('/migration/summary');
+    const report = data.migration;
+    content.innerHTML = report ? `<h3>Mike Work Tracker import</h3><p>Imported ${safe(report.imported.customer || 0)} customers, ${safe(report.imported.property || 0)} properties and ${safe(report.imported.job || 0)} jobs on ${safe(report.imported_at)} UTC.</p><p class="muted">This import is partial. Source tables below remain on Mike's site. Do not retire it yet.</p>` + Object.entries(report.inventory.deferred_counts).map(([name,count])=>`<div class="card">${safe(name)} · ${safe(count)} source records still to migrate or reconcile</div>`).join('') : '<h3>Migration</h3><p>No Mike Work Tracker data has been imported into this business.</p>';
   }
 }
 function values(form) { return Object.fromEntries(new FormData(form)); }
@@ -105,6 +110,11 @@ document.addEventListener('click', async event => {
       const data = await api('/feedback/'+encodeURIComponent(button.dataset.feedback));
       const updates = $('feedback-updates-'+button.dataset.feedback);
       updates.innerHTML = data.request.updates.length ? data.request.updates.map(x=>`<p><strong>${safe(x.author_label)}:</strong> ${safe(x.message)} <small>${safe(x.created_at)} UTC</small></p>`).join('') : '<p class="muted">No updates yet.</p>';
+    }
+    if (button.dataset.job) {
+      const data = await api('/jobs/'+encodeURIComponent(button.dataset.job));
+      const job = data.job;
+      $('job-detail-'+button.dataset.job).innerHTML = `<p>${job.mike_job_id ? 'Mike job #'+safe(job.mike_job_id)+' · ' : ''}Customer #${safe(job.customer_id)} · Property #${safe(job.property_id)}</p>${job.original_scope ? `<p>Original scope: ${safe(job.original_scope)}</p>` : ''}${job.current_scope ? `<p>Current scope: ${safe(job.current_scope)}</p>` : ''}${job.planned_start_at ? `<p>Planned start: ${safe(job.planned_start_at)}</p>` : ''}`;
     }
     if (button.id === 'logout') { await api('/logout',{}); notice('Signed out.'); await refreshSession(); }
     if (button.dataset.disable) {

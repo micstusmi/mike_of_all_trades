@@ -16,6 +16,7 @@ This backlog captures Mike's requests. It does not indicate that a feature is im
 | ALPHA-10 | Voice actions | Later | After safe job routes | Push-to-talk, propose structured changes, show user confirmation, audit actions, price and enforce budget before provider calls. No unrestricted agent access. |
 | ALPHA-11 | AI cost transparency | High | Before paid AI | Usage by business/user/feature, provider cost versus AUD customer price, monthly owner-selected cap, preflight reservation, alerts and no surprise charges. Internal reservations now exist; rate card, alerts, billing and provider connections remain. |
 | ALPHA-12 | Feature catalogue and sales stories | High | During alpha | Status-labelled catalogue with protected controls, evidence and curated screenshots. Separate 2, 5 and 10 minute presentations; never claim a Mike-site feature is already migrated. Initial catalogue and protected-choice check added. |
+| ALPHA-13 | Mike-only migration and cutover | Blocker | Before retiring Mike Work Tracker | Private import of core records is partial; preserve old IDs and report deferred tables. Import tasks, sessions, receipts, media, payments, invoices and other records before a final write freeze, delta import and verified rollback. Never expose legacy tokens or credentials. |
 
 ## Calendar decision to confirm
 
