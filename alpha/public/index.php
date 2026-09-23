@@ -1,0 +1,74 @@
+<?php
+declare(strict_types=1);
+require_once __DIR__.'/../src/core.php';
+
+header('Content-Type: application/json; charset=utf-8');
+header('Cache-Control: no-store');
+header('X-Content-Type-Options: nosniff');
+
+function reply(int $status, array $data): never {
+    http_response_code($status);
+    echo json_encode($data, JSON_THROW_ON_ERROR);
+    exit;
+}
+
+try {
+    $db = alpha_db();
+    alpha_session();
+    $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+    $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+    if ($path === '/login' && $method === 'POST') {
+        // Initial alpha owners are provisioned on the CLI; public sign-up is closed.
+        if (!alpha_login($db, (string)($_POST['email'] ?? ''), (string)($_POST['password'] ?? ''), (int)($_POST['business_id'] ?? 0))) {
+            reply(401, ['error'=>'Invalid credentials.']);
+        }
+        reply(200, ['ok'=>true,'csrf'=>alpha_csrf()]);
+    }
+    if ($path === '/logout' && $method === 'POST') {
+        alpha_check_csrf((string)($_POST['csrf'] ?? ''));
+        $_SESSION = [];
+        session_regenerate_id(true);
+        reply(200, ['ok'=>true]);
+    }
+    $ctx = alpha_context($db);
+    $businessId = (int)$ctx['business_id'];
+    if ($method === 'GET' && $path === '/customers') reply(200, ['customers'=>alpha_customers($db,$businessId)]);
+    if ($method === 'GET' && $path === '/jobs') reply(200, ['jobs'=>alpha_jobs($db,$businessId)]);
+    if ($method === 'GET' && $path === '/properties') {
+        reply(200, ['properties'=>alpha_properties($db,$businessId,(int)($_GET['customer_id'] ?? 0))]);
+    }
+    if ($method === 'GET' && preg_match('~^/customers/([1-9][0-9]*)$~D',(string)$path,$m)) {
+        $customer = alpha_customer($db,$businessId,(int)$m[1]);
+        if (!$customer) reply(404, ['error'=>'Not found.']);
+        reply(200, ['customer'=>$customer]);
+    }
+    if ($method === 'GET' && preg_match('~^/jobs/([1-9][0-9]*)$~D',(string)$path,$m)) {
+        $job = alpha_job($db,$businessId,(int)$m[1]);
+        if (!$job) reply(404, ['error'=>'Not found.']);
+        reply(200, ['job'=>$job]);
+    }
+    if ($method === 'POST') {
+        alpha_check_csrf((string)($_POST['csrf'] ?? ''));
+        if ($path === '/customers') {
+            $id = alpha_create_customer($db,$businessId,(string)($_POST['name'] ?? ''));
+            reply(201, ['id'=>$id]);
+        }
+        if ($path === '/properties') {
+            $id = alpha_create_property($db,$businessId,(int)($_POST['customer_id'] ?? 0),(string)($_POST['address'] ?? ''));
+            reply(201, ['id'=>$id]);
+        }
+        if ($path === '/jobs') {
+            $id = alpha_create_job($db,$businessId,(int)($_POST['customer_id'] ?? 0),(int)($_POST['property_id'] ?? 0),(string)($_POST['title'] ?? ''));
+            reply(201, ['id'=>$id]);
+        }
+    }
+    reply(404, ['error'=>'Not found.']);
+} catch (InvalidArgumentException $e) {
+    reply(422, ['error'=>$e->getMessage()]);
+} catch (PDOException $e) {
+    error_log('Alpha database request failed: '.$e->getMessage());
+    reply(422, ['error'=>'Record could not be saved.']);
+} catch (Throwable $e) {
+    error_log('Alpha request failed: '.$e->getMessage());
+    reply(403, ['error'=>'Access denied.']);
+}
