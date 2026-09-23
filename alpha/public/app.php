@@ -23,7 +23,7 @@ header("Content-Security-Policy: default-src 'none'; script-src 'self'; style-sr
   <section id="workspace" hidden>
     <div class="top"><h2>Business workspace</h2><button id="logout" type="button">Sign out</button></div>
     <p id="identity"></p>
-    <nav aria-label="Workspace"><button data-view="jobs">Jobs</button><button data-view="calendar">Quick booking</button><button data-view="customers">Customers</button><button data-view="feedback">Feature requests</button><button data-view="usage">AI usage</button><button data-view="members">Members</button></nav>
+    <nav aria-label="Workspace"><button data-view="jobs">Jobs</button><button data-view="calendar">Quick booking</button><button data-view="customers">Customers</button><button data-view="sms">SMS drafts</button><button data-view="feedback">Feature requests</button><button data-view="usage">AI usage</button><button data-view="members">Members</button></nav>
     <section id="content" aria-live="polite"></section>
   </section>
 </main>

@@ -42,6 +42,9 @@ async function load(nextView) {
   } else if (view === 'calendar') {
     const data = await api('/calendar/drafts');
     content.innerHTML = '<h3>Quick booking drafts</h3><p class="muted">Capture a booking now and complete the job details later. These drafts send no SMS and create no invoice. iPhone Calendar import is not connected yet.</p>' + data.drafts.map(x=>`<div class="card"><strong>${safe(x.title)}</strong> · ${safe(x.state)}<p>${safe(x.notes)}</p><small>${safe(x.starts_at_utc)} UTC · ${safe(x.timezone)}</small></div>`).join('') + '<form id="calendar-form"><label>Title <input name="title" maxlength="190" required></label><label>Notes <textarea name="notes" maxlength="10000"></textarea></label><label>Start <input name="start" type="datetime-local" required></label><label>End <input name="end" type="datetime-local" required></label><button>Save draft</button></form>';
+  } else if (view === 'sms') {
+    const [messages,customers,integrations] = await Promise.all([api('/sms/drafts'),api('/customers'),api('/integrations')]);
+    content.innerHTML = `<h3>SMS drafts</h3><p class="muted">Sending is off for this business. These drafts are saved here only. Accounting choice: ${safe(integrations.accounting_provider)} (not connected).</p>` + messages.drafts.map(x=>`<div class="card"><strong>Customer #${safe(x.customer_id)}</strong> · ${safe(x.state)}<p>${safe(x.message)}</p></div>`).join('') + '<form id="sms-form"><label>Customer <select name="customer_id" required><option value="">Choose customer</option>' + customers.customers.map(x=>`<option value="${safe(x.id)}">${safe(x.name)}</option>`).join('') + '</select></label><label>Message <textarea name="message" maxlength="1600" required></textarea></label><button>Save SMS draft</button></form>';
   } else if (view === 'feedback') {
     const data = await api('/feedback');
     content.innerHTML = '<h3>Feature requests</h3><p class="muted">Your business can follow the status of its ideas here.</p>' + data.requests.map(x=>`<div class="card"><strong>${safe(x.title)}</strong> · ${safe(x.status)}<p>${safe(x.detail)}</p><small>${safe(x.area)}</small><p><button type="button" data-feedback="${safe(x.id)}">View updates</button></p><div id="feedback-updates-${safe(x.id)}"></div></div>`).join('') + '<form id="feedback-form"><label>Title <input name="title" maxlength="190" required></label><label>Area of the app <input name="area" maxlength="80" required></label><label>What would help? <textarea name="detail" maxlength="10000" required></textarea></label><button>Submit request</button></form>';
@@ -73,6 +76,7 @@ document.addEventListener('submit', async event => {
       await api('/calendar/drafts',{title:fields.title,notes:fields.notes,start:start.toISOString(),end:end.toISOString(),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone});
       notice('Booking draft saved.'); await load('calendar');
     }
+    if (form.id === 'sms-form') { await api('/sms/drafts',values(form)); notice('SMS draft saved. Nothing was sent.'); await load('sms'); }
     if (form.id === 'budget-form') {
       const amount = Number(form.elements.aud_limit.value);
       if (!Number.isSafeInteger(Math.round(amount*100)) || amount < 0) throw new Error('Enter a valid amount.');

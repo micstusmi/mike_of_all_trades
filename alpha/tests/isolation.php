@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__.'/../src/core.php';
 require_once __DIR__.'/../src/services.php';
+require_once __DIR__.'/../src/integrations.php';
 
 // Run only against a throwaway database with alpha/schema/001_foundation.sql installed.
 if (getenv('EZ_ALPHA_TEST_DATABASE') !== 'YES') {
@@ -70,6 +71,15 @@ try {
     ensure($eventDraft !== null && $eventDraft !== $draftA,'Marked event not imported');
     ensure(alpha_import_calendar_event($db,$businessA,$userA,'google','calendar-a','event-1','-EZ Site work revised','notes',$start,$end,'Australia/Melbourne') === $eventDraft,'Same event duplicated');
     ensure(count(alpha_calendar_drafts($db,$contextB)) === 0,'Calendar event crossed business');
+
+    $smsA = alpha_create_sms_draft($db,$contextA,$customerA,$jobA,'On my way to the site.');
+    ensure($smsA > 0 && count(alpha_sms_drafts($db,$contextA)) === 1,'SMS draft missing');
+    ensure(count(alpha_sms_drafts($db,$contextB)) === 0,'B read A SMS drafts');
+    ensure(alpha_integration_status($db,$contextA)['sms_enabled'] === false,'SMS sending was enabled');
+    try { alpha_create_sms_draft($db,$contextA,$customerB,null,'Wrong customer'); throw new RuntimeException('Foreign SMS customer accepted'); }
+    catch (PDOException $e) { /* Composite customer FK keeps the business boundary. */ }
+    try { alpha_create_sms_draft($db,$contextA,$customerA,$jobB,'Wrong job'); throw new RuntimeException('Foreign SMS job accepted'); }
+    catch (InvalidArgumentException $e) { /* The job belongs to B. */ }
 
     $ownerA = ['business_id'=>$businessA,'user_id'=>$userA,'role'=>'owner'];
     ensure(count(alpha_members($db,$ownerA)) === 2,'Business member list incorrect');

@@ -3,6 +3,7 @@ declare(strict_types=1);
 require_once __DIR__.'/../src/core.php';
 require_once __DIR__.'/../src/services.php';
 require_once __DIR__.'/../src/catalog.php';
+require_once __DIR__.'/../src/integrations.php';
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
@@ -63,6 +64,8 @@ try {
     if ($method === 'GET' && $path === '/ai/usage') reply(200,alpha_usage_summary($db,$businessId));
     if ($method === 'GET' && $path === '/members') reply(200,['current_user_id'=>(int)$ctx['user_id'],'members'=>alpha_members($db,$ctx)]);
     if ($method === 'GET' && $path === '/calendar/drafts') reply(200,['drafts'=>alpha_calendar_drafts($db,$ctx)]);
+    if ($method === 'GET' && $path === '/integrations') reply(200,alpha_integration_status($db,$ctx));
+    if ($method === 'GET' && $path === '/sms/drafts') reply(200,['drafts'=>alpha_sms_drafts($db,$ctx)]);
     if ($method === 'GET' && $path === '/customers') reply(200, ['customers'=>alpha_customers($db,$businessId)]);
     if ($method === 'GET' && $path === '/jobs') reply(200, ['jobs'=>alpha_jobs($db,$businessId)]);
     if ($method === 'GET' && $path === '/properties') {
@@ -99,6 +102,14 @@ try {
         if ($path === '/calendar/drafts') {
             $id = alpha_create_calendar_draft($db,$ctx,(string)($_POST['title'] ?? ''),(string)($_POST['notes'] ?? ''),(string)($_POST['start'] ?? ''),(string)($_POST['end'] ?? ''),(string)($_POST['timezone'] ?? ''));
             reply(201,['id'=>$id]);
+        }
+        if ($path === '/sms/drafts') {
+            $customerId = filter_var($_POST['customer_id'] ?? '',FILTER_VALIDATE_INT,['options'=>['min_range'=>1]]);
+            $jobRaw = (string)($_POST['job_id'] ?? '');
+            $jobId = $jobRaw === '' ? null : filter_var($jobRaw,FILTER_VALIDATE_INT,['options'=>['min_range'=>1]]);
+            if (!$customerId || ($jobRaw !== '' && !$jobId)) reply(422,['error'=>'Choose a customer and an optional job.']);
+            $id = alpha_create_sms_draft($db,$ctx,$customerId,$jobId,(string)($_POST['message'] ?? ''));
+            reply(201,['id'=>$id,'sent'=>false]);
         }
         if ($path === '/customers') {
             $id = alpha_create_customer($db,$businessId,(string)($_POST['name'] ?? ''));
