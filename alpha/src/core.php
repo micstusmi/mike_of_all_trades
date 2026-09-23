@@ -28,6 +28,7 @@ function alpha_session(): void {
         'httponly' => true, 'samesite' => 'Lax',
     ]);
     session_start();
+    if (empty($_SESSION['alpha_csrf'])) $_SESSION['alpha_csrf'] = bin2hex(random_bytes(32));
 }
 
 function alpha_login(PDO $db, string $email, string $password, int $businessId): bool {

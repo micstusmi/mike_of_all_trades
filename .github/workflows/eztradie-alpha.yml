@@ -1,0 +1,48 @@
+name: ezTradie alpha checks
+on:
+  push:
+    branches: [eztradie-alpha]
+    paths:
+      - 'alpha/**'
+      - '.github/workflows/eztradie-alpha.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolation:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: test-only-password
+          MYSQL_DATABASE: eztradie_disposable
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -ptest-only-password"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+    env:
+      EZ_ALPHA_DSN: mysql:host=127.0.0.1;dbname=eztradie_disposable;charset=utf8mb4
+      EZ_ALPHA_DB_USER: root
+      EZ_ALPHA_DB_PASSWORD: test-only-password
+      EZ_ALPHA_TEST_DATABASE: 'YES'
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install PHP and MySQL client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y php-cli php-mysql php-mbstring mysql-client
+      - name: Lint alpha PHP and JavaScript
+        run: |
+          find alpha -name '*.php' -print0 | xargs -0 -n1 php -l
+          node --check alpha/public/assets/app.js
+      - name: Build disposable database
+        run: |
+          for file in alpha/schema/*.sql; do
+            mysql -h 127.0.0.1 -uroot -ptest-only-password eztradie_disposable < "$file"
+          done
+      - name: Run isolation and catalogue checks
+        run: |
+          php alpha/tests/isolation.php
+          python3 alpha/tools/check_catalog.py

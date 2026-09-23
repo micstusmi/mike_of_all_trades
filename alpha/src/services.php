@@ -112,6 +112,78 @@ function alpha_feedback_detail(PDO $db, array $ctx, int $requestId): ?array {
     return $request;
 }
 
+function alpha_members(PDO $db, array $ctx): array {
+    if (!in_array($ctx['role'],['owner','admin'],true)) throw new RuntimeException('Owner or admin access required.');
+    $q = $db->prepare('SELECT m.user_id,u.email,m.role,m.disabled_at FROM alpha_memberships m JOIN alpha_users u ON u.id=m.user_id WHERE m.business_id=? ORDER BY m.user_id');
+    $q->execute([(int)$ctx['business_id']]);
+    return $q->fetchAll();
+}
+
+/** Offboarding retains business-owned jobs and audit references. */
+function alpha_disable_member(PDO $db, array $ctx, int $targetUserId): void {
+    if (!in_array($ctx['role'],['owner','admin'],true) || $targetUserId < 1 || $targetUserId === (int)$ctx['user_id']) {
+        throw new InvalidArgumentException('Cannot disable this member.');
+    }
+    $savepoint = alpha_tx_begin($db);
+    try {
+        $q = $db->prepare('SELECT role,disabled_at FROM alpha_memberships WHERE business_id=? AND user_id=? FOR UPDATE');
+        $q->execute([(int)$ctx['business_id'],$targetUserId]);
+        $member = $q->fetch();
+        if (!$member || $member['disabled_at'] !== null || $member['role'] === 'owner'
+            || ($member['role'] === 'admin' && $ctx['role'] !== 'owner')) {
+            throw new InvalidArgumentException('Cannot disable this member.');
+        }
+        $q = $db->prepare('UPDATE alpha_memberships SET disabled_at=UTC_TIMESTAMP() WHERE business_id=? AND user_id=?');
+        $q->execute([(int)$ctx['business_id'],$targetUserId]);
+        alpha_tx_commit($db,$savepoint);
+    } catch (Throwable $e) { alpha_tx_rollback($db,$savepoint); throw $e; }
+}
+
+function alpha_draft_times(string $start, string $end, string $timezone): array {
+    if (!preg_match('/(Z|[+-][0-9]{2}:[0-9]{2})$/D',$start)
+        || !preg_match('/(Z|[+-][0-9]{2}:[0-9]{2})$/D',$end)
+        || !in_array($timezone,DateTimeZone::listIdentifiers(),true)) {
+        throw new InvalidArgumentException('Start, end and time zone are required. Use an ISO date with an offset.');
+    }
+    try { $starts = new DateTimeImmutable($start); $ends = new DateTimeImmutable($end); }
+    catch (Exception $e) { throw new InvalidArgumentException('Invalid dates.'); }
+    if ($ends <= $starts || $ends->getTimestamp() - $starts->getTimestamp() > 7*86400
+        || $starts->getTimestamp() < time() - 86400 || $starts->getTimestamp() > time() + 2*365*86400) {
+        throw new InvalidArgumentException('Choose a future start and an end no more than seven days later.');
+    }
+    return [$starts->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s'),
+        $ends->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s')];
+}
+
+function alpha_create_calendar_draft(PDO $db, array $ctx, string $title, string $notes, string $start, string $end, string $timezone): int {
+    $title = trim($title); $notes = trim($notes);
+    if ($title === '' || mb_strlen($title) > 190 || mb_strlen($notes) > 10000) throw new InvalidArgumentException('Invalid draft details.');
+    [$startUtc,$endUtc] = alpha_draft_times($start,$end,$timezone);
+    $q = $db->prepare("INSERT INTO alpha_calendar_drafts (business_id,created_by,source,title,notes,starts_at_utc,ends_at_utc,timezone) VALUES (?,?,'manual',?,?,?,?,?)");
+    $q->execute([(int)$ctx['business_id'],(int)$ctx['user_id'],$title,$notes,$startUtc,$endUtc,$timezone]);
+    return (int)$db->lastInsertId();
+}
+
+function alpha_calendar_drafts(PDO $db, array $ctx): array {
+    $q = $db->prepare('SELECT id,title,notes,starts_at_utc,ends_at_utc,timezone,source,state FROM alpha_calendar_drafts WHERE business_id=? ORDER BY starts_at_utc DESC LIMIT 100');
+    $q->execute([(int)$ctx['business_id']]);
+    return $q->fetchAll();
+}
+
+/** Trusted future calendar worker: only exact -EZ prefix yields a draft. */
+function alpha_import_calendar_event(PDO $db, int $businessId, int $userId, string $provider, string $calendarId,
+    string $eventId, string $summary, string $notes, string $start, string $end, string $timezone): ?int {
+    if (!str_starts_with($summary,'-EZ ')) return null;
+    $title = trim(substr($summary,4));
+    if ($title === '' || mb_strlen($title) > 190 || mb_strlen($notes) > 10000
+        || !in_array($provider,['google','icloud'],true) || $calendarId === '' || strlen($calendarId) > 190
+        || $eventId === '' || strlen($eventId) > 190) throw new InvalidArgumentException('Invalid calendar event.');
+    [$startUtc,$endUtc] = alpha_draft_times($start,$end,$timezone);
+    $q = $db->prepare("INSERT INTO alpha_calendar_drafts (business_id,created_by,source,provider,calendar_id,event_id,title,notes,starts_at_utc,ends_at_utc,timezone) VALUES (?,?,'calendar',?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE title=IF(state='pending',VALUES(title),title),notes=IF(state='pending',VALUES(notes),notes),starts_at_utc=IF(state='pending',VALUES(starts_at_utc),starts_at_utc),ends_at_utc=IF(state='pending',VALUES(ends_at_utc),ends_at_utc),id=LAST_INSERT_ID(id)");
+    $q->execute([$businessId,$userId,$provider,$calendarId,$eventId,$title,$notes,$startUtc,$endUtc,$timezone]);
+    return (int)$db->lastInsertId();
+}
+
 /** Trusted CLI moderation only; never expose this method on a public route. */
 function alpha_triage_feedback(PDO $db, int $businessId, int $requestId, string $status, string $priority, string $message): void {
     if (!in_array($status, ['submitted','assessing','planned','in_progress','testing','released','declined'], true)
@@ -138,11 +210,15 @@ function alpha_usage_summary(PDO $db, int $businessId): array {
     $q = $db->prepare('SELECT monthly_limit_cents FROM alpha_ai_budgets WHERE business_id=?');
     $q->execute([$businessId]);
     $limit = $q->fetchColumn();
-    $q = $db->prepare('SELECT feature,COUNT(*) AS actions,SUM(units) AS units,unit_name,SUM(charge_cents) AS charge_cents FROM alpha_ai_usage WHERE business_id=? AND created_at>=? AND created_at<? GROUP BY feature,unit_name ORDER BY feature,unit_name');
+    $q = $db->prepare("SELECT feature,COUNT(*) AS actions,SUM(units) AS units,unit_name,SUM(charge_cents) AS charge_cents FROM alpha_ai_usage WHERE business_id=? AND created_at>=? AND created_at<? AND state='completed' GROUP BY feature,unit_name ORDER BY feature,unit_name");
     $q->execute([$businessId,$start,$end]);
     $items = $q->fetchAll();
+    $q = $db->prepare("SELECT COALESCE(SUM(charge_cents),0) FROM alpha_ai_usage WHERE business_id=? AND created_at>=? AND created_at<? AND state='reserved'");
+    $q->execute([$businessId,$start,$end]);
+    $reserved = (int)$q->fetchColumn();
     return ['currency'=>'AUD','period_start_utc'=>$start,'monthly_limit_cents'=>$limit === false ? 0 : (int)$limit,
         'spent_cents'=>array_sum(array_map(static fn(array $row): int => (int)$row['charge_cents'],$items)),
+        'reserved_cents'=>$reserved,
         'features'=>$items];
 }
 
@@ -152,14 +228,14 @@ function alpha_set_budget(PDO $db, array $ctx, int $limitCents): void {
     $q->execute([(int)$ctx['business_id'],$limitCents]);
 }
 
-/** Internal server-side entry point, after provider work succeeds. Never accept cost or price from a client. */
-function alpha_record_usage(PDO $db, int $businessId, int $userId, string $feature, string $eventKey,
-    float $units, string $unitName, int $chargeCents, int $providerCostMicrousd): bool {
+/** Internal only. Reserve a worst-case amount BEFORE any external AI call. */
+function alpha_reserve_usage(PDO $db, int $businessId, int $userId, string $feature, string $eventKey,
+    float $units, string $unitName, int $maxChargeCents, int $maxProviderCostMicrousd): bool {
     if (!in_array($feature,['voice','slideshow_plan','narration','video_render','other'],true)
         || !preg_match('/^[a-zA-Z0-9:_-]{1,100}$/D',$eventKey)
         || $units <= 0 || $units > 1000000 || !is_finite($units)
         || !preg_match('/^[a-z_]{1,40}$/D',$unitName)
-        || $chargeCents < 0 || $providerCostMicrousd < 0) throw new InvalidArgumentException('Invalid usage event.');
+        || $maxChargeCents < 0 || $maxProviderCostMicrousd < 0) throw new InvalidArgumentException('Invalid usage event.');
     $savepoint = alpha_tx_begin($db);
     try {
         // The business budget row serialises all usage writes for this business.
@@ -167,20 +243,65 @@ function alpha_record_usage(PDO $db, int $businessId, int $userId, string $featu
         $q->execute([$businessId]);
         $budget = $q->fetch();
         if (!$budget || (int)$budget['monthly_limit_cents'] === 0 || (int)$budget['monthly_provider_limit_microusd'] === 0) throw new RuntimeException('AI is disabled for this business.');
-        $q = $db->prepare('SELECT id FROM alpha_ai_usage WHERE business_id=? AND event_key=?');
+        $q = $db->prepare('SELECT state FROM alpha_ai_usage WHERE business_id=? AND event_key=?');
         $q->execute([$businessId,$eventKey]);
         if ($q->fetch()) { alpha_tx_commit($db,$savepoint); return false; }
         $start = gmdate('Y-m-01 00:00:00');
         $end = gmdate('Y-m-01 00:00:00', strtotime('+1 month', strtotime($start)));
-        $q = $db->prepare('SELECT COALESCE(SUM(charge_cents),0) AS spent,COALESCE(SUM(provider_cost_microusd),0) AS provider_spent FROM alpha_ai_usage WHERE business_id=? AND created_at>=? AND created_at<?');
+        $q = $db->prepare("SELECT COALESCE(SUM(CASE WHEN state<>'cancelled' THEN charge_cents ELSE 0 END),0) AS spent, COALESCE(SUM(provider_cost_microusd),0) AS provider_spent FROM alpha_ai_usage WHERE business_id=? AND created_at>=? AND created_at<?");
         $q->execute([$businessId,$start,$end]);
         $spent = $q->fetch();
-        if ((int)$spent['spent'] + $chargeCents > (int)$budget['monthly_limit_cents']
-            || (int)$spent['provider_spent'] + $providerCostMicrousd > (int)$budget['monthly_provider_limit_microusd']) {
+        if ((int)$spent['spent'] + $maxChargeCents > (int)$budget['monthly_limit_cents']
+            || (int)$spent['provider_spent'] + $maxProviderCostMicrousd > (int)$budget['monthly_provider_limit_microusd']) {
             throw new RuntimeException('Monthly AI limit reached.');
         }
-        $q = $db->prepare('INSERT INTO alpha_ai_usage (business_id,user_id,feature,event_key,units,unit_name,charge_cents,provider_cost_microusd) VALUES (?,?,?,?,?,?,?,?)');
-        $q->execute([$businessId,$userId,$feature,$eventKey,$units,$unitName,$chargeCents,$providerCostMicrousd]);
+        $q = $db->prepare("INSERT INTO alpha_ai_usage (business_id,user_id,feature,event_key,units,unit_name,charge_cents,provider_cost_microusd,state,expires_at) VALUES (?,?,?,?,?,?,?,?,'reserved',UTC_TIMESTAMP()+INTERVAL 2 HOUR)");
+        $q->execute([$businessId,$userId,$feature,$eventKey,$units,$unitName,$maxChargeCents,$maxProviderCostMicrousd]);
+        alpha_tx_commit($db,$savepoint);
+        return true;
+    } catch (Throwable $e) { alpha_tx_rollback($db,$savepoint); throw $e; }
+}
+
+/** Settle a reservation after successful work. Actual charges may only decrease. */
+function alpha_complete_usage(PDO $db, int $businessId, string $eventKey, int $chargeCents, int $providerCostMicrousd): bool {
+    if ($chargeCents < 0 || $providerCostMicrousd < 0) throw new InvalidArgumentException('Invalid charge.');
+    $savepoint = alpha_tx_begin($db);
+    try {
+        $lock = $db->prepare('SELECT monthly_limit_cents FROM alpha_ai_budgets WHERE business_id=? FOR UPDATE');
+        $lock->execute([$businessId]);
+        if ($lock->fetchColumn() === false) throw new RuntimeException('AI is disabled for this business.');
+        $q = $db->prepare('SELECT id,state,charge_cents,provider_cost_microusd,expires_at FROM alpha_ai_usage WHERE business_id=? AND event_key=? FOR UPDATE');
+        $q->execute([$businessId,$eventKey]);
+        $row = $q->fetch();
+        if (!$row) throw new InvalidArgumentException('Reservation not found.');
+        if ($row['state'] === 'completed') { alpha_tx_commit($db,$savepoint); return false; }
+        if ($row['state'] !== 'reserved' || $row['expires_at'] <= gmdate('Y-m-d H:i:s')
+            || $chargeCents > (int)$row['charge_cents'] || $providerCostMicrousd > (int)$row['provider_cost_microusd']) {
+            throw new RuntimeException('Reservation expired or actual cost exceeded its maximum.');
+        }
+        $q = $db->prepare("UPDATE alpha_ai_usage SET state='completed',charge_cents=?,provider_cost_microusd=?,finished_at=UTC_TIMESTAMP() WHERE id=?");
+        $q->execute([$chargeCents,$providerCostMicrousd,(int)$row['id']]);
+        alpha_tx_commit($db,$savepoint);
+        return true;
+    } catch (Throwable $e) { alpha_tx_rollback($db,$savepoint); throw $e; }
+}
+
+/** Cancel with no customer charge; retain actual incurred provider cost for accounting. */
+function alpha_cancel_usage(PDO $db, int $businessId, string $eventKey, int $providerCostMicrousd = 0): bool {
+    if ($providerCostMicrousd < 0) throw new InvalidArgumentException('Invalid provider cost.');
+    $savepoint = alpha_tx_begin($db);
+    try {
+        $lock = $db->prepare('SELECT business_id FROM alpha_ai_budgets WHERE business_id=? FOR UPDATE');
+        $lock->execute([$businessId]);
+        if (!$lock->fetch()) throw new InvalidArgumentException('Business not found.');
+        $q = $db->prepare('SELECT id,state,provider_cost_microusd FROM alpha_ai_usage WHERE business_id=? AND event_key=? FOR UPDATE');
+        $q->execute([$businessId,$eventKey]);
+        $row = $q->fetch();
+        if (!$row) throw new InvalidArgumentException('Reservation not found.');
+        if ($row['state'] === 'cancelled') { alpha_tx_commit($db,$savepoint); return false; }
+        if ($row['state'] !== 'reserved' || $providerCostMicrousd > (int)$row['provider_cost_microusd']) throw new RuntimeException('Invalid cancellation.');
+        $q = $db->prepare("UPDATE alpha_ai_usage SET state='cancelled',charge_cents=0,provider_cost_microusd=?,finished_at=UTC_TIMESTAMP() WHERE id=?");
+        $q->execute([$providerCostMicrousd,(int)$row['id']]);
         alpha_tx_commit($db,$savepoint);
         return true;
     } catch (Throwable $e) { alpha_tx_rollback($db,$savepoint); throw $e; }

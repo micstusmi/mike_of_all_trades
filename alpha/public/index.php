@@ -25,7 +25,16 @@ try {
     }
     $db = alpha_db();
     alpha_session();
+    if ($path === '/session' && $method === 'GET') {
+        try {
+            $current = alpha_context($db);
+            reply(200,['authenticated'=>true,'role'=>$current['role'],'business_id'=>(int)$current['business_id'],'csrf'=>alpha_csrf()]);
+        } catch (RuntimeException $e) {
+            reply(200,['authenticated'=>false,'csrf'=>alpha_csrf()]);
+        }
+    }
     if ($path === '/login' && $method === 'POST') {
+        alpha_check_csrf((string)($_POST['csrf'] ?? ''));
         // Initial alpha owners are provisioned on the CLI; public sign-up is closed.
         if (!alpha_login($db, (string)($_POST['email'] ?? ''), (string)($_POST['password'] ?? ''), (int)($_POST['business_id'] ?? 0))) {
             reply(401, ['error'=>'Invalid credentials.']);
@@ -33,6 +42,7 @@ try {
         reply(200, ['ok'=>true,'csrf'=>alpha_csrf()]);
     }
     if ($path === '/redeem' && $method === 'POST') {
+        alpha_check_csrf((string)($_POST['csrf'] ?? ''));
         alpha_redeem_token($db,(string)($_POST['token'] ?? ''),(string)($_POST['purpose'] ?? ''),(string)($_POST['password'] ?? ''));
         reply(200,['ok'=>true]);
     }
@@ -51,6 +61,8 @@ try {
         reply(200,['request'=>$request]);
     }
     if ($method === 'GET' && $path === '/ai/usage') reply(200,alpha_usage_summary($db,$businessId));
+    if ($method === 'GET' && $path === '/members') reply(200,['current_user_id'=>(int)$ctx['user_id'],'members'=>alpha_members($db,$ctx)]);
+    if ($method === 'GET' && $path === '/calendar/drafts') reply(200,['drafts'=>alpha_calendar_drafts($db,$ctx)]);
     if ($method === 'GET' && $path === '/customers') reply(200, ['customers'=>alpha_customers($db,$businessId)]);
     if ($method === 'GET' && $path === '/jobs') reply(200, ['jobs'=>alpha_jobs($db,$businessId)]);
     if ($method === 'GET' && $path === '/properties') {
@@ -77,6 +89,16 @@ try {
             if (!preg_match('/^(0|[1-9][0-9]{0,6})$/D',$raw)) reply(422,['error'=>'Invalid monthly limit.']);
             alpha_set_budget($db,$ctx,(int)$raw);
             reply(200,alpha_usage_summary($db,$businessId));
+        }
+        if ($path === '/members/disable') {
+            $raw = (string)($_POST['user_id'] ?? '');
+            if (!preg_match('/^[1-9][0-9]*$/D',$raw)) reply(422,['error'=>'Invalid member.']);
+            alpha_disable_member($db,$ctx,(int)$raw);
+            reply(200,['ok'=>true]);
+        }
+        if ($path === '/calendar/drafts') {
+            $id = alpha_create_calendar_draft($db,$ctx,(string)($_POST['title'] ?? ''),(string)($_POST['notes'] ?? ''),(string)($_POST['start'] ?? ''),(string)($_POST['end'] ?? ''),(string)($_POST['timezone'] ?? ''));
+            reply(201,['id'=>$id]);
         }
         if ($path === '/customers') {
             $id = alpha_create_customer($db,$businessId,(string)($_POST['name'] ?? ''));
