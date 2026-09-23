@@ -13,6 +13,9 @@ This backlog captures Mike's requests. It does not indicate that a feature is im
 | ALPHA-07 | Two-way availability and scheduling | Later | After one-way import | Decide source of truth and conflict handling before linking website booking calendar, work calendar and iPhone calendar. Keep per-business calendar tokens and event mappings. Never let another business’s events affect availability. |
 | ALPHA-08 | Per-business music library | Later | Media phase | Private business-owned uploads and tracks, variants for reel lengths, storage/quotas, delete/export and licence metadata. Test cutting/fades/repeats for music quality; AI song creation requires provider/licence/cost research. No copying Mike’s library into testers’ accounts. |
 | ALPHA-09 | Accounting adapters | High | Before provider pilot | Provider-neutral invoice/customer interface; per-business choice and encrypted connection. Pilot with named Zoho/Xero/MYOB/QuickBooks test businesses; never share provider tokens or external IDs across businesses. |
+| ALPHA-10 | Voice actions | Later | After safe job routes | Push-to-talk, propose structured changes, show user confirmation, audit actions, price and enforce budget before provider calls. No unrestricted agent access. |
+| ALPHA-11 | AI cost transparency | High | Before paid AI | Usage by business/user/feature, provider cost versus AUD customer price, monthly owner-selected cap, preflight reservation, alerts and no surprise charges. Draft ledger and cap are in alpha; billing and preflight are still missing. |
+| ALPHA-12 | Feature catalogue and sales stories | High | During alpha | Status-labelled catalogue with protected controls, evidence and curated screenshots. Separate 2, 5 and 10 minute presentations; never claim a Mike-site feature is already migrated. Initial catalogue and protected-choice check added. |
 
 ## Calendar decision to confirm
 

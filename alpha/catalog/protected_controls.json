@@ -1,0 +1,9 @@
+{
+  "admin/work/manage_job.php": {
+    "quick_actions": ["travel_site","arrive_site","work","leave_site","supplier_out","supplier_return","coffee_break","meal_break","finish_activity"],
+    "session_action": ["change","finish","finish_task_start_next"],
+    "start_location": ["travel_job","bunnings","supplier","onsite","workshop_home","offsite_planning","other"],
+    "category": ["travel","procurement","onsite","loading_setup","planning","measurement","repair","unforeseen","other"],
+    "next_category": ["onsite","measurement","planning","procurement","travel","loading_setup","demolition","repair","unforeseen","other"]
+  }
+}

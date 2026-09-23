@@ -8,11 +8,13 @@ function alpha_db(): PDO {
     if ($dsn === '' || $user === '' || $pass === false) {
         throw new RuntimeException('Alpha database configuration is missing.');
     }
-    return new PDO($dsn, $user, $pass, [
+    $db = new PDO($dsn, $user, $pass, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES => false,
     ]);
+    $db->exec("SET time_zone = '+00:00'");
+    return $db;
 }
 
 function alpha_session(): void {
@@ -29,10 +31,21 @@ function alpha_session(): void {
 }
 
 function alpha_login(PDO $db, string $email, string $password, int $businessId): bool {
+    $email = mb_strtolower(trim($email));
+    if ($businessId < 1 || !filter_var($email,FILTER_VALIDATE_EMAIL)) return false;
+    $attempts = $db->prepare('SELECT COUNT(*) FROM alpha_login_attempts WHERE email=? AND business_id=? AND attempted_at>UTC_TIMESTAMP()-INTERVAL 15 MINUTE');
+    $attempts->execute([$email,$businessId]);
+    if ((int)$attempts->fetchColumn() >= 5) return false;
     $q = $db->prepare('SELECT u.id,u.password_hash FROM alpha_users u JOIN alpha_memberships m ON m.user_id=u.id WHERE u.email=? AND u.email_verified_at IS NOT NULL AND u.disabled_at IS NULL AND m.business_id=? AND m.disabled_at IS NULL LIMIT 1');
-    $q->execute([mb_strtolower(trim($email)), $businessId]);
+    $q->execute([$email, $businessId]);
     $user = $q->fetch();
-    if (!$user || !password_verify($password, (string)$user['password_hash'])) return false;
+    if (!$user || !password_verify($password, (string)$user['password_hash'])) {
+        $failed = $db->prepare('INSERT INTO alpha_login_attempts (email,business_id) VALUES (?,?)');
+        $failed->execute([$email,$businessId]);
+        return false;
+    }
+    $clear = $db->prepare('DELETE FROM alpha_login_attempts WHERE email=? AND business_id=?');
+    $clear->execute([$email,$businessId]);
     alpha_session();
     session_regenerate_id(true);
     $_SESSION['alpha_user_id'] = (int)$user['id'];

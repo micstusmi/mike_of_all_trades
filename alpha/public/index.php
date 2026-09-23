@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__.'/../src/core.php';
+require_once __DIR__.'/../src/services.php';
+require_once __DIR__.'/../src/catalog.php';
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
@@ -13,16 +15,26 @@ function reply(int $status, array $data): never {
 }
 
 try {
-    $db = alpha_db();
-    alpha_session();
     $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
     $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+    if ($path === '/features' && $method === 'GET') {
+        header('Content-Type: text/html; charset=utf-8');
+        header('Content-Security-Policy: default-src \'none\'; style-src \'unsafe-inline\'');
+        echo alpha_catalog_html(alpha_catalog());
+        exit;
+    }
+    $db = alpha_db();
+    alpha_session();
     if ($path === '/login' && $method === 'POST') {
         // Initial alpha owners are provisioned on the CLI; public sign-up is closed.
         if (!alpha_login($db, (string)($_POST['email'] ?? ''), (string)($_POST['password'] ?? ''), (int)($_POST['business_id'] ?? 0))) {
             reply(401, ['error'=>'Invalid credentials.']);
         }
         reply(200, ['ok'=>true,'csrf'=>alpha_csrf()]);
+    }
+    if ($path === '/redeem' && $method === 'POST') {
+        alpha_redeem_token($db,(string)($_POST['token'] ?? ''),(string)($_POST['purpose'] ?? ''),(string)($_POST['password'] ?? ''));
+        reply(200,['ok'=>true]);
     }
     if ($path === '/logout' && $method === 'POST') {
         alpha_check_csrf((string)($_POST['csrf'] ?? ''));
@@ -32,6 +44,13 @@ try {
     }
     $ctx = alpha_context($db);
     $businessId = (int)$ctx['business_id'];
+    if ($method === 'GET' && $path === '/feedback') reply(200, ['requests'=>alpha_feedback($db,$ctx)]);
+    if ($method === 'GET' && preg_match('~^/feedback/([1-9][0-9]*)$~D',(string)$path,$m)) {
+        $request = alpha_feedback_detail($db,$ctx,(int)$m[1]);
+        if (!$request) reply(404,['error'=>'Not found.']);
+        reply(200,['request'=>$request]);
+    }
+    if ($method === 'GET' && $path === '/ai/usage') reply(200,alpha_usage_summary($db,$businessId));
     if ($method === 'GET' && $path === '/customers') reply(200, ['customers'=>alpha_customers($db,$businessId)]);
     if ($method === 'GET' && $path === '/jobs') reply(200, ['jobs'=>alpha_jobs($db,$businessId)]);
     if ($method === 'GET' && $path === '/properties') {
@@ -49,6 +68,16 @@ try {
     }
     if ($method === 'POST') {
         alpha_check_csrf((string)($_POST['csrf'] ?? ''));
+        if ($path === '/feedback') {
+            $id = alpha_submit_feedback($db,$ctx,(string)($_POST['title'] ?? ''),(string)($_POST['detail'] ?? ''),(string)($_POST['area'] ?? ''));
+            reply(201,['id'=>$id]);
+        }
+        if ($path === '/ai/budget') {
+            $raw = (string)($_POST['monthly_limit_cents'] ?? '');
+            if (!preg_match('/^(0|[1-9][0-9]{0,6})$/D',$raw)) reply(422,['error'=>'Invalid monthly limit.']);
+            alpha_set_budget($db,$ctx,(int)$raw);
+            reply(200,alpha_usage_summary($db,$businessId));
+        }
         if ($path === '/customers') {
             $id = alpha_create_customer($db,$businessId,(string)($_POST['name'] ?? ''));
             reply(201, ['id'=>$id]);
