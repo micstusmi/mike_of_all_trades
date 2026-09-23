@@ -1,0 +1,7 @@
+README_INSTALL_V10_2_RAPID_TASK_ENTRY.txt
+V10_2_PATCH_MANIFEST.txt
+admin/work/add_tasks.php
+api/work/add_tasks.php
+includes/admin_nav.php
+tools/install_v10_2.php
+tools/migration_v10_2_rapid_tasks.sql
