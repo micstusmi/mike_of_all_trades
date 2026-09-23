@@ -83,6 +83,11 @@ try {
         if (!$job) reply(404, ['error'=>'Not found.']);
         reply(200, ['job'=>$job]);
     }
+    if ($method === 'GET' && preg_match('~^/jobs/([1-9][0-9]*)/history$~D',(string)$path,$m)) {
+        $history = alpha_mike_job_history($db,$ctx,(int)$m[1]);
+        if ($history === null) reply(404,['error'=>'Not found.']);
+        reply(200,['history'=>$history]);
+    }
     if ($method === 'POST') {
         alpha_check_csrf((string)($_POST['csrf'] ?? ''));
         if ($path === '/feedback') {

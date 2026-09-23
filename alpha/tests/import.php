@@ -21,6 +21,7 @@ $m->execute([$other,$owner]);
 
 $inventory = alpha_mike_inventory($source);
 if ($inventory['core_counts']['work_jobs'] !== 1 || $inventory['deferred_rows'] !== 2) throw new RuntimeException('Inventory missed deferred data.');
+if ((float)$inventory['source_totals']['payments_amount'] !== 100.0) throw new RuntimeException('Source payment total wrong.');
 $done = alpha_import_mike_core($source,$target,$business);
 if ($done['deferred_rows'] !== 2) throw new RuntimeException('Partial status was hidden.');
 $q = $target->prepare("SELECT target_id FROM alpha_legacy_links WHERE business_id=? AND entity='job' AND source_id=91");
@@ -29,10 +30,13 @@ $jobId = (int)$q->fetchColumn();
 $job = alpha_job($target,$business,$jobId);
 if (!$job || $job['status'] !== 'paused' || (int)$job['mike_job_id'] !== 91 || $job['original_scope'] === '' || $job['media_archive_url'] === '') throw new RuntimeException('Imported job detail missing.');
 if (alpha_job($target,$other,$jobId) !== null) throw new RuntimeException('Other business read Mike job.');
+if (alpha_mike_job_history($target,['business_id'=>$other,'role'=>'owner'],$jobId) !== null) throw new RuntimeException('Other business read Mike history.');
+$history = alpha_mike_job_history($target,['business_id'=>$business,'role'=>'owner'],$jobId);
+if (count($history['tasks']) !== 1 || count($history['sessions']) !== 1 || count($history['breaks']) !== 1 || count($history['materials']) !== 1 || count($history['payments']) !== 1 || (float)$history['payments'][0]['amount'] !== 100.0) throw new RuntimeException('Job history missing or altered.');
 if (alpha_mike_import_summary($target,['business_id'=>$other,'role'=>'owner']) !== null) throw new RuntimeException('Other business read import report.');
 $report = alpha_mike_import_summary($target,['business_id'=>$business,'role'=>'owner']);
-if ((int)$report['imported']['job'] !== 1 || (int)$report['inventory']['deferred_counts']['work_receipts'] !== 1) throw new RuntimeException('Reconciliation report incorrect.');
+if ((int)$report['imported']['job'] !== 1 || (int)$report['imported']['task'] !== 1 || (int)$report['inventory']['deferred_counts']['work_receipts'] !== 1) throw new RuntimeException('Reconciliation report incorrect.');
 try { alpha_import_mike_core($source,$target,$business); throw new RuntimeException('Repeat import accepted.'); }
 catch (RuntimeException $e) { if (!str_contains($e->getMessage(),'Destination is not empty')) throw $e; }
 if ((int)$source->query('SELECT COUNT(*) FROM work_jobs')->fetchColumn() !== 1) throw new RuntimeException('Source job changed.');
-echo "PASS: isolated core import, source IDs, partial inventory and repeat protection.\n";
+echo "PASS: isolated job history import, source IDs, partial inventory and repeat protection.\n";

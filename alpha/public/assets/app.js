@@ -112,9 +112,9 @@ document.addEventListener('click', async event => {
       updates.innerHTML = data.request.updates.length ? data.request.updates.map(x=>`<p><strong>${safe(x.author_label)}:</strong> ${safe(x.message)} <small>${safe(x.created_at)} UTC</small></p>`).join('') : '<p class="muted">No updates yet.</p>';
     }
     if (button.dataset.job) {
-      const data = await api('/jobs/'+encodeURIComponent(button.dataset.job));
-      const job = data.job;
-      $('job-detail-'+button.dataset.job).innerHTML = `<p>${job.mike_job_id ? 'Mike job #'+safe(job.mike_job_id)+' · ' : ''}Customer #${safe(job.customer_id)} · Property #${safe(job.property_id)}</p>${job.original_scope ? `<p>Original scope: ${safe(job.original_scope)}</p>` : ''}${job.current_scope ? `<p>Current scope: ${safe(job.current_scope)}</p>` : ''}${job.planned_start_at ? `<p>Planned start: ${safe(job.planned_start_at)}</p>` : ''}`;
+      const [data,detail] = await Promise.all([api('/jobs/'+encodeURIComponent(button.dataset.job)),api('/jobs/'+encodeURIComponent(button.dataset.job)+'/history')]);
+      const job = data.job, h = detail.history;
+      $('job-detail-'+button.dataset.job).innerHTML = `<p>${job.mike_job_id ? 'Mike job #'+safe(job.mike_job_id)+' · ' : ''}Customer #${safe(job.customer_id)} · Property #${safe(job.property_id)}</p>${job.original_scope ? `<p>Original scope: ${safe(job.original_scope)}</p>` : ''}${job.current_scope ? `<p>Current scope: ${safe(job.current_scope)}</p>` : ''}${job.planned_start_at ? `<p>Planned start: ${safe(job.planned_start_at)}</p>` : ''}<h4>Tasks (${h.tasks.length})</h4>` + h.tasks.map(x=>`<p>${safe(x.title)} · ${safe(x.status)}${x.description ? ' · '+safe(x.description):''}</p>`).join('') + `<h4>Recorded sessions (${h.sessions.length})</h4>` + h.sessions.map(x=>`<p>${safe(x.started_at)} – ${safe(x.ended_at || 'open')} · ${safe(x.category)}${x.notes ? ' · '+safe(x.notes):''}</p>`).join('') + `<h4>Breaks (${h.breaks.length})</h4>` + h.breaks.map(x=>`<p>${safe(x.started_at)} – ${safe(x.ended_at || 'open')} · ${safe(x.reason)}</p>`).join('') + `<h4>Materials (${h.materials.length})</h4>` + h.materials.map(x=>`<p>${safe(x.description)} · A$${safe(x.cost)} · ${safe(x.paid_by)}</p>`).join('') + `<h4>Payments (${h.payments.length})</h4>` + h.payments.map(x=>`<p>${safe(x.paid_at)} · A$${safe(x.amount)} · ${safe(x.payment_type)}</p>`).join('');
     }
     if (button.id === 'logout') { await api('/logout',{}); notice('Signed out.'); await refreshSession(); }
     if (button.dataset.disable) {

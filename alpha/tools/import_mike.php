@@ -23,11 +23,11 @@ try {
         alpha_mike_target_check($target,$businessId);
         $report = alpha_mike_inventory($source);
         echo json_encode($report,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)."\n";
-        if ($report['invalid_properties'] || $report['invalid_jobs']) exit(3);
+        if ($report['invalid_properties'] || $report['invalid_jobs'] || array_sum($report['invalid_relations'])) exit(3);
         echo "PLAN ONLY. Deferred tables remain in Mike's source database; this is not a full migration.\n";
     } else {
         $report = alpha_import_mike_core($source,$target,$businessId);
         echo json_encode($report,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)."\n";
-        echo "Core import committed. Source unchanged. Deferred records and file uploads still require migration.\n";
+        echo "Historical import committed. Source unchanged. Deferred records and file uploads still require migration.\n";
     }
 } catch (Throwable $e) { fwrite(STDERR,"IMPORT STOPPED: ".$e->getMessage()."\n"); exit(1); }
