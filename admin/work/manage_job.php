@@ -3918,6 +3918,31 @@ function wb_hours(float $hours): string {
     setInterval(updateTimers,1000);
 })();
 </script>
+
+<script>
+/* V10.1.2: reliably reveal the Add Task form from job-page shortcuts. */
+(() => {
+    'use strict';
+
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has('add_task')) return;
+
+    window.addEventListener('load', () => {
+        window.setTimeout(() => {
+            const addTask = document.getElementById('add-task');
+            if (!addTask) return;
+
+            addTask.open = true;
+            addTask.scrollIntoView({behavior: 'smooth', block: 'start'});
+
+            const title = addTask.querySelector('input[name="title"]');
+            if (title) {
+                window.setTimeout(() => title.focus({preventScroll: true}), 350);
+            }
+        }, 250);
+    });
+})();
+</script>
 <script>
 document.querySelectorAll('form[action*="stop_session.php"]').forEach(form=>{
  const fields=form.querySelector('.earlier-stop-fields'),input=form.querySelector('[name="stopped_at"]'),preview=form.querySelector('.earlier-stop-preview');

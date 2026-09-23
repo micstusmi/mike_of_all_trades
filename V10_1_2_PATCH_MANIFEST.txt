@@ -1,0 +1,4 @@
+admin/work/manage_job.php
+includes/admin_nav.php
+README_INSTALL_V10_1_2_ADD_TASK.txt
+V10_1_2_PATCH_MANIFEST.txt
