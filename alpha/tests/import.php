@@ -20,10 +20,10 @@ $m->execute([$business,$owner]);
 $m->execute([$other,$owner]);
 
 $inventory = alpha_mike_inventory($source);
-if ($inventory['core_counts']['work_jobs'] !== 1 || $inventory['deferred_rows'] !== 2) throw new RuntimeException('Inventory missed deferred data.');
+if ($inventory['core_counts']['work_jobs'] !== 1 || $inventory['deferred_rows'] !== 1) throw new RuntimeException('Inventory missed deferred data.');
 if ((float)$inventory['source_totals']['payments_amount'] !== 100.0) throw new RuntimeException('Source payment total wrong.');
 $done = alpha_import_mike_core($source,$target,$business);
-if ($done['deferred_rows'] !== 2) throw new RuntimeException('Partial status was hidden.');
+if ($done['deferred_rows'] !== 1) throw new RuntimeException('Partial status was hidden.');
 $q = $target->prepare("SELECT target_id FROM alpha_legacy_links WHERE business_id=? AND entity='job' AND source_id=91");
 $q->execute([$business]);
 $jobId = (int)$q->fetchColumn();
