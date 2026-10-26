@@ -415,6 +415,14 @@ fbq('track', 'PageView');
             No thanks, I'll look around
         </button>
 
+        <button id="mot-ai-snooze" type="button"
+                class="btn btn-link w-100 text-secondary"
+                style="font-size:14px;min-height:44px">
+            Don't show for 30 days
+        </button>
+        <p id="mot-ai-preference-status" class="small text-secondary mb-0"
+           role="status" hidden></p>
+
     </div>
 
 </div>
@@ -456,6 +464,22 @@ document.addEventListener('DOMContentLoaded', function () {
      */
 
     const POPUP_DELAY = 10000;
+    const SNOOZE_KEY = 'motAiPopupSnoozeUntil';
+    const SNOOZE_DAYS = 30;
+
+    // A blocked storage API must never break the concierge's normal controls.
+    function sessionRead(key) {
+        try { return sessionStorage.getItem(key); } catch (_) { return null; }
+    }
+    function sessionWrite(key, value) {
+        try { sessionStorage.setItem(key, value); } catch (_) { /* Visit only. */ }
+    }
+    function isSnoozed() {
+        try {
+            const until = Number(localStorage.getItem(SNOOZE_KEY));
+            return Number.isFinite(until) && until > Date.now();
+        } catch (_) { return false; }
+    }
 
 
     /*
@@ -466,6 +490,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const button       = document.getElementById('mot-ai-button');
     const closeButton  = document.getElementById('mot-ai-close');
     const notNowButton = document.getElementById('mot-ai-not-now');
+    const snoozeButton = document.getElementById('mot-ai-snooze');
+    const preferenceStatus = document.getElementById('mot-ai-preference-status');
 
     const helpButton         = document.getElementById('mot-ai-help');
     const quoteButton        = document.getElementById('mot-ai-quote');
@@ -607,7 +633,7 @@ document.addEventListener('DOMContentLoaded', function () {
              * timer fired, don't pop it at them again.
              */
 
-            sessionStorage.setItem('motAiPopupShown', '1');
+            sessionWrite('motAiPopupShown', '1');
         }
 
     });
@@ -627,7 +653,7 @@ document.addEventListener('DOMContentLoaded', function () {
          * Don't automatically pop up again during this visit.
          */
 
-        sessionStorage.setItem('motAiPopupDismissed', '1');
+        sessionWrite('motAiPopupDismissed', '1');
 
     });
 
@@ -642,10 +668,29 @@ document.addEventListener('DOMContentLoaded', function () {
 
         closePopup();
 
-        sessionStorage.setItem('motAiPopupDismissed', '1');
+        sessionWrite('motAiPopupDismissed', '1');
 
     });
 
+
+    if (snoozeButton) {
+        snoozeButton.addEventListener('click', function () {
+            try {
+                const until = String(Date.now() + SNOOZE_DAYS * 24 * 60 * 60 * 1000);
+                localStorage.setItem(SNOOZE_KEY, until);
+                if (localStorage.getItem(SNOOZE_KEY) !== until) throw new Error('Not saved');
+            } catch (_) {
+                if (preferenceStatus) {
+                    preferenceStatus.hidden = false;
+                    preferenceStatus.textContent = "Your browser couldn't save this choice. Use × to close for now.";
+                }
+                return;
+            }
+            sessionWrite('motAiPopupDismissed', '1');
+            closePopup();
+            button.focus();
+        });
+    }
 
     /*
      * =====================================================
@@ -751,46 +796,49 @@ document.addEventListener('DOMContentLoaded', function () {
 
     /*
      * =====================================================
-     * AUTOMATIC 20 SECOND INVITATION
+     * AUTOMATIC 10 SECOND INVITATION
      * =====================================================
      *
      * sessionStorage means it appears once during this
      * browser-tab session rather than repeatedly appearing
-     * as the customer moves between pages.
+     * as the customer moves between pages. A separate local preference
+     * suppresses automatic invitations for 30 days across visits.
+     * The permanent Ask AI button always remains available.
      */
 
     const dismissed =
-        sessionStorage.getItem('motAiPopupDismissed') === '1';
+        sessionRead('motAiPopupDismissed') === '1';
 
     const alreadyShown =
-        sessionStorage.getItem('motAiPopupShown') === '1';
+        sessionRead('motAiPopupShown') === '1';
 
 
-    if (!dismissed && !alreadyShown) {
+    if (!dismissed && !alreadyShown && !isSnoozed()) {
 
         setTimeout(function () {
 
             /*
              * They might have manually opened or dismissed
-             * it during the 20 seconds.
+             * it during the delay, including in another tab.
              */
 
             const nowDismissed =
-                sessionStorage.getItem('motAiPopupDismissed') === '1';
+                sessionRead('motAiPopupDismissed') === '1';
 
             const nowShown =
-                sessionStorage.getItem('motAiPopupShown') === '1';
+                sessionRead('motAiPopupShown') === '1';
 
 
             if (
                 !popupOpen &&
                 !nowDismissed &&
-                !nowShown
+                !nowShown &&
+                !isSnoozed()
             ) {
 
                 openPopup();
 
-                sessionStorage.setItem(
+                sessionWrite(
                     'motAiPopupShown',
                     '1'
                 );
