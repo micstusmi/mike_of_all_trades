@@ -3,8 +3,8 @@
 import argparse,contextlib,fcntl,hashlib,json,os,re,stat,subprocess,tempfile,urllib.request
 from pathlib import Path
 DOMAIN='mikeofalltrades.com.au'
-INDEX_SHA='87e488da6eb5b1aca43d20a5c96dec12e7abc316eccfc3e2fd3968371f1940f0'
-PREVIOUS_SHA='5abf7a1c94f0c7d4ff7c346b18f4f1bdb865d86e9d43ac4ded98c8ea64256c26'
+INDEX_SHA='4d30deb50f7ce76c1a7e6717d1fc74795f8e835ba3a1d353f59092d04d0caf66'
+PREVIOUS_SHA='87e488da6eb5b1aca43d20a5c96dec12e7abc316eccfc3e2fd3968371f1940f0'
 
 def need(ok,message):
     if not ok:raise RuntimeError(message)
