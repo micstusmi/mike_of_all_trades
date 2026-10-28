@@ -3,8 +3,8 @@
 import argparse,contextlib,fcntl,hashlib,json,os,re,stat,subprocess,tempfile,urllib.request
 from pathlib import Path
 DOMAIN='mikeofalltrades.com.au'
-INDEX_SHA='5abf7a1c94f0c7d4ff7c346b18f4f1bdb865d86e9d43ac4ded98c8ea64256c26'
-PREVIOUS_SHA='40ab99d844508f0d48f358285b56baed5fb69ff827825f2c886139cc70d37cac'
+INDEX_SHA='87e488da6eb5b1aca43d20a5c96dec12e7abc316eccfc3e2fd3968371f1940f0'
+PREVIOUS_SHA='5abf7a1c94f0c7d4ff7c346b18f4f1bdb865d86e9d43ac4ded98c8ea64256c26'
 
 def need(ok,message):
     if not ok:raise RuntimeError(message)
@@ -72,6 +72,7 @@ def install(commit):
             page=run(['curl','-fsS','--max-time','25','https://'+DOMAIN+'/gallery/'])
             need(b'moat-gallery-demo' in page and page.count(b'<iframe ')==4,'Gallery page did not render the four image galleries.')
             need(b'<?php' not in page,'PHP source was not executed.')
+            need(all(b'<h2>'+heading+b'</h2>' in page for heading in [b'Slideshow',b'Carousel',b'Thumbnails',b'Gallery']),'Gallery section headings missing.')
             # The original header includes the sidebar; include_once avoids duplicating it.
             need(page.count(b'class="sidebar shadow-sm"')==1 and b'footer-section' in page,'Original sidebar/footer did not render once.')
             need(b'navbar' in page,'Original header navigation missing.')
