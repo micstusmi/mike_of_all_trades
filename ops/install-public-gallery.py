@@ -3,7 +3,7 @@
 import argparse,contextlib,fcntl,hashlib,json,os,re,stat,subprocess,tempfile,urllib.request
 from pathlib import Path
 DOMAIN='mikeofalltrades.com.au'
-INDEX_SHA='b0ed1f333f084e4bd0cf431fd0ca54dc5f412da3c1c1e0a9a8bfbe64b04144b1'
+INDEX_SHA='40ab99d844508f0d48f358285b56baed5fb69ff827825f2c886139cc70d37cac'
 
 def need(ok,message):
     if not ok:raise RuntimeError(message)
@@ -43,8 +43,8 @@ def install(commit):
     original_hashes={str(p):digest(p.read_bytes()) for p in guarded}
     home=run(['curl','-fsS','--max-time','25','https://'+DOMAIN+'/'])
     frame_allowed(run(['curl','-fsSI','--max-time','25','https://'+DOMAIN+'/']).decode())
-    endpoint=run(['curl','-fsS','--max-time','25','https://eztradie.com.au/gallery-embed.php?inbox=mike-of-all-trades&view=slideshow&secondary=thumbnails'])
-    need(endpoint.count(b'data-gallery-embed')==2,'Install the ezBusiness gallery endpoint first.')
+    endpoint=run(['curl','-fsS','--max-time','25','https://eztradie.com.au/gallery-embed.php?inbox=mike-of-all-trades&view=slideshow'])
+    need(endpoint.count(b'data-gallery-embed')==1,'Install the ezBusiness gallery endpoint first.')
     url='https://raw.githubusercontent.com/micstusmi/mike_of_all_trades/'+commit+'/gallery/index.php'
     with urllib.request.urlopen(url,timeout=30) as response:data=response.read(256*1024+1)
     need(len(data)<=256*1024 and digest(data)==INDEX_SHA,'Website source checksum differs.')
@@ -77,8 +77,8 @@ def install(commit):
             frame_allowed(run(['curl','-fsSI','--max-time','25','https://'+DOMAIN+'/gallery/']).decode())
             run(['curl','-fsS','--max-time','25','https://'+DOMAIN+'/'])
             need(original_hashes=={str(p):digest(p.read_bytes()) for p in guarded},'Original templates, homepage or rewrite source changed.')
-            combined=run(['curl','-fsS','--max-time','25','https://'+DOMAIN+'/gallery/?first=carousel&second=feed&order=shuffle'])
-            need(b'view=carousel&amp;secondary=feed&amp;order=shuffle' in combined,'Combination builder did not render.')
+            combined=run(['curl','-fsS','--max-time','25','https://'+DOMAIN+'/gallery/?view=carousel&order=shuffle'])
+            need(b'view=carousel&amp;order=shuffle' in combined,'Independent embed builder did not render.')
         except BaseException:
             if previous is None:(folder/'index.php').unlink(missing_ok=True)
             else:atomic(folder/'index.php',previous)
@@ -86,7 +86,7 @@ def install(commit):
             raise
         atomic(backup/'installed.json',json.dumps({'commit':commit,'index_sha256':INDEX_SHA,'original_sources_preserved':True},sort_keys=True).encode(),0o600)
         print('LIVE: https://'+DOMAIN+'/gallery/')
-        print('PASS: four examples, one/two-section builder, original header/sidebar/footer/homepage/rewrite sources preserved.')
+        print('PASS: four examples, independent embed builder, original header/sidebar/footer/homepage/rewrite sources preserved.')
         print('BACKUP:',backup)
 if __name__=='__main__':
     parser=argparse.ArgumentParser();parser.add_argument('--commit',required=True);args=parser.parse_args()
