@@ -20,7 +20,7 @@ $first=is_string($_GET['first']??null)&&isset($types[$_GET['first']])?$_GET['fir
 $second=is_string($_GET['second']??null)&&isset($types[$_GET['second']])&&$_GET['second']!==$first?$_GET['second']:'';
 $order=($_GET['order']??'newest')==='shuffle'?'shuffle':'newest';
 $paired=($_GET['pair']??'1')==='1';$auto=($_GET['autoplay']??'0')==='1';
-require $templates['header'];require $templates['sidebar'];
+require_once $templates['header'];require_once $templates['sidebar'];
 ?>
 <main class="moat-gallery-demo">
 <style>
@@ -44,4 +44,4 @@ require $templates['header'];require $templates['sidebar'];
 </section>
 <details><summary>Gallery help</summary><p>Only published photos are shown. Select a photo to enlarge it inside the gallery. Newest first keeps recent work at the top; shuffle changes the order on each new visit or refresh. Autoplay pauses while you interact with the gallery. Each iframe can use its own combination and settings.</p></details>
 </main>
-<?php require $templates['footer']; ?>
+<?php require_once $templates['footer']; ?>
