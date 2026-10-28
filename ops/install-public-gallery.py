@@ -3,7 +3,8 @@
 import argparse,contextlib,fcntl,hashlib,json,os,re,stat,subprocess,tempfile,urllib.request
 from pathlib import Path
 DOMAIN='mikeofalltrades.com.au'
-INDEX_SHA='40ab99d844508f0d48f358285b56baed5fb69ff827825f2c886139cc70d37cac'
+INDEX_SHA='5abf7a1c94f0c7d4ff7c346b18f4f1bdb865d86e9d43ac4ded98c8ea64256c26'
+PREVIOUS_SHA='40ab99d844508f0d48f358285b56baed5fb69ff827825f2c886139cc70d37cac'
 
 def need(ok,message):
     if not ok:raise RuntimeError(message)
@@ -60,7 +61,7 @@ def install(commit):
         previous=None
         if (folder/'index.php').exists():
             index=folder/'index.php';need(not index.is_symlink() and index.stat().st_nlink==1,'Unexpected gallery file.')
-            previous=index.read_bytes();need(digest(previous)==INDEX_SHA,'An unrelated gallery page already exists; left unchanged.')
+            previous=index.read_bytes();need(digest(previous) in (INDEX_SHA,PREVIOUS_SHA),'An unrelated gallery page already exists; left unchanged.')
         need(original_hashes=={str(p):digest(p.read_bytes()) for p in guarded},'Website source changed during preparation.')
         backup=Path('/var/backups/moat-gallery')/commit;backup.mkdir(parents=True,exist_ok=True,mode=0o700)
         before={'commit':commit,'document_root':str(root),'templates':original_hashes,'previous_hex':previous.hex() if previous is not None else None}
@@ -69,7 +70,7 @@ def install(commit):
         try:
             atomic(folder/'index.php',data)
             page=run(['curl','-fsS','--max-time','25','https://'+DOMAIN+'/gallery/'])
-            need(b'moat-gallery-demo' in page and page.count(b'<iframe ')==5,'Gallery page did not render the four examples and builder.')
+            need(b'moat-gallery-demo' in page and page.count(b'<iframe ')==4,'Gallery page did not render the four image galleries.')
             need(b'<?php' not in page,'PHP source was not executed.')
             # The original header includes the sidebar; include_once avoids duplicating it.
             need(page.count(b'class="sidebar shadow-sm"')==1 and b'footer-section' in page,'Original sidebar/footer did not render once.')
@@ -77,8 +78,8 @@ def install(commit):
             frame_allowed(run(['curl','-fsSI','--max-time','25','https://'+DOMAIN+'/gallery/']).decode())
             run(['curl','-fsS','--max-time','25','https://'+DOMAIN+'/'])
             need(original_hashes=={str(p):digest(p.read_bytes()) for p in guarded},'Original templates, homepage or rewrite source changed.')
-            combined=run(['curl','-fsS','--max-time','25','https://'+DOMAIN+'/gallery/?view=carousel&order=shuffle'])
-            need(b'view=carousel&amp;order=shuffle' in combined,'Independent embed builder did not render.')
+            gallery=re.search(rb'<main class="moat-gallery-demo">(.*?)</main>',page,re.S)
+            need(gallery is not None and b'<h1>Latest work</h1>' in gallery[1] and not any(x in gallery[1] for x in [b'Copy this',b'Customise an embed',b'<textarea',b'<select',b'Four ways']),'Public gallery still contains setup or explanatory panels.')
         except BaseException:
             if previous is None:(folder/'index.php').unlink(missing_ok=True)
             else:atomic(folder/'index.php',previous)
@@ -86,7 +87,7 @@ def install(commit):
             raise
         atomic(backup/'installed.json',json.dumps({'commit':commit,'index_sha256':INDEX_SHA,'original_sources_preserved':True},sort_keys=True).encode(),0o600)
         print('LIVE: https://'+DOMAIN+'/gallery/')
-        print('PASS: four examples, independent embed builder, original header/sidebar/footer/homepage/rewrite sources preserved.')
+        print('PASS: four image galleries, no setup panels, original header/sidebar/footer/homepage/rewrite sources preserved.')
         print('BACKUP:',backup)
 if __name__=='__main__':
     parser=argparse.ArgumentParser();parser.add_argument('--commit',required=True);args=parser.parse_args()
